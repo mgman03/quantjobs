@@ -2,6 +2,9 @@
 """
 quantjobs — scrape internship / graduate postings from quant firm job boards.
 
+Author:  Mykhaylo Gershman <mgershman@ethz.ch>
+License: MIT (see LICENSE)
+
 Zero dependencies: standard library only.
 
   ./quantjobs.py scrape --category swe

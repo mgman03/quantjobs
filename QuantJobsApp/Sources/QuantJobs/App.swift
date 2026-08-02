@@ -1,3 +1,8 @@
+//  QuantJobs — a native macOS front end for the quantjobs scraper.
+//
+//  Author:  Mykhaylo Gershman <mgershman@ethz.ch>
+//  License: MIT (see LICENSE)
+
 import SwiftUI
 import AppKit
 

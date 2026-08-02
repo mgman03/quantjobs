@@ -352,3 +352,9 @@ cd ~/Desktop/quant-internships && ./quantjobs.py scrape -c swe --new-only -f md 
 ```
 
 Empty output means nothing new since last run.
+
+## Author
+
+Mykhaylo Gershman — <mgershman@ethz.ch>
+
+MIT licensed; see [LICENSE](LICENSE).
