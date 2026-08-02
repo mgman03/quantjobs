@@ -71,13 +71,15 @@ Examples:
 
 Supported `ats` values: `greenhouse`, `lever`, `ashby`, `smartrecruiters`,
 `workday`, `amazon`, `eightfold`, `jibe`, `uber`, `wolverine`, `citadel`,
-`optiver`, `twosigma`.
+`optiver`, `twosigma`, `simplify`.
 
 The last four came from firms with no ATS at all. `eightfold` (Netflix) and `jibe`
 (SIG, AMD) are hosted platforms taking `host` — and `tenant` for Eightfold — so they
 work for any firm on them. `uber` and `wolverine` are one-firm APIs with nothing to
-configure. `citadel` (Citadel and Citadel Securities) is the one adapter that reads
-HTML rather than JSON — their careers site is server-rendered WordPress with the REST
+configure. `simplify` reads the community internship feed for firms with no board of
+their own, matching on `query` (the exact company name) and taking an optional `host`
+to point at a different season's file. `citadel` (Citadel and Citadel Securities) is
+one of two adapters that read HTML rather than JSON — `optiver` is the other — their careers site is server-rendered WordPress with the REST
 API switched off, so there is no JSON to ask for. It takes a `host`.
 
 Workday needs `host` / `tenant` / `site` instead of `token`:
@@ -160,9 +162,26 @@ Optiver · Palantir · Point72 · Qube RT · Radix Trading · SIG ·
 Squarepoint Capital · Stripe · Tower Research · Two Sigma · Virtu Financial ·
 XTX Markets
 
-Only 4 are still unreachable: Apple, Google, Meta, Microsoft. Apple, Google, Meta and
-Microsoft all need a browser session token; Two Sigma renders its listings client-side
-with no endpoint in the page or its bundles.
+All 31 now have a source, but not all sources are equal — see below. Four of them — Apple, Google, Meta and Microsoft — publish
+nothing a script can read: their own endpoints need a browser session, their sitemaps
+return the single-page-app shell or 403, and no ATS sits in front of them. Those four
+come from the [Simplify / Pitt CSC community internship feed][simplify] instead, which
+links to each firm's own application page. It's second-hand and internships-only, so
+treat it as a lead rather than the firm's board.
+
+[simplify]: https://github.com/SimplifyJobs/Summer2027-Internships
+
+I cross-checked that feed against the firms' own sites rather than assuming it works:
+
+| firm | links resolve? | freshness | verdict |
+|---|---|---|---|
+| Apple | 3/3 return 200, page titles match the role | 12 listings, ~72 days | works |
+| Microsoft | verified, page title matches exactly | 1 listing, ~75 days | works but thin |
+| Google | 200, but the pages are client-rendered so the role can't be confirmed | 3 listings, ~13 days | plausible, unverified |
+| Meta | metacareers.com returns 400 to scripts | 9 of 14 over 90 days | leads only |
+
+Each firm's entry in `companies.json` records its own verdict, so the caveat travels
+with the data rather than living only here.
 
 **Tier 2 (81 live)** — strong, well-regarded, on by default:
 

@@ -24,6 +24,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -412,6 +413,35 @@ CITADEL_CARD = re.compile(
 CITADEL_LOC = re.compile(r'careers-listing-card__location"\s*>\s*([^<]*)')
 CITADEL_TOTAL = re.compile(r'class="total-post"[^>]*>(\d+)<')
 
+# Both Citadel boards sit behind one Cloudflare tenant, so with eight workers
+# running they throttle each other into 403s. One request at a time, paced.
+_CITADEL_GATE = threading.Lock()
+_CITADEL_LAST = [0.0]
+
+
+def citadel_get(url: str) -> str:
+    with _CITADEL_GATE:
+        gap = time.monotonic() - _CITADEL_LAST[0]
+        if gap < 1.2:
+            time.sleep(1.2 - gap)
+        try:
+            raw = http(url, headers=BROWSER_HEADERS)
+        except FetchError as e:
+            if "403" not in str(e):
+                raise
+            for wait in (6, 15):
+                time.sleep(wait)
+                try:
+                    raw = http(url, headers=BROWSER_HEADERS)
+                    break
+                except FetchError:
+                    continue
+            else:
+                raise
+        _CITADEL_LAST[0] = time.monotonic()
+        return raw.decode("utf-8", "replace")
+
+
 # Cloudflare in front of it wants a browser-shaped request.
 BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -434,25 +464,7 @@ def fetch_citadel(c: dict, deep: bool) -> list[dict]:
         url = (f"https://{host}/careers/open-opportunities/"
                if page == 1 else
                f"https://{host}/careers/open-opportunities/page/{page}/")
-        # Cloudflare throttles bursts, and http() treats 4xx as final — so
-        # pace the pages and give a 403 one second chance.
-        if page > 1:
-            time.sleep(0.8)
-        try:
-            html = http(url, headers=BROWSER_HEADERS).decode("utf-8", "replace")
-        except FetchError as e:
-            if "403" not in str(e):
-                raise
-            # Cloudflare rate-limits bursts; back off further and try twice more.
-            for wait in (5, 12):
-                time.sleep(wait)
-                try:
-                    html = http(url, headers=BROWSER_HEADERS).decode("utf-8", "replace")
-                    break
-                except FetchError:
-                    continue
-            else:
-                raise
+        html = citadel_get(url)
         if total is None:
             m = CITADEL_TOTAL.search(html)
             total = int(m.group(1)) if m else 0
@@ -566,6 +578,50 @@ def fetch_twosigma(c: dict, deep: bool) -> list[dict]:
     return out
 
 
+SIMPLIFY_URL = ("https://raw.githubusercontent.com/SimplifyJobs/"
+                "Summer2027-Internships/dev/.github/scripts/listings.json")
+_SIMPLIFY_CACHE: dict[str, list] = {}
+
+
+def fetch_simplify(c: dict, deep: bool) -> list[dict]:
+    """Community internship feed, for firms with no reachable board of their own.
+
+    Apple, Google, Meta and Microsoft publish nothing a script can read, but
+    Simplify and the Pitt CS Club maintain a public listings.json that covers
+    them, with links straight to each firm's own application page.
+
+    Second-hand by nature: it's internships only, and its freshness depends on
+    that project rather than on the firm. `query` is the exact company name;
+    `host` overrides the feed URL when the season's repo rolls over.
+    """
+    url = c.get("host") or SIMPLIFY_URL
+    if url not in _SIMPLIFY_CACHE:
+        # One download serves every firm using this source in a run.
+        _SIMPLIFY_CACHE[url] = http_json(url)
+    listings = _SIMPLIFY_CACHE[url]
+    if not isinstance(listings, list):
+        raise FetchError("unexpected Simplify payload")
+
+    wanted = (c.get("query") or c["name"]).strip().lower()
+    out = []
+    for j in listings:
+        if not j.get("active", True) or not j.get("is_visible", True):
+            continue
+        if (j.get("company_name") or "").strip().lower() != wanted:
+            continue
+        out.append({
+            "title": j.get("title", ""),
+            "location": "; ".join(j.get("locations") or []),
+            "url": j.get("url", ""),
+            "posted": epoch_date(j.get("date_posted")),
+            "department": j.get("category", "") or "",
+            "description": "",
+        })
+    if not out:
+        raise FetchError(f"no '{wanted}' listings in the Simplify feed")
+    return out
+
+
 ADAPTERS = {
     "greenhouse": fetch_greenhouse,
     "lever": fetch_lever,
@@ -580,6 +636,7 @@ ADAPTERS = {
     "citadel": fetch_citadel,
     "optiver": fetch_optiver,
     "twosigma": fetch_twosigma,
+    "simplify": fetch_simplify,
 }
 
 
@@ -1014,7 +1071,8 @@ def is_configured(c: dict) -> bool:
         return bool(c.get("host") and c.get("tenant"))
     if ats in ("jibe", "citadel"):
         return bool(c.get("host"))
-    if ats in ("amazon", "uber", "wolverine", "optiver", "twosigma"):
+    if ats in ("amazon", "uber", "wolverine", "optiver", "twosigma",
+               "simplify"):
         return True          # nothing to configure
     return bool(c.get("token"))
 

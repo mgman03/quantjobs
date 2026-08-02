@@ -30,6 +30,7 @@ enum Adapters {
         case .citadel:         try await citadel(c, deep: deep)
         case .optiver:         try await optiver(c, deep: deep)
         case .twosigma:        try await twoSigma(c, deep: deep)
+        case .simplify:        try await simplify(c, deep: deep)
         }
     }
 
@@ -338,7 +339,7 @@ enum Adapters {
     }
 
     /// Eightfold hands back seconds, not the milliseconds Lever uses.
-    private static func epochDate(_ v: Any?) -> String {
+    static func epochDate(_ v: Any?) -> String {
         guard let n = v as? NSNumber, n.doubleValue > 0 else { return "" }
         return Job.dateFormatter.string(
             from: Date(timeIntervalSince1970: n.doubleValue))
@@ -508,6 +509,68 @@ enum Adapters {
                     // The listing carries no date; only the detail pages do.
                     posted: "", department: "", description: "")
             }
+    }
+
+    // MARK: - Simplify community feed
+
+    /// A parsed row of the feed. Sendable so it can leave the cache actor —
+    /// the raw `[[String: Any]]` cannot.
+    struct SimplifyRow: Sendable {
+        var company: String
+        var job: RawJob
+    }
+
+    /// One 11 MB download shared by every firm using this source in a run.
+    private actor SimplifyFeed {
+        static let shared = SimplifyFeed()
+        private var cache: [String: [SimplifyRow]] = [:]
+
+        func rows(_ url: String) async throws -> [SimplifyRow] {
+            if let hit = cache[url] { return hit }
+            guard let list = try await HTTP.json(url) as? [[String: Any]] else {
+                throw FetchError.badPayload("unexpected Simplify payload")
+            }
+            let parsed = list.compactMap { j -> SimplifyRow? in
+                guard (j["active"] as? Bool) ?? true,
+                      (j["is_visible"] as? Bool) ?? true else { return nil }
+                return SimplifyRow(
+                    company: ((j["company_name"] as? String) ?? "")
+                        .trimmingCharacters(in: .whitespaces).lowercased(),
+                    job: RawJob(
+                        title: j["title"] as? String ?? "",
+                        location: (j["locations"] as? [String] ?? [])
+                            .joined(separator: "; "),
+                        url: j["url"] as? String ?? "",
+                        posted: Adapters.epochDate(j["date_posted"]),
+                        department: j["category"] as? String ?? "",
+                        description: ""))
+            }
+            cache[url] = parsed
+            return parsed
+        }
+    }
+
+    static let simplifyURL = "https://raw.githubusercontent.com/SimplifyJobs/"
+        + "Summer2027-Internships/dev/.github/scripts/listings.json"
+
+    /// Community internship feed, for firms with no reachable board of their own.
+    ///
+    /// Apple, Google, Meta and Microsoft publish nothing a script can read, but
+    /// Simplify and the Pitt CS Club maintain a public listings.json covering
+    /// them, linking straight to each firm's own application page.
+    ///
+    /// Second-hand by nature: internships only, and its freshness depends on
+    /// that project rather than on the firm.
+    static func simplify(_ c: Company, deep: Bool) async throws -> [RawJob] {
+        let url = (c.host?.isEmpty == false) ? c.host! : simplifyURL
+        let rows = try await SimplifyFeed.shared.rows(url)
+        let wanted = ((c.query?.isEmpty == false) ? c.query! : c.name)
+            .trimmingCharacters(in: .whitespaces).lowercased()
+        let out = rows.filter { $0.company == wanted }.map(\.job)
+        if out.isEmpty {
+            throw FetchError.badPayload("no '\(wanted)' listings in the Simplify feed")
+        }
+        return out
     }
 
     // MARK: - Two Sigma
