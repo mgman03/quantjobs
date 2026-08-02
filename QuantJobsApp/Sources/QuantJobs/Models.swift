@@ -4,7 +4,7 @@ import Foundation
 
 enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
     case greenhouse, lever, ashby, smartrecruiters, workday, amazon
-    case eightfold, jibe, uber, wolverine, citadel, optiver
+    case eightfold, jibe, uber, wolverine, citadel, optiver, twosigma
 
     var id: String { rawValue }
 
@@ -22,6 +22,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         case .wolverine: "wolve.com"
         case .citadel: "citadel.com"
         case .optiver: "optiver.com"
+        case .twosigma: "twosigma.com"
         }
     }
 
@@ -37,7 +38,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         // Eightfold and Jibe are hosted platforms addressed by hostname, so
         // they reuse the Workday-style host fields rather than a slug.
         case .workday, .eightfold, .jibe, .citadel: .workday
-        case .amazon, .uber, .wolverine, .optiver: .query
+        case .amazon, .uber, .wolverine, .optiver, .twosigma: .query
         default: .token
         }
     }
@@ -226,6 +227,16 @@ enum Level: String, CaseIterable, Identifiable, Sendable {
         case .newgrad: "New Grad"
         case .internOrNewgrad: "Intern or New Grad"
         case .any: "Any Level"
+        }
+    }
+
+    /// Short form, for the segmented control in the filter bar.
+    var shortLabel: String {
+        switch self {
+        case .intern: "Intern"
+        case .newgrad: "New Grad"
+        case .internOrNewgrad: "Both"
+        case .any: "Any"
         }
     }
 

@@ -1,6 +1,6 @@
 # quantjobs
 
-Scrapes internship / new-grad postings straight from firms' job-board APIs — 107 of
+Scrapes internship / new-grad postings straight from firms' job-board APIs — 108 of
 them, quant shops and big tech. Pick a category (`swe`, `quant-trading`,
 `quant-research`, …), pick which firms to watch, get a table or CSV.
 
@@ -71,7 +71,7 @@ Examples:
 
 Supported `ats` values: `greenhouse`, `lever`, `ashby`, `smartrecruiters`,
 `workday`, `amazon`, `eightfold`, `jibe`, `uber`, `wolverine`, `citadel`,
-`optiver`.
+`optiver`, `twosigma`.
 
 The last four came from firms with no ATS at all. `eightfold` (Netflix) and `jibe`
 (SIG, AMD) are hosted platforms taking `host` — and `tenant` for Eightfold — so they
@@ -147,7 +147,7 @@ happens to mention "sales" is still kept.
 
 ## Which firms are wired up
 
-**107 boards are live and verified**, out of 154 in the file. The roster is
+**108 boards are live and verified**, out of 154 in the file. The roster is
 ranked into tiers, and tier 3 ships switched off — the default run is the names worth
 opening first, not everything that happened to resolve.
 
@@ -160,7 +160,7 @@ Optiver · Palantir · Point72 · Qube RT · Radix Trading · SIG ·
 Squarepoint Capital · Stripe · Tower Research · Two Sigma · Virtu Financial ·
 XTX Markets
 
-Only 5 are still unreachable: Apple, Google, Meta, Microsoft, Two Sigma. Apple, Google, Meta and
+Only 4 are still unreachable: Apple, Google, Meta, Microsoft. Apple, Google, Meta and
 Microsoft all need a browser session token; Two Sigma renders its listings client-side
 with no endpoint in the page or its bundles.
 
@@ -214,9 +214,19 @@ you can use whichever suits the moment.
 
 ```bash
 cd QuantJobsApp
-./make-app.sh                     # → ~/Applications/QuantJobs.app
-swift run QuantJobs               # or just run it from the terminal
+./make-dmg.sh          # → QuantJobs.dmg, drag-to-Applications installer
+./make-app.sh          # → installs straight to /Applications and reveals it
+swift run QuantJobs    # or just run it from the checkout
 ```
+
+`make-app.sh` installs to `/Applications` (falling back to `~/Applications` if that
+isn't writable), registers the bundle with Launch Services so Spotlight and Finder pick
+it up, and opens a Finder window with it selected. `make-dmg.sh` produces the disk
+image you'd hand to someone else.
+
+Because the app is signed ad-hoc rather than notarised, the first launch needs
+**right-click → Open** once; double-clicking gets blocked by Gatekeeper. The DMG says
+so in a read-me alongside the app.
 
 - Categories in the sidebar; an **All / Quant / Big Tech** switch above the results
   that narrows both what's on screen and which boards the next scrape hits.
@@ -232,6 +242,11 @@ swift run QuantJobs               # or just run it from the terminal
   came from, how many boards each, and anything that failed. Choosing *which* firms to
   scrape is the Firms tree in the sidebar; adding or editing a board is Scrape ▸ Manage
   Boards.
+- **Level and firm-group switches sit together above the table**, and changing either
+  (or the category) re-runs the scrape automatically after a short pause, so the list
+  matches the controls without you pressing ⌘R.
+- **The detail panel appears when you select a role** and gets out of the way when you
+  don't have one, instead of permanently taking a third of the window.
 - **Remembers how you left it.** Category, level, the All/Quant/Big Tech switch, every
   filter (continent, city, tag, location, date window), the toggles, which list you
   were on and whether the detail panel was open all come back on the next launch.
@@ -273,11 +288,18 @@ The icon is generated, not checked in as a binary blob: `Icon/make-icon.swift` d
 every size natively with Core Graphics, and `make-app.sh` builds the `.icns` on first
 run.
 
-By default it reads the config next to `quantjobs.py`. Point it somewhere else with:
+By default it finds the config by walking up from the binary until it hits a
+`companies.json` — so a `swift run` in the checkout, or a `.app` built into it, shares
+one folder with the CLI and nothing is hardcoded. Override it with either:
 
 ```bash
-defaults write QuantJobs configDirectory /path/to/config
+export QUANTJOBS_CONFIG=/path/to/checkout          # per-run
+defaults write QuantJobs configDirectory /path/to/checkout   # persistent
 ```
+
+A `.app` installed outside the checkout (which is what `make-app.sh` does by default)
+won't find it that way, so point it with one of the above or let it fall back to
+`~/Library/Application Support/QuantJobs`, which it seeds from its bundled copy.
 
 **First launch:** because that config lives under `~/Desktop`, macOS will ask whether
 QuantJobs may read the folder. Click Allow, or the board list stays empty. The window
@@ -348,7 +370,7 @@ The CLI reads the same file:
 ### Run it daily
 
 ```bash
-cd ~/Desktop/quant-internships && ./quantjobs.py scrape -c swe --new-only -f md -o new.md
+cd /path/to/quantjobs && ./quantjobs.py scrape -c swe --new-only -f md -o new.md
 ```
 
 Empty output means nothing new since last run.

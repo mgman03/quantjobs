@@ -6,8 +6,27 @@ enum ConfigStore {
 
     static let dirDefaultsKey = "configDirectory"
 
-    /// Where the CLI lives, if the user kept it in the default spot.
-    static var cliDirectory: URL {
+    /// The checkout this binary is running from, found by walking up from the
+    /// executable until a `companies.json` turns up.
+    ///
+    /// This used to be hardcoded to ~/Desktop/quant-internships, which only
+    /// worked on the machine it was written on — anyone cloning the repo
+    /// somewhere else got a folder that didn't exist.
+    static var repoDirectory: URL? {
+        var dir = Bundle.main.bundleURL.resolvingSymlinksInPath()
+        // .build/debug/QuantJobs, or QuantJobs.app/Contents/MacOS — either way
+        // the checkout is a few levels up if we're running from one.
+        for _ in 0..<6 {
+            dir.deleteLastPathComponent()
+            if dir.path == "/" { break }
+            let candidate = dir.appendingPathComponent("companies.json")
+            if FileManager.default.fileExists(atPath: candidate.path) { return dir }
+        }
+        return nil
+    }
+
+    /// Legacy location this tool shipped with. Only used if it's actually there.
+    private static var legacyDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Desktop/quant-internships")
     }
@@ -22,18 +41,28 @@ enum ConfigStore {
     /// the real save paths without writing over the user's config.
     nonisolated(unsafe) static var directoryOverride: URL?
 
-    /// Resolution order: a process override, then an explicit user choice, else
-    /// the CLI folder if it's already there (so both tools stay in sync), else
-    /// Application Support.
+    /// Resolution order, most explicit first:
+    ///   1. a process override (the headless checks)
+    ///   2. $QUANTJOBS_CONFIG
+    ///   3. whatever the user picked, stored in defaults
+    ///   4. the checkout this binary is running from, so the app and the CLI
+    ///      share one folder without anything being hardcoded
+    ///   5. the legacy ~/Desktop location, if it happens to exist
+    ///   6. Application Support
     static var directory: URL {
         get {
             if let directoryOverride { return directoryOverride }
+            if let env = ProcessInfo.processInfo.environment["QUANTJOBS_CONFIG"],
+               !env.isEmpty {
+                return URL(fileURLWithPath: (env as NSString).expandingTildeInPath)
+            }
             if let s = UserDefaults.standard.string(forKey: dirDefaultsKey) {
                 return URL(fileURLWithPath: s)
             }
+            if let repo = repoDirectory { return repo }
             if FileManager.default.fileExists(
-                atPath: cliDirectory.appendingPathComponent("companies.json").path) {
-                return cliDirectory
+                atPath: legacyDirectory.appendingPathComponent("companies.json").path) {
+                return legacyDirectory
             }
             return appSupportDirectory
         }

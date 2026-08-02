@@ -63,7 +63,11 @@ struct ContentView: View {
                 Divider()
                 statusBar(rows)
             }
-            .inspector(isPresented: $model.showInspector) {
+            // Shows itself when you pick a row and gets out of the way when
+            // you don't have one, rather than permanently eating width.
+            .inspector(isPresented: Binding(
+                get: { model.showInspector && selectedJob != nil },
+                set: { model.showInspector = $0 })) {
                 JobDetail(job: selectedJob, model: model)
                     // Fresh note state whenever the selection changes.
                     .id(selectedJob?.id)
@@ -76,6 +80,7 @@ struct ContentView: View {
             CompaniesView(model: model)
         }
         .onChange(of: model.settingsFingerprint) { model.persistSettings() }
+        .onChange(of: model.refreshFingerprint) { model.scheduleRefresh() }
         .task {
             // Deliberately after the window is up: the first read of the config
             // folder can trigger a macOS permission prompt.
@@ -168,7 +173,17 @@ struct ContentView: View {
     // MARK: - Filter bar
 
     private var filterBar: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
+            Picker("", selection: $model.level) {
+                ForEach(Level.allCases) { Text($0.shortLabel).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("Which level of role to look for")
+
+            Divider().frame(height: 16)
+
             Picker("", selection: $model.groupFilter) {
                 Text("All").tag(String?.none)
                 ForEach(AppModel.groups, id: \.self) { group in
@@ -177,7 +192,7 @@ struct ContentView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(width: 210)
+            .fixedSize()
             .help("Which slice of the firm list to scrape and show")
 
             Button {
@@ -529,14 +544,6 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            Picker("Level", selection: $model.level) {
-                ForEach(Level.allCases) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.menu)
-            .frame(width: 160)
-        }
-
         ToolbarItem {
             Button {
                 showingFilters.toggle()

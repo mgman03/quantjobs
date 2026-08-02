@@ -29,6 +29,7 @@ enum Adapters {
         case .wolverine:       try await wolverine(c, deep: deep)
         case .citadel:         try await citadel(c, deep: deep)
         case .optiver:         try await optiver(c, deep: deep)
+        case .twosigma:        try await twoSigma(c, deep: deep)
         }
     }
 
@@ -507,6 +508,65 @@ enum Adapters {
                     // The listing carries no date; only the detail pages do.
                     posted: "", department: "", description: "")
             }
+    }
+
+    // MARK: - Two Sigma
+
+    /// Two Sigma's Avature portal.
+    ///
+    /// The listing only renders once `jobOffset` is present — a bare
+    /// /OpenRoles returns the shell. Ten per page, and the links are absolute,
+    /// which is what made an earlier relative-href pattern come back empty.
+    static func twoSigma(_ c: Company, deep: Bool) async throws -> [RawJob] {
+        var out: [RawJob] = []
+        var seen = Set<String>()
+        var offset = 0
+
+        while offset <= 400 {
+            let raw = try await HTTP.data(
+                "https://careers.twosigma.com/careers/OpenRoles?jobOffset=\(offset)",
+                headers: Self.browserHeaders)
+            let html = String(decoding: raw, as: UTF8.self)
+            let ns = html as NSString
+
+            var added = 0
+            for m in Self.twoSigmaCard.matches(
+                in: html, range: NSRange(location: 0, length: ns.length)) {
+                let url = ns.substring(with: m.range(at: 1))
+                guard seen.insert(url).inserted else { continue }
+                added += 1
+                out.append(RawJob(
+                    title: Clean.html(ns.substring(with: m.range(at: 2))),
+                    location: Self.twoSigmaLocation(
+                        Clean.html(ns.substring(with: m.range(at: 3)))),
+                    url: url,
+                    posted: "",        // not shown in the listing
+                    department: "", description: ""))
+            }
+            if added == 0 { break }
+            offset += 10
+        }
+        return out
+    }
+
+    private static let twoSigmaCard = try! NSRegularExpression(
+        pattern: "href=\"(https://careers\\.twosigma\\.com/careers/JobDetail/[^\"#]+)\"[^>]*>\\s*(.*?)\\s*</a>.*?paragraph_inner-span\">\\s*([^<]*)\\s*</span>",
+        options: [.dotMatchesLineSeparators])
+
+    /// "United States - NY New York" is country-first; flip it round.
+    private static func twoSigmaLocation(_ raw: String) -> String {
+        let parts = raw.components(separatedBy: " - ")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        guard parts.count == 2 else { return raw.trimmingCharacters(in: .whitespaces) }
+        let country = parts[0], rest = parts[1]
+        let rx = try! NSRegularExpression(pattern: "^([A-Z]{2})\\s+(.+)$")
+        let ns = rest as NSString
+        if let m = rx.firstMatch(in: rest, range: NSRange(location: 0, length: ns.length)) {
+            return "\(ns.substring(with: m.range(at: 2))), "
+                 + "\(ns.substring(with: m.range(at: 1))), \(country)"
+        }
+        return "\(rest), \(country)"
     }
 
     // MARK: - Optiver

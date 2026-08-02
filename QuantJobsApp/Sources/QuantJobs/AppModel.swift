@@ -440,6 +440,26 @@ final class AppModel {
         }
     }
 
+    /// The filters that change *what gets fetched* rather than what's shown,
+    /// so a change here has to go back to the boards.
+    var refreshFingerprint: String {
+        "\(selectedCategoryID)|\(level.rawValue)|\(groupFilter ?? "-")|\(deep)"
+    }
+
+    private var refreshTask: Task<Void, Never>?
+
+    /// Re-scrape shortly after a category/level/group change, coalescing the
+    /// bursts you get from clicking along a segmented control.
+    func scheduleRefresh() {
+        guard isLoaded else { return }
+        refreshTask?.cancel()
+        refreshTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled, let self else { return }
+            self.scrape()
+        }
+    }
+
     /// Whether opening the app should kick off a run, or just show the cache.
     ///
     /// A full pass is ~106 boards and tens of thousands of postings; doing that

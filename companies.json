@@ -37,7 +37,7 @@
       "token": "anthropic"
     },
     {
-      "note": "jobs.apple.com/api/role/search redirects scripted requests to a 301 error page. Needs a browser session.",
+      "note": "jobs.apple.com server-renders its search pages and /api/v1/csrfToken returns a valid token, but no search, sort or team parameter has any effect and paging runs past 300 pages \u2014 so a partial pull would be an arbitrary slice of ~6000 mostly-retail roles.",
       "token": "",
       "enabled": false,
       "tier": 1,
@@ -349,17 +349,15 @@
       "ats": "greenhouse"
     },
     {
-      "ats": "greenhouse",
+      "ats": "twosigma",
       "tier": 1,
       "tags": [
         "quant",
         "hedge-fund",
         "systematic"
       ],
-      "enabled": false,
-      "name": "Two Sigma",
-      "token": "",
-      "note": "careers.twosigma.com is a JS app (SearchJobs endpoint). The greenhouse slug 'twosigma' does not exist."
+      "enabled": true,
+      "name": "Two Sigma"
     },
     {
       "token": "virtu",

@@ -3,7 +3,15 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
-APP="${1:-$HOME/Applications/QuantJobs.app}"
+APP="${1:-/Applications/QuantJobs.app}"
+REVEAL=1
+[ "${2:-}" = "--no-reveal" ] && REVEAL=0
+
+# /Applications needs a writable spot; fall back to the user's own folder.
+if ! mkdir -p "$(dirname "$APP")" 2>/dev/null || [ ! -w "$(dirname "$APP")" ]; then
+    APP="$HOME/Applications/QuantJobs.app"
+    mkdir -p "$(dirname "$APP")"
+fi
 
 swift build -c release
 BIN=$(swift build -c release --show-bin-path)
@@ -51,3 +59,13 @@ PLIST
 codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true
 
 echo "built $APP"
+
+# Let Finder and Spotlight notice it, then show it to the user.
+/usr/bin/touch "$APP"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+    -f "$APP" >/dev/null 2>&1 || true
+# An `&&` here would make the script exit 1 whenever REVEAL is 0, which under
+# `set -e` in make-dmg.sh aborted the whole build.
+if [ "$REVEAL" = "1" ]; then
+    open -R "$APP"
+fi

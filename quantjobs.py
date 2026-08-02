@@ -443,8 +443,16 @@ def fetch_citadel(c: dict, deep: bool) -> list[dict]:
         except FetchError as e:
             if "403" not in str(e):
                 raise
-            time.sleep(4)
-            html = http(url, headers=BROWSER_HEADERS).decode("utf-8", "replace")
+            # Cloudflare rate-limits bursts; back off further and try twice more.
+            for wait in (5, 12):
+                time.sleep(wait)
+                try:
+                    html = http(url, headers=BROWSER_HEADERS).decode("utf-8", "replace")
+                    break
+                except FetchError:
+                    continue
+            else:
+                raise
         if total is None:
             m = CITADEL_TOTAL.search(html)
             total = int(m.group(1)) if m else 0
@@ -513,6 +521,51 @@ def fetch_optiver(c: dict, deep: bool) -> list[dict]:
     return out
 
 
+TWOSIGMA_CARD = re.compile(
+    r'href="(https://careers\.twosigma\.com/careers/JobDetail/[^"#]+)"[^>]*>'
+    r'\s*(.*?)\s*</a>.*?paragraph_inner-span">\s*([^<]*)\s*</span>', re.S)
+
+
+def twosigma_location(raw: str) -> str:
+    """"United States - NY New York" is country-first; flip it round."""
+    parts = [p.strip() for p in raw.split(" - ") if p.strip()]
+    if len(parts) != 2:
+        return raw.strip()
+    country, rest = parts
+    m = re.match(r"^([A-Z]{2})\s+(.+)$", rest)
+    if m:
+        return f"{m.group(2)}, {m.group(1)}, {country}"
+    return f"{rest}, {country}"
+
+
+def fetch_twosigma(c: dict, deep: bool) -> list[dict]:
+    """Two Sigma's Avature portal.
+
+    The listing only renders once `jobOffset` is present — a bare /OpenRoles
+    returns the shell. Ten per page, and the links are absolute.
+    """
+    out, seen, offset = [], set(), 0
+    while offset <= 400:
+        html = http(f"https://careers.twosigma.com/careers/OpenRoles?jobOffset={offset}",
+                    headers=BROWSER_HEADERS).decode("utf-8", "replace")
+        rows = TWOSIGMA_CARD.findall(html)
+        fresh = [r for r in rows if r[0] not in seen]
+        if not fresh:
+            break
+        for url, title, loc in fresh:
+            seen.add(url)
+            out.append({
+                "title": strip_html(title),
+                "location": twosigma_location(strip_html(loc)),
+                "url": url,
+                "posted": "",          # not shown in the listing
+                "department": "",
+                "description": "",
+            })
+        offset += 10
+    return out
+
+
 ADAPTERS = {
     "greenhouse": fetch_greenhouse,
     "lever": fetch_lever,
@@ -526,6 +579,7 @@ ADAPTERS = {
     "wolverine": fetch_wolverine,
     "citadel": fetch_citadel,
     "optiver": fetch_optiver,
+    "twosigma": fetch_twosigma,
 }
 
 
@@ -922,7 +976,8 @@ def write_out(rows: list[dict], path: str, fmt: str) -> None:
             f.write("|---|---|---|---|---|---|\n")
             for r in rows:
                 title = str(r["title"]).replace("|", "\\|")
-                f.write(f"| {r['company']} | {title} | {r.get('location_display') or r['location']} | "
+                where = r.get("location_display") or r["location"]
+                f.write(f"| {r['company']} | {title} | {where} | "
                         f"{r['level']} | {r['posted']} | [apply]({r['url']}) |\n")
 
 
@@ -959,7 +1014,7 @@ def is_configured(c: dict) -> bool:
         return bool(c.get("host") and c.get("tenant"))
     if ats in ("jibe", "citadel"):
         return bool(c.get("host"))
-    if ats in ("amazon", "uber", "wolverine", "optiver"):
+    if ats in ("amazon", "uber", "wolverine", "optiver", "twosigma"):
         return True          # nothing to configure
     return bool(c.get("token"))
 
@@ -1123,7 +1178,8 @@ def cmd_verify(args) -> int:
 
 
 ATS_PATTERNS = [
-    ("greenhouse", r"(?:boards|job-boards)\.greenhouse\.io/(?:embed/job_board\?for=)?([a-zA-Z0-9_-]+)"),
+    ("greenhouse",
+     r"(?:boards|job-boards)\.greenhouse\.io/(?:embed/job_board\?for=)?([a-zA-Z0-9_-]+)"),
     ("greenhouse", r"for=([a-zA-Z0-9_]+)"),
     ("lever", r"jobs\.lever\.co/([a-zA-Z0-9_-]+)"),
     ("ashby", r"jobs\.ashbyhq\.com/([a-zA-Z0-9_-]+)"),
