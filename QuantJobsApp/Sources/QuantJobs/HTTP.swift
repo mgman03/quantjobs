@@ -1,0 +1,151 @@
+import Foundation
+
+/// Thin wrapper over URLSession with the same retry policy the Python CLI uses:
+/// a 4xx is a real answer (bad token) and fails immediately, everything else
+/// gets a couple of backed-off retries before giving up.
+enum HTTP {
+
+    static let userAgent =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+        + "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
+    static let session: URLSession = {
+        let cfg = URLSessionConfiguration.ephemeral
+        cfg.timeoutIntervalForRequest = 25
+        cfg.timeoutIntervalForResource = 60
+        cfg.httpAdditionalHeaders = [
+            "User-Agent": userAgent,
+            "Accept": "application/json, text/html;q=0.9",
+        ]
+        cfg.httpMaximumConnectionsPerHost = 6
+        return URLSession(configuration: cfg)
+    }()
+
+    static func data(_ urlString: String, body: Data? = nil,
+                     headers: [String: String] = [:],
+                     retries: Int = 2) async throws -> Data {
+        guard let url = URL(string: urlString) else {
+            throw FetchError.misconfigured("bad URL: \(urlString)")
+        }
+
+        var last: FetchError = .transport("unknown")
+        for attempt in 0...retries {
+            var req = URLRequest(url: url)
+            if let body {
+                req.httpMethod = "POST"
+                req.httpBody = body
+                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            }
+            // Some in-house careers APIs only answer with their own referer.
+            for (field, value) in headers {
+                req.setValue(value, forHTTPHeaderField: field)
+            }
+
+            do {
+                let (data, response) = try await session.data(for: req)
+                let code = (response as? HTTPURLResponse)?.statusCode ?? 200
+                if (400..<500).contains(code) { throw FetchError.http(code) }
+                if code >= 500 {
+                    last = .http(code)
+                } else {
+                    return data
+                }
+            } catch let e as FetchError {
+                throw e                       // 4xx — don't burn retries on it
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                last = .transport((error as NSError).localizedDescription)
+            }
+
+            if attempt < retries {
+                try await Task.sleep(for: .milliseconds(1500 * (attempt + 1)))
+            }
+        }
+        throw last
+    }
+
+    static func json(_ urlString: String, body: Data? = nil,
+                     headers: [String: String] = [:]) async throws -> Any {
+        let raw = try await data(urlString, body: body, headers: headers)
+        do {
+            return try JSONSerialization.jsonObject(with: raw, options: [.fragmentsAllowed])
+        } catch {
+            throw FetchError.badPayload("bad JSON (\(error.localizedDescription))")
+        }
+    }
+
+    static func object(_ urlString: String, body: Data? = nil,
+                       headers: [String: String] = [:]) async throws -> [String: Any] {
+        guard let d = try await json(urlString, body: body,
+                                     headers: headers) as? [String: Any] else {
+            throw FetchError.badPayload("expected a JSON object")
+        }
+        return d
+    }
+}
+
+// MARK: - Small helpers shared by the adapters
+
+enum Clean {
+
+    /// Strip tags and entities out of an HTML description, collapse whitespace.
+    static func html(_ s: String?) -> String {
+        guard let s, !s.isEmpty else { return "" }
+        var t = entities(s)
+        t = t.replacingOccurrences(of: "<[^>]+>", with: " ",
+                                   options: [.regularExpression])
+        t = t.replacingOccurrences(of: "\\s+", with: " ",
+                                   options: [.regularExpression])
+        return t.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static let namedEntities = [
+        "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": "\"", "&#39;": "'",
+        "&apos;": "'", "&nbsp;": " ", "&ndash;": "–", "&mdash;": "—",
+        "&rsquo;": "’", "&lsquo;": "‘", "&ldquo;": "“", "&rdquo;": "”",
+        "&hellip;": "…", "&bull;": "•",
+    ]
+
+    static func entities(_ s: String) -> String {
+        var t = s
+        for (k, v) in namedEntities { t = t.replacingOccurrences(of: k, with: v) }
+        // Numeric entities: &#8217; / &#x2019;
+        guard t.contains("&#") else { return t }
+        let rx = try! NSRegularExpression(pattern: "&#(x?)([0-9a-fA-F]+);")
+        let ns = t as NSString
+        var out = ""
+        var cursor = 0
+        for m in rx.matches(in: t, range: NSRange(location: 0, length: ns.length)) {
+            out += ns.substring(with: NSRange(location: cursor,
+                                              length: m.range.location - cursor))
+            let hex = ns.substring(with: m.range(at: 1)) == "x"
+            let digits = ns.substring(with: m.range(at: 2))
+            if let code = UInt32(digits, radix: hex ? 16 : 10),
+               let scalar = Unicode.Scalar(code) {
+                out.append(Character(scalar))
+            }
+            cursor = m.range.location + m.range.length
+        }
+        out += ns.substring(from: cursor)
+        return out
+    }
+
+    /// Normalise the many date shapes these APIs emit down to YYYY-MM-DD.
+    static func isoDate(_ v: Any?) -> String {
+        switch v {
+        case nil, is NSNull:
+            return ""
+        case let n as NSNumber:
+            // Lever hands back epoch millis.
+            let secs = n.doubleValue / 1000
+            guard secs > 0, secs < 4_102_444_800 else { return "" }
+            return Job.dateFormatter.string(from: Date(timeIntervalSince1970: secs))
+        default:
+            let s = String(describing: v!)
+            guard s.count >= 10 else { return "" }
+            let head = String(s.prefix(10))
+            return Job.dateFormatter.date(from: head) != nil ? head : ""
+        }
+    }
+}

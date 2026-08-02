@@ -1,0 +1,21 @@
+# Your own state — saved/applied roles, seen history, cached results.
+# Personal, and nothing anyone else should get a copy of.
+.tracked.json
+.seen.json
+.cache.json
+
+# Generated output
+internships.md
+*.csv
+new.md
+roles.md
+
+# Build artifacts
+.build/
+__pycache__/
+*.pyc
+QuantJobsApp/Icon/QuantJobs.iconset/
+QuantJobsApp/Icon/QuantJobs.icns
+
+# macOS
+.DS_Store
