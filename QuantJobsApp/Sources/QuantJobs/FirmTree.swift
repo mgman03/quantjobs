@@ -66,7 +66,7 @@ struct FirmTree: View {
             }
             .buttonStyle(.plain)
 
-            checkbox(state, action: toggleCheck)
+            checkbox(state, hint: hint(state, on, usable), action: toggleCheck)
 
             Button(action: toggleOpen) {
                 HStack(spacing: 4) {
@@ -87,7 +87,11 @@ struct FirmTree: View {
     private func firmRow(_ firm: Company) -> some View {
         HStack(spacing: 5) {
             Spacer().frame(width: 14)
-            checkbox(firm.enabled ? .on : .off) {
+            checkbox(firm.enabled ? .on : .off,
+                     hint: firm.isConfigured
+                        ? (firm.enabled ? "Stop scraping \(firm.name)"
+                                        : "Scrape \(firm.name)")
+                        : "No reachable board for \(firm.name) yet") {
                 model.setEnabled(!firm.enabled, for: firm.id)
             }
             .disabled(!firm.isConfigured)
@@ -107,24 +111,37 @@ struct FirmTree: View {
         .padding(.leading, 28)
     }
 
-    private func checkbox(_ state: AppModel.Checked,
+    private func checkbox(_ state: AppModel.Checked, hint: String = "",
                           action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol(state))
-                .font(.system(size: 12))
+                .font(.system(size: 13))
+                .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(state == .off ? AnyShapeStyle(.tertiary)
                                                : AnyShapeStyle(.tint))
-                .frame(width: 18, height: 18)
+                .frame(width: 20, height: 20)
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .help(hint.isEmpty ? "" : hint)
     }
 
+    /// A filled tick for all-on, a dash for some-on, an empty box for none.
     private func symbol(_ state: AppModel.Checked) -> String {
         switch state {
         case .on: "checkmark.square.fill"
         case .mixed: "minus.square.fill"
         case .off: "square"
+        }
+    }
+
+    /// Says what clicking will do, because a part-selected branch turning
+    /// fully on is otherwise a surprise.
+    private func hint(_ state: AppModel.Checked, _ on: Int, _ usable: Int) -> String {
+        switch state {
+        case .on: "Turn all \(usable) off"
+        case .mixed: "\(on) of \(usable) on — click to turn all on"
+        case .off: "Turn all \(usable) on"
         }
     }
 

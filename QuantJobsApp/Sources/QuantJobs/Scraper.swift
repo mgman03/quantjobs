@@ -98,12 +98,13 @@ struct ScrapeQuery: Sendable {
     func matchesLiveFilters(_ job: Job, cutoff: String?) -> Bool {
         if let group, !job.tags.contains(group) { return false }
         if let tag, !job.tags.contains(tag) { return false }
-        if !continents.isEmpty,
-           !job.places.contains(where: { continents.contains($0.continent) }) {
-            return false
-        }
-        if !cities.isEmpty,
-           !job.places.contains(where: { cities.contains($0.city) }) {
+        // A city is a narrower statement than its continent, so picking one
+        // takes over. Applying both as AND made "Europe + London" look like
+        // two filters when it only ever meant London.
+        if !cities.isEmpty {
+            if !job.places.contains(where: { cities.contains($0.city) }) { return false }
+        } else if !continents.isEmpty,
+                  !job.places.contains(where: { continents.contains($0.continent) }) {
             return false
         }
         if newOnly && !job.isNew { return false }

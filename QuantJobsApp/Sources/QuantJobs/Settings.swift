@@ -23,7 +23,6 @@ struct AppSettings: Codable, Sendable, Equatable {
     var mergeRoles = true
     var recordState = true
     var showHidden = false
-    var showInspector = true
 
     /// Refresh on open, and how stale the cache has to be before that's worth
     /// doing. A full run is a hundred-odd boards and tens of thousands of

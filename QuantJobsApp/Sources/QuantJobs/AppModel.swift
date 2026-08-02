@@ -134,6 +134,10 @@ final class AppModel {
         if cityFilter.contains(name) { cityFilter.remove(name) } else { cityFilter.insert(name) }
     }
 
+    /// True while chosen cities are doing the filtering and the continents are
+    /// only scoping which cities are on offer.
+    var citiesOverrideContinents: Bool { !cityFilter.isEmpty }
+
     /// Whether anything beyond category + level is narrowing the list.
     var hasExtraFilters: Bool {
         groupFilter != nil || tagFilter != nil || sinceDays != nil
@@ -373,7 +377,6 @@ final class AppModel {
     /// will), the process sat blocked on the prompt with nothing on screen.
     // MARK: - Remembering the user's choices
 
-    var showInspector = true
     /// The full board editor, now reachable only from the Scrape menu.
     var showBoardEditor = false
     var refreshOnLaunch = true
@@ -387,7 +390,7 @@ final class AppModel {
          sinceDays.map(String.init) ?? "-",
          continentFilter.sorted().joined(separator: ","),
          cityFilter.sorted().joined(separator: ","),
-         "\(newOnly)\(deep)\(mergeRoles)\(recordState)\(showHidden)\(showInspector)",
+         "\(newOnly)\(deep)\(mergeRoles)\(recordState)\(showHidden)",
          "\(refreshOnLaunch)\(refreshIfOlderThanHours)",
         ].joined(separator: "|")
     }
@@ -401,7 +404,6 @@ final class AppModel {
                     cities: cityFilter.sorted(),
                     newOnly: newOnly, deep: deep, mergeRoles: mergeRoles,
                     recordState: recordState, showHidden: showHidden,
-                    showInspector: showInspector,
                     refreshOnLaunch: refreshOnLaunch,
                     refreshIfOlderThanHours: refreshIfOlderThanHours)
     }
@@ -421,7 +423,6 @@ final class AppModel {
         mergeRoles = s.mergeRoles
         recordState = s.recordState
         showHidden = s.showHidden
-        showInspector = s.showInspector
         refreshOnLaunch = s.refreshOnLaunch
         refreshIfOlderThanHours = s.refreshIfOlderThanHours
     }

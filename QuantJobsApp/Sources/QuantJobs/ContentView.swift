@@ -16,12 +16,11 @@ struct ContentView: View {
     private var placesLabel: String {
         let continents = model.continentFilter, cities = model.cityFilter
         if continents.isEmpty && cities.isEmpty { return "Anywhere" }
-        if cities.count == 1, let only = cities.first { return only }
-        if cities.isEmpty, continents.count == 1, let only = continents.first {
-            return only
+        if !cities.isEmpty {
+            return cities.count == 1 ? cities.first! : "\(cities.count) cities"
         }
-        let total = continents.count + cities.count
-        return "\(total) places"
+        if continents.count == 1, let only = continents.first { return only }
+        return "\(continents.count) regions"
     }
 
     private static let defaultSort = [KeyPathComparator(\Job.posted, order: .reverse)]
@@ -63,11 +62,12 @@ struct ContentView: View {
                 Divider()
                 statusBar(rows)
             }
-            // Shows itself when you pick a row and gets out of the way when
-            // you don't have one, rather than permanently eating width.
+            // Purely selection-driven: pick a row and it appears, close it and
+            // the row deselects. It used to also require a stored preference,
+            // which had been saved as false — so clicking a job did nothing.
             .inspector(isPresented: Binding(
-                get: { model.showInspector && selectedJob != nil },
-                set: { model.showInspector = $0 })) {
+                get: { selectedJob != nil },
+                set: { shown in if !shown { selection.removeAll() } })) {
                 JobDetail(job: selectedJob, model: model)
                     // Fresh note state whenever the selection changes.
                     .id(selectedJob?.id)
@@ -278,8 +278,10 @@ struct ContentView: View {
         if let tag = model.tagFilter {
             chip(tag, "tag") { model.tagFilter = nil }
         }
-        ForEach(model.continentFilter.sorted(), id: \.self) { continent in
-            chip(continent, "globe") { model.toggleContinent(continent) }
+        if !model.citiesOverrideContinents {
+            ForEach(model.continentFilter.sorted(), id: \.self) { continent in
+                chip(continent, "globe") { model.toggleContinent(continent) }
+            }
         }
         ForEach(model.cityFilter.sorted(), id: \.self) { city in
             chip(city, "mappin") { model.toggleCity(city) }
@@ -579,11 +581,12 @@ struct ContentView: View {
 
         ToolbarItem {
             Button {
-                model.showInspector.toggle()
+                selection.removeAll()
             } label: {
-                Label("Details", systemImage: "sidebar.trailing")
+                Label("Close Details", systemImage: "sidebar.trailing")
             }
-            .help("Show or hide the role detail panel")
+            .disabled(selectedJob == nil)
+            .help("Close the detail panel")
         }
     }
 

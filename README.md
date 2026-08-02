@@ -246,7 +246,15 @@ so in a read-me alongside the app.
   (or the category) re-runs the scrape automatically after a short pause, so the list
   matches the controls without you pressing ⌘R.
 - **The detail panel appears when you select a role** and gets out of the way when you
-  don't have one, instead of permanently taking a third of the window.
+  don't have one, instead of permanently taking a third of the window. It's driven by
+  the selection alone — closing it deselects the row.
+- **Picking cities overrides the continent.** Choosing Europe *and* London used to
+  apply both as an AND, which read as two filters when it only ever meant London. Now
+  a continent scopes which cities are on offer, and as soon as you pick one the cities
+  do the filtering.
+- **The firm tree checkbox is tri-state**: a filled tick when every board in a branch
+  is on, a dash when only some are, an empty box when none. Hovering says what a click
+  will do, since clicking a part-selected branch turns the whole thing on.
 - **Remembers how you left it.** Category, level, the All/Quant/Big Tech switch, every
   filter (continent, city, tag, location, date window), the toggles, which list you
   were on and whether the detail panel was open all come back on the next launch.

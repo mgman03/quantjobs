@@ -191,7 +191,6 @@ enum HeadlessCheck {
             a.deep = true
             a.mergeRoles = false
             a.showHidden = true
-            a.showInspector = false
             a.list = .applied
             a.currentSettings.save()      // the view debounces; here, straight through
 
@@ -204,7 +203,7 @@ enum HeadlessCheck {
                 && b.continentFilter == ["Europe", "Asia"]
                 && b.cityFilter == ["London"]
                 && b.newOnly && b.deep && !b.mergeRoles && b.showHidden
-                && !b.showInspector && b.list == .applied
+                && b.list == .applied
 
             print("settings  category=\(b.selectedCategoryID) level=\(b.level.rawValue) "
                   + "group=\(b.groupFilter ?? "-") tag=\(b.tagFilter ?? "-") "
@@ -212,8 +211,7 @@ enum HeadlessCheck {
             print("          continents=\(b.continentFilter.sorted()) "
                   + "cities=\(b.cityFilter.sorted()) list=\(b.list.rawValue)")
             print("          toggles newOnly=\(b.newOnly) deep=\(b.deep) "
-                  + "merge=\(b.mergeRoles) showHidden=\(b.showHidden) "
-                  + "inspector=\(b.showInspector)")
+                  + "merge=\(b.mergeRoles) showHidden=\(b.showHidden)")
             print(ok ? "ALL SETTINGS SURVIVED A RESTART" : "SETTINGS LOST")
 
             // Leave the real preferences exactly as they were.

@@ -48,7 +48,12 @@ struct PlaceFilter: View {
             }
             .listStyle(.plain)
 
-            if continents.isEmpty { hint("Scrape first — ⌘R") }
+            if continents.isEmpty {
+                hint("Scrape first — ⌘R")
+            } else if model.citiesOverrideContinents {
+                hint("Narrowing the city list only — your chosen cities are "
+                     + "doing the filtering.")
+            }
         }
         .frame(width: 210)
     }
@@ -57,8 +62,7 @@ struct PlaceFilter: View {
 
     private var cityColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
-            columnHeader(model.continentFilter.isEmpty ? "City"
-                                                       : "City in selection",
+            columnHeader(model.continentFilter.isEmpty ? "City" : "City in region",
                          selected: model.cityFilter.count,
                          total: cities.count,
                          selectAll: { model.cityFilter = Set(cities.map(\.name)) },
