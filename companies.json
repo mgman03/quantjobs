@@ -1,1938 +1,1938 @@
 {
-  "companies": [
+  "companies" : [
     {
-      "query": "intern",
-      "tier": 1,
-      "enabled": false,
-      "name": "Amazon",
-      "tags": [
+      "tags" : [
         "bigtech",
         "faang"
       ],
-      "ats": "amazon",
-      "segment": "FAANG+"
+      "query" : "intern",
+      "name" : "Amazon",
+      "ats" : "amazon",
+      "tier" : 1,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 1,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "Anthropic",
-      "token": "anthropic",
-      "ats": "greenhouse",
-      "segment": "Frontier AI"
+      "name" : "Anthropic",
+      "token" : "anthropic",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "token": "",
-      "name": "Apple",
-      "enabled": false,
-      "note": "jobs.apple.com server-renders its search pages and /api/v1/csrfToken returns a valid token, but no search, sort or team parameter has any effect and paging runs past 300 pages \u2014 so a partial pull would be an arbitrary slice of ~6000 mostly-retail roles.",
-      "tags": [
+      "tags" : [
         "bigtech",
         "faang"
       ],
-      "ats": "greenhouse",
-      "tier": 1,
-      "segment": "FAANG+"
+      "name" : "Apple",
+      "token" : "",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : false,
+      "note" : "jobs.apple.com server-renders its search pages and /api/v1/csrfToken returns a valid token, but no search, sort or team parameter has any effect and paging runs past 300 pages — so a partial pull would be an arbitrary slice of ~6000 mostly-retail roles.",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "systematic"
       ],
-      "name": "AQR Capital",
-      "token": "aqr",
-      "ats": "greenhouse",
-      "segment": "Tier 1"
+      "name" : "AQR Capital",
+      "token" : "aqr",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "name": "Citadel",
-      "tenant": "",
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hedge-fund",
         "multistrat"
       ],
-      "ats": "citadel",
-      "host": "www.citadel.com",
-      "site": "",
-      "tier": 1,
-      "segment": "Tier 1"
+      "site" : "",
+      "name" : "Citadel",
+      "tenant" : "",
+      "ats" : "citadel",
+      "tier" : 1,
+      "enabled" : true,
+      "host" : "www.citadel.com",
+      "segment" : "Tier 1"
     },
     {
-      "name": "Citadel Securities",
-      "tenant": "",
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "market-maker"
       ],
-      "ats": "citadel",
-      "host": "www.citadelsecurities.com",
-      "site": "",
-      "tier": 1,
-      "segment": "Tier 1"
+      "site" : "",
+      "name" : "Citadel Securities",
+      "tenant" : "",
+      "ats" : "citadel",
+      "tier" : 1,
+      "enabled" : true,
+      "host" : "www.citadelsecurities.com",
+      "segment" : "Tier 1"
     },
     {
-      "tier": 1,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "data"
       ],
-      "name": "Databricks",
-      "token": "databricks",
-      "ats": "greenhouse",
-      "segment": "Frontier AI"
+      "name" : "Databricks",
+      "token" : "databricks",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hft",
         "prop"
       ],
-      "name": "DRW",
-      "token": "drweng",
-      "ats": "greenhouse",
-      "segment": "Tier 1"
+      "name" : "DRW",
+      "token" : "drweng",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "token": "",
-      "name": "Google",
-      "enabled": false,
-      "note": "careers.google.com/api/v3/search returns 404 to unauthenticated callers; the board is client-rendered.",
-      "tags": [
+      "tags" : [
         "bigtech",
         "faang"
       ],
-      "ats": "greenhouse",
-      "tier": 1,
-      "segment": "FAANG+"
+      "name" : "Google",
+      "token" : "",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : false,
+      "note" : "careers.google.com/api/v3/search returns 404 to unauthenticated callers; the board is client-rendered.",
+      "segment" : "FAANG+"
     },
     {
-      "token": "hrttalentcommunity",
-      "name": "Hudson River Trading",
-      "enabled": true,
-      "note": "HRT's public Greenhouse board is a small talent-community board; the main careers site is client-rendered so most roles won't show here.",
-      "tags": [
+      "tags" : [
         "quant",
         "hft",
         "prop"
       ],
-      "ats": "greenhouse",
-      "tier": 1,
-      "segment": "Tier 1"
+      "name" : "Hudson River Trading",
+      "token" : "hrttalentcommunity",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "note" : "HRT's public Greenhouse board is a small talent-community board; the main careers site is client-rendered so most roles won't show here.",
+      "segment" : "Tier 1"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "market-maker",
         "amsterdam"
       ],
-      "name": "IMC Trading",
-      "token": "imc",
-      "ats": "greenhouse",
-      "segment": "Tier 1"
+      "name" : "IMC Trading",
+      "token" : "imc",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "prop",
         "market-maker"
       ],
-      "name": "Jane Street",
-      "token": "janestreet",
-      "ats": "greenhouse",
-      "segment": "Tier 1"
+      "name" : "Jane Street",
+      "token" : "janestreet",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hft",
         "prop"
       ],
-      "name": "Jump Trading",
-      "token": "jumptrading",
-      "ats": "greenhouse",
-      "segment": "Tier 1"
+      "name" : "Jump Trading",
+      "token" : "jumptrading",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "token": "",
-      "name": "Meta",
-      "enabled": false,
-      "note": "metacareers.com posts to a GraphQL endpoint that needs a session token (fb_dtsg). No anonymous access.",
-      "tags": [
+      "tags" : [
         "bigtech",
         "faang"
       ],
-      "ats": "greenhouse",
-      "tier": 1,
-      "segment": "FAANG+"
+      "name" : "Meta",
+      "token" : "",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : false,
+      "note" : "metacareers.com posts to a GraphQL endpoint that needs a session token (fb_dtsg). No anonymous access.",
+      "segment" : "FAANG+"
     },
     {
-      "token": "",
-      "name": "Microsoft",
-      "enabled": false,
-      "note": "gcsservices.careers.microsoft.com refused the connection from a scripted client.",
-      "tags": [
+      "tags" : [
         "bigtech",
         "faang"
       ],
-      "ats": "greenhouse",
-      "tier": 1,
-      "segment": "FAANG+"
+      "name" : "Microsoft",
+      "token" : "",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : false,
+      "note" : "gcsservices.careers.microsoft.com refused the connection from a scripted client.",
+      "segment" : "FAANG+"
     },
     {
-      "name": "Millennium",
-      "tenant": "mlp.com",
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hedge-fund",
         "multistrat"
       ],
-      "ats": "eightfold",
-      "host": "mlp.eightfold.ai",
-      "site": "",
-      "tier": 1,
-      "segment": "Tier 1"
+      "site" : "",
+      "name" : "Millennium",
+      "tenant" : "mlp.com",
+      "ats" : "eightfold",
+      "tier" : 1,
+      "enabled" : true,
+      "host" : "mlp.eightfold.ai",
+      "segment" : "Tier 1"
     },
     {
-      "name": "Netflix",
-      "tenant": "netflix.com",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "faang"
       ],
-      "ats": "eightfold",
-      "host": "explore.jobs.netflix.net",
-      "site": "",
-      "tier": 1,
-      "segment": "FAANG+"
+      "site" : "",
+      "name" : "Netflix",
+      "tenant" : "netflix.com",
+      "ats" : "eightfold",
+      "tier" : 1,
+      "enabled" : false,
+      "host" : "explore.jobs.netflix.net",
+      "segment" : "FAANG+"
     },
     {
-      "name": "Nvidia",
-      "tenant": "nvidia",
-      "enabled": false,
-      "note": "Workday pages 20 at a time, so 'query' keeps this board from dominating a run.",
-      "tags": [
+      "tags" : [
         "bigtech",
         "hardware"
       ],
-      "ats": "workday",
-      "host": "nvidia.wd5.myworkdayjobs.com",
-      "site": "NVIDIAExternalCareerSite",
-      "tier": 1,
-      "segment": "FAANG+"
+      "site" : "NVIDIAExternalCareerSite",
+      "name" : "Nvidia",
+      "tenant" : "nvidia",
+      "note" : "Workday pages 20 at a time, so 'query' keeps this board from dominating a run.",
+      "ats" : "workday",
+      "tier" : 1,
+      "enabled" : false,
+      "host" : "nvidia.wd5.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 1,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "OpenAI",
-      "token": "openai",
-      "ats": "ashby",
-      "segment": "Frontier AI"
+      "name" : "OpenAI",
+      "token" : "openai",
+      "ats" : "ashby",
+      "tier" : 1,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "market-maker",
         "options"
       ],
-      "name": "Optiver",
-      "note": "Their listing renders 16 roles per category page and loads the rest with JavaScript; there is no API, sitemap or page parameter, so this gets the newest 16 of each category rather than every posting.",
-      "ats": "optiver",
-      "segment": "Tier 1"
+      "name" : "Optiver",
+      "note" : "Their listing renders 16 roles per category page and loads the rest with JavaScript; there is no API, sitemap or page parameter, so this gets the newest 16 of each category rather than every posting.",
+      "ats" : "optiver",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "tier": 1,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Palantir",
-      "token": "palantir",
-      "ats": "lever",
-      "segment": "FAANG+"
+      "name" : "Palantir",
+      "token" : "palantir",
+      "ats" : "lever",
+      "tier" : 1,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hedge-fund",
         "multistrat"
       ],
-      "name": "Point72",
-      "token": "point72",
-      "ats": "greenhouse",
-      "segment": "Tier 1"
+      "name" : "Point72",
+      "token" : "point72",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "systematic",
         "london"
       ],
-      "name": "Qube RT",
-      "token": "quberesearchandtechnologies",
-      "ats": "greenhouse",
-      "segment": "Tier 1"
+      "name" : "Qube RT",
+      "token" : "quberesearchandtechnologies",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hft",
         "prop"
       ],
-      "name": "Radix Trading",
-      "token": "radixuniversity",
-      "ats": "greenhouse",
-      "segment": "Tier 1"
+      "name" : "Radix Trading",
+      "token" : "radixuniversity",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "name": "SIG",
-      "tenant": "",
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "options",
         "market-maker"
       ],
-      "ats": "jibe",
-      "host": "careers.sig.com",
-      "site": "",
-      "tier": 1,
-      "segment": "Tier 1"
+      "site" : "",
+      "name" : "SIG",
+      "tenant" : "",
+      "ats" : "jibe",
+      "tier" : 1,
+      "enabled" : true,
+      "host" : "careers.sig.com",
+      "segment" : "Tier 1"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hedge-fund",
         "systematic"
       ],
-      "name": "Squarepoint Capital",
-      "token": "squarepointcapital",
-      "ats": "greenhouse",
-      "segment": "Tier 1"
+      "name" : "Squarepoint Capital",
+      "token" : "squarepointcapital",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "tier": 1,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "fintech"
       ],
-      "name": "Stripe",
-      "token": "stripe",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Stripe",
+      "token" : "stripe",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hft",
         "prop"
       ],
-      "name": "Tower Research",
-      "token": "towerresearchcapital",
-      "ats": "greenhouse",
-      "segment": "Tier 1"
+      "name" : "Tower Research",
+      "token" : "towerresearchcapital",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "enabled" : true,
+      "name" : "Two Sigma",
+      "ats" : "twosigma",
+      "tier" : 1,
+      "tags" : [
         "quant",
         "hedge-fund",
         "systematic"
       ],
-      "name": "Two Sigma",
-      "ats": "twosigma",
-      "segment": "Tier 1"
+      "segment" : "Tier 1"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hft",
         "market-maker"
       ],
-      "name": "Virtu Financial",
-      "token": "virtu",
-      "ats": "greenhouse",
-      "segment": "Tier 1"
+      "name" : "Virtu Financial",
+      "token" : "virtu",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "tier": 1,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hft",
         "market-maker",
         "london"
       ],
-      "name": "XTX Markets",
-      "token": "xtxmarketstechnologies",
-      "ats": "greenhouse",
-      "segment": "Tier 1"
+      "name" : "XTX Markets",
+      "token" : "xtxmarketstechnologies",
+      "ats" : "greenhouse",
+      "tier" : 1,
+      "enabled" : true,
+      "segment" : "Tier 1"
     },
     {
-      "name": "Adobe",
-      "tenant": "adobe",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "saas"
       ],
-      "ats": "workday",
-      "host": "adobe.wd5.myworkdayjobs.com",
-      "site": "external_experienced",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "external_experienced",
+      "name" : "Adobe",
+      "tenant" : "adobe",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "adobe.wd5.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "fintech"
       ],
-      "name": "Affirm",
-      "token": "affirm",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Affirm",
+      "token" : "affirm",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Airbnb",
-      "token": "airbnb",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Airbnb",
+      "token" : "airbnb",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "options",
         "market-maker"
       ],
-      "name": "Akuna Capital",
-      "token": "akunacapital",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Akuna Capital",
+      "token" : "akunacapital",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "name": "AMD",
-      "tenant": "",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "hardware"
       ],
-      "ats": "jibe",
-      "host": "careers.amd.com",
-      "site": "",
-      "tier": 2,
-      "segment": "Startups"
+      "site" : "",
+      "name" : "AMD",
+      "tenant" : "",
+      "ats" : "jibe",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "careers.amd.com",
+      "segment" : "Startups"
     },
     {
-      "name": "Analog Devices",
-      "tenant": "analogdevices",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "hardware"
       ],
-      "ats": "workday",
-      "host": "analogdevices.wd1.myworkdayjobs.com",
-      "site": "External",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "External",
+      "name" : "Analog Devices",
+      "tenant" : "analogdevices",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "analogdevices.wd1.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "defense"
       ],
-      "name": "Anduril",
-      "token": "andurilindustries",
-      "ats": "greenhouse",
-      "segment": "Frontier AI"
+      "name" : "Anduril",
+      "token" : "andurilindustries",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "name": "Applied Materials",
-      "tenant": "amat",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "hardware"
       ],
-      "ats": "workday",
-      "host": "amat.wd1.myworkdayjobs.com",
-      "site": "External",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "External",
+      "name" : "Applied Materials",
+      "tenant" : "amat",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "amat.wd1.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "systematic"
       ],
-      "name": "Aquatic Capital",
-      "token": "aquaticcapitalmanagement",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Aquatic Capital",
+      "token" : "aquaticcapitalmanagement",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "name": "Arrowstreet",
-      "tenant": "arrowstreetcapital",
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "systematic"
       ],
-      "ats": "workday",
-      "host": "arrowstreetcapital.wd5.myworkdayjobs.com",
-      "site": "Arrowstreet",
-      "tier": 2,
-      "segment": "Tier 2"
+      "site" : "Arrowstreet",
+      "name" : "Arrowstreet",
+      "tenant" : "arrowstreetcapital",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : true,
+      "host" : "arrowstreetcapital.wd5.myworkdayjobs.com",
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Asana",
-      "token": "asana",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Asana",
+      "token" : "asana",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "hardware"
       ],
-      "name": "Astera Labs",
-      "token": "asteralabs",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Astera Labs",
+      "token" : "asteralabs",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "name": "Autodesk",
-      "tenant": "autodesk",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "saas"
       ],
-      "ats": "workday",
-      "host": "autodesk.wd1.myworkdayjobs.com",
-      "site": "Ext",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "Ext",
+      "name" : "Autodesk",
+      "tenant" : "autodesk",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "autodesk.wd1.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "options",
         "market-maker"
       ],
-      "name": "Belvedere Trading",
-      "token": "belvederetrading",
-      "ats": "lever",
-      "segment": "Tier 2"
+      "name" : "Belvedere Trading",
+      "token" : "belvederetrading",
+      "ats" : "lever",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "fintech"
       ],
-      "name": "Block",
-      "token": "block",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Block",
+      "token" : "block",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "fintech"
       ],
-      "name": "Brex",
-      "token": "brex",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Brex",
+      "token" : "brex",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "options",
         "hedge-fund"
       ],
-      "name": "Capstone",
-      "token": "capstoneinvestmentadvisors",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Capstone",
+      "token" : "capstoneinvestmentadvisors",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "quant",
         "options",
         "market-maker"
       ],
-      "name": "Chicago Trading Co",
-      "token": "",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Chicago Trading Co",
+      "token" : "",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Tier 2"
     },
     {
-      "name": "Citi",
-      "tenant": "citi",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "finance"
       ],
-      "ats": "workday",
-      "host": "citi.wd5.myworkdayjobs.com",
-      "site": "2",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "2",
+      "name" : "Citi",
+      "tenant" : "citi",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "citi.wd5.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "infra"
       ],
-      "name": "Cloudflare",
-      "token": "cloudflare",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Cloudflare",
+      "token" : "cloudflare",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "Cohere",
-      "token": "cohere",
-      "ats": "ashby",
-      "segment": "Frontier AI"
+      "name" : "Cohere",
+      "token" : "cohere",
+      "ats" : "ashby",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "fintech"
       ],
-      "name": "Coinbase",
-      "token": "coinbase",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Coinbase",
+      "token" : "coinbase",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "infra"
       ],
-      "name": "Datadog",
-      "token": "datadog",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Datadog",
+      "token" : "datadog",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Discord",
-      "token": "discord",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Discord",
+      "token" : "discord",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Dropbox",
-      "token": "dropbox",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Dropbox",
+      "token" : "dropbox",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "name": "eBay",
-      "tenant": "ebay",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "ats": "workday",
-      "host": "ebay.wd5.myworkdayjobs.com",
-      "site": "apply",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "apply",
+      "name" : "eBay",
+      "tenant" : "ebay",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "ebay.wd5.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "infra"
       ],
-      "name": "Elastic",
-      "token": "elastic",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Elastic",
+      "token" : "elastic",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "systematic"
       ],
-      "name": "Engineers Gate",
-      "token": "engineersgate",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Engineers Gate",
+      "token" : "engineersgate",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "games"
       ],
-      "name": "Epic Games",
-      "token": "epicgames",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Epic Games",
+      "token" : "epicgames",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hedge-fund",
         "multistrat"
       ],
-      "name": "ExodusPoint",
-      "token": "exoduspoint",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "ExodusPoint",
+      "token" : "exoduspoint",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Figma",
-      "token": "figma",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Figma",
+      "token" : "figma",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "prop"
       ],
-      "name": "Five Rings",
-      "token": "fiveringsllc",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Five Rings",
+      "token" : "fiveringsllc",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "market-maker",
         "amsterdam"
       ],
-      "name": "Flow Traders",
-      "token": "flowtraders",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Flow Traders",
+      "token" : "flowtraders",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "infra"
       ],
-      "name": "GitLab",
-      "token": "gitlab",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "GitLab",
+      "token" : "gitlab",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "systematic",
         "london"
       ],
-      "name": "GSA Capital",
-      "token": "gsacapital",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "GSA Capital",
+      "token" : "gsacapital",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hft",
         "prop"
       ],
-      "name": "Headlands Tech",
-      "token": "headlandstechnologiesllc",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Headlands Tech",
+      "token" : "headlandstechnologiesllc",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Instacart",
-      "token": "instacart",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Instacart",
+      "token" : "instacart",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "name": "Intel",
-      "tenant": "intel",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "hardware"
       ],
-      "ats": "workday",
-      "host": "intel.wd1.myworkdayjobs.com",
-      "site": "External",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "External",
+      "name" : "Intel",
+      "tenant" : "intel",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "intel.wd1.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "name": "KLA",
-      "tenant": "kla",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "hardware"
       ],
-      "ats": "workday",
-      "host": "kla.wd1.myworkdayjobs.com",
-      "site": "Search",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "Search",
+      "name" : "KLA",
+      "tenant" : "kla",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "kla.wd1.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Lyft",
-      "token": "lyft",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Lyft",
+      "token" : "lyft",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "systematic",
         "london"
       ],
-      "name": "Man Group",
-      "token": "mangroup",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Man Group",
+      "token" : "mangroup",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hedge-fund",
         "london"
       ],
-      "name": "Marshall Wace",
-      "token": "marshallwace",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Marshall Wace",
+      "token" : "marshallwace",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "name": "Marvell",
-      "tenant": "marvell",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "hardware"
       ],
-      "ats": "workday",
-      "host": "marvell.wd1.myworkdayjobs.com",
-      "site": "MarvellCareers",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "MarvellCareers",
+      "name" : "Marvell",
+      "tenant" : "marvell",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "marvell.wd1.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "name": "Mastercard",
-      "tenant": "mastercard",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "finance"
       ],
-      "ats": "workday",
-      "host": "mastercard.wd1.myworkdayjobs.com",
-      "site": "CorporateCareers",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "CorporateCareers",
+      "name" : "Mastercard",
+      "tenant" : "mastercard",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "mastercard.wd1.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "quant",
         "market-maker",
         "london"
       ],
-      "name": "Maven Securities",
-      "token": "",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Maven Securities",
+      "token" : "",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Tier 2"
     },
     {
-      "name": "Micron",
-      "tenant": "micron",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "hardware"
       ],
-      "ats": "workday",
-      "host": "micron.wd1.myworkdayjobs.com",
-      "site": "External",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "External",
+      "name" : "Micron",
+      "tenant" : "micron",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "micron.wd1.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "infra"
       ],
-      "name": "MongoDB",
-      "token": "mongodb",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "MongoDB",
+      "token" : "mongodb",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "name": "Morgan Stanley",
-      "tenant": "ms",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "finance"
       ],
-      "ats": "workday",
-      "host": "ms.wd5.myworkdayjobs.com",
-      "site": "External",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "External",
+      "name" : "Morgan Stanley",
+      "tenant" : "ms",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "ms.wd5.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "name": "Nasdaq",
-      "tenant": "nasdaq",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "finance"
       ],
-      "ats": "workday",
-      "host": "nasdaq.wd1.myworkdayjobs.com",
-      "site": "US_External_Career_Site",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "US_External_Career_Site",
+      "name" : "Nasdaq",
+      "tenant" : "nasdaq",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "nasdaq.wd1.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "name": "NXP",
-      "tenant": "nxp",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "hardware"
       ],
-      "ats": "workday",
-      "host": "nxp.wd3.myworkdayjobs.com",
-      "site": "careers",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "careers",
+      "name" : "NXP",
+      "tenant" : "nxp",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "nxp.wd3.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "infra"
       ],
-      "name": "Okta",
-      "token": "okta",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Okta",
+      "token" : "okta",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "market-maker"
       ],
-      "name": "Old Mission Capital",
-      "token": "oldmissioncapital",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Old Mission Capital",
+      "token" : "oldmissioncapital",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "name": "PayPal",
-      "tenant": "paypal",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "ats": "workday",
-      "host": "paypal.wd1.myworkdayjobs.com",
-      "site": "jobs",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "jobs",
+      "name" : "PayPal",
+      "tenant" : "paypal",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "paypal.wd1.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hedge-fund"
       ],
-      "name": "PDT Partners",
-      "token": "pdtpartners",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "PDT Partners",
+      "token" : "pdtpartners",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "quant",
         "options"
       ],
-      "name": "PEAK6",
-      "token": "",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "PEAK6",
+      "token" : "",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "Perplexity",
-      "token": "perplexity",
-      "ats": "ashby",
-      "segment": "Frontier AI"
+      "name" : "Perplexity",
+      "token" : "perplexity",
+      "ats" : "ashby",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Pinterest",
-      "token": "pinterest",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Pinterest",
+      "token" : "pinterest",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "infra"
       ],
-      "name": "Pure Storage",
-      "token": "purestorage",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Pure Storage",
+      "token" : "purestorage",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "systematic",
         "london"
       ],
-      "name": "Quadrature Capital",
-      "token": "quadraturecapital",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Quadrature Capital",
+      "token" : "quadraturecapital",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "quant",
         "hft",
         "prop"
       ],
-      "name": "Quantlab",
-      "token": "",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Quantlab",
+      "token" : "",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hft",
         "prop"
       ],
-      "name": "Radix Trading (Experienced)",
-      "token": "radixexperienced",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Radix Trading (Experienced)",
+      "token" : "radixexperienced",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "fintech"
       ],
-      "name": "Ramp",
-      "token": "ramp",
-      "ats": "ashby",
-      "segment": "Startups"
+      "name" : "Ramp",
+      "token" : "ramp",
+      "ats" : "ashby",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Reddit",
-      "token": "reddit",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Reddit",
+      "token" : "reddit",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "games"
       ],
-      "name": "Riot Games",
-      "token": "riotgames",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Riot Games",
+      "token" : "riotgames",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "fintech"
       ],
-      "name": "Robinhood",
-      "token": "robinhood",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Robinhood",
+      "token" : "robinhood",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Roblox",
-      "token": "roblox",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Roblox",
+      "token" : "roblox",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "infra"
       ],
-      "name": "Rubrik",
-      "token": "rubrik",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Rubrik",
+      "token" : "rubrik",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "name": "Salesforce",
-      "tenant": "salesforce",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "saas"
       ],
-      "ats": "workday",
-      "host": "salesforce.wd12.myworkdayjobs.com",
-      "site": "External_Career_Site",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "External_Career_Site",
+      "name" : "Salesforce",
+      "tenant" : "salesforce",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "salesforce.wd12.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Samsara",
-      "token": "samsara",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Samsara",
+      "token" : "samsara",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "Scale AI",
-      "token": "scaleai",
-      "ats": "greenhouse",
-      "segment": "Frontier AI"
+      "name" : "Scale AI",
+      "token" : "scaleai",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hedge-fund",
         "multistrat"
       ],
-      "name": "Schonfeld",
-      "token": "schonfeld",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Schonfeld",
+      "token" : "schonfeld",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "aerospace"
       ],
-      "name": "SpaceX",
-      "token": "spacex",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "SpaceX",
+      "token" : "spacex",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "prop"
       ],
-      "name": "TransMarket Group",
-      "token": "transmarketgroup",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "TransMarket Group",
+      "token" : "transmarketgroup",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "name": "Twilio",
-      "token": "twilio",
-      "ats": "greenhouse",
-      "segment": "FAANG+"
+      "name" : "Twilio",
+      "token" : "twilio",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "enabled" : false,
+      "name" : "Uber",
+      "ats" : "uber",
+      "tier" : 2,
+      "tags" : [
         "bigtech"
       ],
-      "name": "Uber",
-      "ats": "uber",
-      "segment": "FAANG+"
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hft",
         "prop"
       ],
-      "name": "Vatic Labs",
-      "token": "vaticlabs",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Vatic Labs",
+      "token" : "vaticlabs",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "systematic"
       ],
-      "name": "Voleon",
-      "token": "voleon",
-      "ats": "ashby",
-      "segment": "Tier 2"
+      "name" : "Voleon",
+      "token" : "voleon",
+      "ats" : "ashby",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hedge-fund"
       ],
-      "name": "Walleye Capital",
-      "token": "walleyecapital-external-students",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Walleye Capital",
+      "token" : "walleyecapital-external-students",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hedge-fund"
       ],
-      "name": "Walleye Capital (Full-Time)",
-      "token": "walleyecapital-external-fulltime",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Walleye Capital (Full-Time)",
+      "token" : "walleyecapital-external-fulltime",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "av"
       ],
-      "name": "Waymo",
-      "token": "waymo",
-      "ats": "greenhouse",
-      "segment": "Frontier AI"
+      "name" : "Waymo",
+      "token" : "waymo",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "systematic",
         "london"
       ],
-      "name": "Winton",
-      "token": "winton",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "Winton",
+      "token" : "winton",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "enabled" : true,
+      "name" : "Wolverine Trading",
+      "ats" : "wolverine",
+      "tier" : 2,
+      "tags" : [
         "quant",
         "options",
         "market-maker"
       ],
-      "name": "Wolverine Trading",
-      "ats": "wolverine",
-      "segment": "Tier 2"
+      "segment" : "Tier 2"
     },
     {
-      "name": "Workday",
-      "tenant": "workday",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "saas"
       ],
-      "ats": "workday",
-      "host": "workday.wd5.myworkdayjobs.com",
-      "site": "Workday",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "Workday",
+      "name" : "Workday",
+      "tenant" : "workday",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "workday.wd5.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 2,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "systematic"
       ],
-      "name": "WorldQuant",
-      "token": "worldquant",
-      "ats": "greenhouse",
-      "segment": "Tier 2"
+      "name" : "WorldQuant",
+      "token" : "worldquant",
+      "ats" : "greenhouse",
+      "tier" : 2,
+      "enabled" : true,
+      "segment" : "Tier 2"
     },
     {
-      "name": "Zoom",
-      "tenant": "zoom",
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech"
       ],
-      "ats": "workday",
-      "host": "zoom.wd5.myworkdayjobs.com",
-      "site": "Zoom",
-      "tier": 2,
-      "segment": "FAANG+"
+      "site" : "Zoom",
+      "name" : "Zoom",
+      "tenant" : "zoom",
+      "ats" : "workday",
+      "tier" : 2,
+      "enabled" : false,
+      "host" : "zoom.wd5.myworkdayjobs.com",
+      "segment" : "FAANG+"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "saas"
       ],
-      "name": "Airtable",
-      "token": "airtable",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Airtable",
+      "token" : "airtable",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "aerospace"
       ],
-      "name": "Astranis",
-      "token": "astranis",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Astranis",
+      "token" : "astranis",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "av"
       ],
-      "name": "Aurora",
-      "token": "aurorainnovation",
-      "ats": "greenhouse",
-      "segment": "Frontier AI"
+      "name" : "Aurora",
+      "token" : "aurorainnovation",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 3,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "hedge-fund"
       ],
-      "name": "Bracebridge",
-      "token": "bracebridgecapital",
-      "ats": "greenhouse",
-      "segment": "Tier 3"
+      "name" : "Bracebridge",
+      "token" : "bracebridgecapital",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : true,
+      "segment" : "Tier 3"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "saas"
       ],
-      "name": "Carta",
-      "token": "carta",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Carta",
+      "token" : "carta",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "infra"
       ],
-      "name": "Cockroach Labs",
-      "token": "cockroachlabs",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Cockroach Labs",
+      "token" : "cockroachlabs",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "market-maker",
         "amsterdam"
       ],
-      "name": "Da Vinci Derivatives",
-      "token": "davinciderivatives",
-      "ats": "greenhouse",
-      "segment": "Tier 3"
+      "name" : "Da Vinci Derivatives",
+      "token" : "davinciderivatives",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : true,
+      "segment" : "Tier 3"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "Decagon",
-      "token": "decagon",
-      "ats": "ashby",
-      "segment": "Frontier AI"
+      "name" : "Decagon",
+      "token" : "decagon",
+      "ats" : "ashby",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "consumer"
       ],
-      "name": "Duolingo",
-      "token": "duolingo",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Duolingo",
+      "token" : "duolingo",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "prop"
       ],
-      "name": "DV Trading",
-      "token": "dvtrading",
-      "ats": "greenhouse",
-      "segment": "Tier 3"
+      "name" : "DV Trading",
+      "token" : "dvtrading",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : true,
+      "segment" : "Tier 3"
     },
     {
-      "tier": 3,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "prop",
         "hong-kong"
       ],
-      "name": "Eclipse Trading",
-      "token": "eclipsetrading",
-      "ats": "greenhouse",
-      "segment": "Tier 3"
+      "name" : "Eclipse Trading",
+      "token" : "eclipsetrading",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : true,
+      "segment" : "Tier 3"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "ElevenLabs",
-      "token": "elevenlabs",
-      "ats": "ashby",
-      "segment": "Frontier AI"
+      "name" : "ElevenLabs",
+      "token" : "elevenlabs",
+      "ats" : "ashby",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "saas"
       ],
-      "name": "Flexport",
-      "token": "flexport",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Flexport",
+      "token" : "flexport",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "prop"
       ],
-      "name": "Geneva Trading",
-      "token": "genevatrading",
-      "ats": "greenhouse",
-      "segment": "Tier 3"
+      "name" : "Geneva Trading",
+      "token" : "genevatrading",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : true,
+      "segment" : "Tier 3"
     },
     {
-      "tier": 3,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "prop",
         "singapore"
       ],
-      "name": "Grasshopper",
-      "token": "grasshopperasia",
-      "ats": "greenhouse",
-      "segment": "Tier 3"
+      "name" : "Grasshopper",
+      "token" : "grasshopperasia",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : true,
+      "segment" : "Tier 3"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "saas"
       ],
-      "name": "Gusto",
-      "token": "gusto",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Gusto",
+      "token" : "gusto",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "Harvey",
-      "token": "harvey",
-      "ats": "ashby",
-      "segment": "Frontier AI"
+      "name" : "Harvey",
+      "token" : "harvey",
+      "ats" : "ashby",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 3,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "market-maker",
         "crypto"
       ],
-      "name": "Keyrock",
-      "token": "keyrock",
-      "ats": "ashby",
-      "segment": "Tier 3"
+      "name" : "Keyrock",
+      "token" : "keyrock",
+      "ats" : "ashby",
+      "tier" : 3,
+      "enabled" : true,
+      "segment" : "Tier 3"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "saas"
       ],
-      "name": "Klaviyo",
-      "token": "klaviyo",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Klaviyo",
+      "token" : "klaviyo",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "LangChain",
-      "token": "langchain",
-      "ats": "ashby",
-      "segment": "Frontier AI"
+      "name" : "LangChain",
+      "token" : "langchain",
+      "ats" : "ashby",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "saas"
       ],
-      "name": "Linear",
-      "token": "linear",
-      "ats": "ashby",
-      "segment": "Startups"
+      "name" : "Linear",
+      "token" : "linear",
+      "ats" : "ashby",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "fintech"
       ],
-      "name": "Marqeta",
-      "token": "marqeta",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Marqeta",
+      "token" : "marqeta",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "Mercor",
-      "token": "mercor",
-      "ats": "ashby",
-      "segment": "Frontier AI"
+      "name" : "Mercor",
+      "token" : "mercor",
+      "ats" : "ashby",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "Modal",
-      "token": "modal",
-      "ats": "ashby",
-      "segment": "Frontier AI"
+      "name" : "Modal",
+      "token" : "modal",
+      "ats" : "ashby",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "av"
       ],
-      "name": "Nuro",
-      "token": "nuro",
-      "ats": "greenhouse",
-      "segment": "Frontier AI"
+      "name" : "Nuro",
+      "token" : "nuro",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "consumer"
       ],
-      "name": "Peloton",
-      "token": "peloton",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Peloton",
+      "token" : "peloton",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "Physical Intelligence",
-      "token": "physicalintelligence",
-      "ats": "ashby",
-      "segment": "Frontier AI"
+      "name" : "Physical Intelligence",
+      "token" : "physicalintelligence",
+      "ats" : "ashby",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "infra"
       ],
-      "name": "Postman",
-      "token": "postman",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Postman",
+      "token" : "postman",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "saas"
       ],
-      "name": "Qualtrics",
-      "token": "qualtrics",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Qualtrics",
+      "token" : "qualtrics",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "aerospace"
       ],
-      "name": "Relativity Space",
-      "token": "relativity",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Relativity Space",
+      "token" : "relativity",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "ai"
       ],
-      "name": "Replit",
-      "token": "replit",
-      "ats": "ashby",
-      "segment": "Frontier AI"
+      "name" : "Replit",
+      "token" : "replit",
+      "ats" : "ashby",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Frontier AI"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "media"
       ],
-      "name": "Roku",
-      "token": "roku",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Roku",
+      "token" : "roku",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": true,
-      "tags": [
+      "tags" : [
         "quant",
         "options"
       ],
-      "name": "Simplex Trading",
-      "token": "simplextrading",
-      "ats": "greenhouse",
-      "segment": "Tier 3"
+      "name" : "Simplex Trading",
+      "token" : "simplextrading",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : true,
+      "segment" : "Tier 3"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "fintech"
       ],
-      "name": "SoFi",
-      "token": "sofi",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "SoFi",
+      "token" : "sofi",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "infra"
       ],
-      "name": "Supabase",
-      "token": "supabase",
-      "ats": "ashby",
-      "segment": "Startups"
+      "name" : "Supabase",
+      "token" : "supabase",
+      "ats" : "ashby",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "fintech"
       ],
-      "name": "Toast",
-      "token": "toast",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Toast",
+      "token" : "toast",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "media"
       ],
-      "name": "Twitch",
-      "token": "twitch",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Twitch",
+      "token" : "twitch",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     },
     {
-      "tier": 3,
-      "enabled": false,
-      "tags": [
+      "tags" : [
         "bigtech",
         "hardware"
       ],
-      "name": "Verkada",
-      "token": "verkada",
-      "ats": "greenhouse",
-      "segment": "Startups"
+      "name" : "Verkada",
+      "token" : "verkada",
+      "ats" : "greenhouse",
+      "tier" : 3,
+      "enabled" : false,
+      "segment" : "Startups"
     }
   ],
-  "_comment": [
+  "_comment" : [
     "Edit this file to change which firms get scraped.",
     "  ats:     greenhouse | lever | ashby | smartrecruiters | workday | amazon",
     "  token:   the board slug (greenhouse, lever, ashby, smartrecruiters)",
     "  workday: use host + tenant + site instead of token",
-    "  amazon:  no slug \u2014 one search index, narrowed by 'query'",
+    "  amazon:  no slug — one search index, narrowed by 'query'",
     "  query:   optional; search terms sent to the board (amazon, workday)",
     "  tier:    1 = the names people target first, 2 = strong, 3 = everything else",
     "           tier 3 ships disabled; turn it on in the app's Boards sheet",

@@ -29,7 +29,11 @@ struct FirmFilter: View {
             let needle = search.lowercased()
             out = out.filter { $0.name.lowercased().contains(needle) }
         }
-        return out
+        // Sorted across the whole list, not per segment — concatenating each
+        // group's A-Z left the combined list looking unsorted.
+        return out.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
     }
 
     var body: some View {
@@ -56,11 +60,16 @@ struct FirmFilter: View {
 
             List {
                 ForEach(groups, id: \.group) { entry in
-                    Section(AppModel.groupLabel(entry.group)) {
+                    Section {
                         ForEach(entry.segments) { seg in
                             let key = "\(entry.group)|\(seg.segment)"
                             segmentRow(key: key, seg: seg)
                         }
+                    } header: {
+                        Text(AppModel.groupLabel(entry.group).uppercased())
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                            .tracking(0.6)
                     }
                 }
             }
@@ -91,16 +100,21 @@ struct FirmFilter: View {
             } label: {
                 HStack(spacing: 4) {
                     Text(seg.segment)
-                        .fontWeight(focused.contains(key) ? .semibold : .regular)
                     Spacer(minLength: 4)
                     Text("\(on)/\(seg.usable)")
-                        .font(.caption2.monospacedDigit())
+                        .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
         }
+        .font(.callout)
+        .padding(.vertical, 1)
+        .listRowBackground(
+            focused.contains(key)
+                ? AnyView(RoundedRectangle(cornerRadius: 5).fill(.selection))
+                : AnyView(Color.clear))
     }
 
     // MARK: - Firms
@@ -152,11 +166,13 @@ struct FirmFilter: View {
                             }
                             Text(firm.ats.label)
                                 .font(.caption2)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(.quaternary)
                         }
                         .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
+                    .font(.callout)
+                    .padding(.vertical, 1)
                     .disabled(!firm.isConfigured)
                 }
             }

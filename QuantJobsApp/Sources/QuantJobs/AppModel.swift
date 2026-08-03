@@ -714,10 +714,16 @@ final class AppModel {
                 .filter { $0.tags.contains(group) }
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name)
                             == .orderedAscending }
-            // Order segments by size so the big ones lead.
+            // A deliberate order — tiers ascending, big tech most-wanted
+            // first. Sorting by size put "Tier 2" above "Tier 1".
+            let order = ["Tier 1", "Tier 2", "Tier 3",
+                         "FAANG+", "Frontier AI", "Startups"]
             let segments = Dictionary(grouping: members, by: \.segment)
-                .sorted { $0.value.count == $1.value.count
-                    ? $0.key < $1.key : $0.value.count > $1.value.count }
+                .sorted {
+                    let a = order.firstIndex(of: $0.key) ?? Int.max
+                    let b = order.firstIndex(of: $1.key) ?? Int.max
+                    return a == b ? $0.key < $1.key : a < b
+                }
             let tiers = segments.map { name, firms in
                 FirmTierNode(segment: name, ids: firms.map(\.id),
                              usable: firms.count { $0.isConfigured })

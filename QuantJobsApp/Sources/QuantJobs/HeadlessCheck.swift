@@ -354,6 +354,20 @@ enum HeadlessCheck {
             model.groupFilter = nil
             print("filters   hasExtra=\(model.hasExtraFilters) (expected false)")
 
+            print("\nfirm picker layout:")
+            for node in model.firmTree {
+                print("  \(AppModel.groupLabel(node.group)):")
+                for seg in node.tiers {
+                    let label = seg.segment.padding(toLength: 14, withPad: " ",
+                                                    startingAt: 0)
+                    print("     \(label) \(model.enabledCount(seg.ids))/\(seg.usable)")
+                }
+            }
+            let names = model.firmTree.flatMap { $0.tiers.flatMap(\.ids) }
+                .compactMap { model.company($0)?.name }
+                .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            print("  firms A-Z, first 6: \(names.prefix(6).joined(separator: ", "))")
+
             if let victim = model.visibleJobs.first {
                 let before = model.visibleJobs.count
                 model.setStatus(.hidden, for: [victim])
