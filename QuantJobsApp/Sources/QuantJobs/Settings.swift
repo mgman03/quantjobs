@@ -11,7 +11,6 @@ struct AppSettings: Codable, Sendable, Equatable {
     var level = Level.intern.rawValue
     var list = "results"
 
-    var groupFilter: String?
     var tagFilter: String?
     var locationFilter = ""
     var sinceDays: Int?
@@ -30,13 +29,11 @@ struct AppSettings: Codable, Sendable, Equatable {
     var refreshOnLaunch = true
     var refreshIfOlderThanHours = 6
 
-    /// First run starts on the quant half rather than all ~106 boards — the
-    /// big-tech Workday boards are the slow ones, and this is a quant tool.
-    static var firstRun: AppSettings {
-        var s = AppSettings()
-        s.groupFilter = "quant"
-        return s
-    }
+    /// Nothing special on a first run any more. This used to force the quant
+    /// half via a group filter, but that control was folded into the Firms
+    /// picker — and the leftover filter silently overrode it, so turning big
+    /// tech on in the picker scraped nothing.
+    static var firstRun: AppSettings { AppSettings() }
 
     static let defaultsKey = "appSettings"
 

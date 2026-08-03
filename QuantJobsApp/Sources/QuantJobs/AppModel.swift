@@ -23,7 +23,6 @@ final class AppModel {
     var newOnly = false
     var deep = false
     var search = ""
-    var groupFilter: String? = nil     // "quant" / "bigtech" — the firm groups
     var tagFilter: String? = nil       // the finer descriptive tags
     var recordState = true
     /// Fold the same role at several offices into one row.
@@ -45,14 +44,10 @@ final class AppModel {
         }
     }
 
-    /// Descriptive tags worth offering, scoped to the current group and with
-    /// the group tags themselves left out — they're already a separate control.
+    /// Descriptive tags worth offering, with the two group tags left out —
+    /// choosing quant vs big tech is what the Firms picker is for.
     var allTags: [String] {
-        let pool = companies.filter { c in
-            guard c.enabled else { return false }
-            if let groupFilter { return c.tags.contains(groupFilter) }
-            return true
-        }
+        let pool = companies.filter(\.enabled)
         return Set(pool.flatMap(\.tags))
             .subtracting(Self.groups)
             .sorted()
@@ -76,7 +71,7 @@ final class AppModel {
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty },
             sinceDays: sinceDays, newOnly: newOnly, deep: deep, search: search,
-            group: groupFilter, tag: tagFilter,
+            tag: tagFilter,
             continents: continentFilter, cities: cityFilter)
     }
 
@@ -140,13 +135,12 @@ final class AppModel {
 
     /// Whether anything beyond category + level is narrowing the list.
     var hasExtraFilters: Bool {
-        groupFilter != nil || tagFilter != nil || sinceDays != nil
+        tagFilter != nil || sinceDays != nil
             || newOnly || deep || !search.isEmpty || !locationFilter.isEmpty
             || !continentFilter.isEmpty || !cityFilter.isEmpty
     }
 
     func clearFilters() {
-        groupFilter = nil
         tagFilter = nil
         sinceDays = nil
         newOnly = false
@@ -424,7 +418,7 @@ final class AppModel {
     /// view can watch one thing instead of twenty.
     var settingsFingerprint: String {
         [selectedCategoryID, level.rawValue, list.rawValue,
-         groupFilter ?? "-", tagFilter ?? "-", locationFilter,
+         tagFilter ?? "-", locationFilter,
          sinceDays.map(String.init) ?? "-",
          continentFilter.sorted().joined(separator: ","),
          cityFilter.sorted().joined(separator: ","),
@@ -435,7 +429,7 @@ final class AppModel {
 
     var currentSettings: AppSettings {
         AppSettings(categoryID: selectedCategoryID, level: level.rawValue,
-                    list: list.rawValue, groupFilter: groupFilter,
+                    list: list.rawValue,
                     tagFilter: tagFilter, locationFilter: locationFilter,
                     sinceDays: sinceDays,
                     continents: continentFilter.sorted(),
@@ -450,7 +444,6 @@ final class AppModel {
         selectedCategoryID = s.categoryID
         level = Level(rawValue: s.level) ?? .intern
         list = JobList(rawValue: s.list) ?? .results
-        groupFilter = s.groupFilter
         tagFilter = s.tagFilter
         locationFilter = s.locationFilter
         sinceDays = s.sinceDays
@@ -766,7 +759,6 @@ final class AppModel {
     var selectedFirms: [Company] {
         companies.filter { c in
             guard c.enabled, c.isConfigured else { return false }
-            if let groupFilter, !c.tags.contains(groupFilter) { return false }
             if let tagFilter, !c.tags.contains(tagFilter) { return false }
             return true
         }

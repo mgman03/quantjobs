@@ -181,7 +181,6 @@ enum HeadlessCheck {
 
             a.selectedCategoryID = "quant-research"
             a.level = .internOrNewgrad
-            a.groupFilter = "quant"
             a.tagFilter = "hft"
             a.locationFilter = "london"
             a.sinceDays = 14
@@ -197,7 +196,7 @@ enum HeadlessCheck {
             let b = AppModel()
             await b.reload()
             let ok = b.selectedCategoryID == "quant-research"
-                && b.level == .internOrNewgrad && b.groupFilter == "quant"
+                && b.level == .internOrNewgrad
                 && b.tagFilter == "hft" && b.locationFilter == "london"
                 && b.sinceDays == 14
                 && b.continentFilter == ["Europe", "Asia"]
@@ -206,7 +205,7 @@ enum HeadlessCheck {
                 && b.list == .applied
 
             print("settings  category=\(b.selectedCategoryID) level=\(b.level.rawValue) "
-                  + "group=\(b.groupFilter ?? "-") tag=\(b.tagFilter ?? "-") "
+                  + "tag=\(b.tagFilter ?? "-") "
                   + "since=\(b.sinceDays.map(String.init) ?? "-")")
             print("          continents=\(b.continentFilter.sorted()) "
                   + "cities=\(b.cityFilter.sorted()) list=\(b.list.rawValue)")
@@ -345,13 +344,11 @@ enum HeadlessCheck {
             print("since 14d \(model.visibleJobs.count) roles")
             model.sinceDays = nil
 
-            for group in [nil] + AppModel.groups.map(Optional.init) {
-                model.groupFilter = group
-                print("group     \(AppModel.groupLabel(group).padding(toLength: 10, withPad: " ", startingAt: 0)) "
-                      + "\(model.visibleJobs.count) roles · "
-                      + "\(model.selectedFirms.count) boards would scrape")
+            print("scrape    \(model.selectedFirms.count) boards would run")
+            for group in AppModel.groups {
+                let on = model.selectedFirms.count { $0.tags.contains(group) }
+                print("          \(AppModel.groupLabel(group).padding(toLength: 10, withPad: " ", startingAt: 0)) \(on)")
             }
-            model.groupFilter = nil
             print("filters   hasExtra=\(model.hasExtraFilters) (expected false)")
 
             print("\nfirm picker layout:")
