@@ -26,8 +26,17 @@ QuantJobs
 2. First launch: right-click the app and choose Open. macOS blocks
    double-clicking an app that isn't notarised by an Apple developer account,
    and right-click → Open is the standard way past that. You only do it once.
-3. It will ask permission to read the folder holding companies.json. Allow it,
-   or the board list stays empty.
+3. That's it. The app ships with its own copy of the firm list and settles it
+   into ~/Library/Application Support/QuantJobs on first launch, so there is
+   nothing else to download and no folder permission to grant.
+
+To share one config with the command-line tool instead, clone the repo and
+point the app at your checkout:
+
+   defaults write local.quantjobs.shared configDirectory ~/quant-internships
+
+Keep that checkout out of ~/Desktop, ~/Documents and ~/Downloads — macOS gates
+those three, and the app will ask permission every time it is rebuilt.
 
 Source and docs: https://github.com/mgman03/quantjobs
 TXT
