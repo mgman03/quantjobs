@@ -6,6 +6,17 @@ enum ConfigStore {
 
     static let dirDefaultsKey = "configDirectory"
 
+    /// A named suite rather than `.standard`.
+    ///
+    /// `UserDefaults.standard` keys off the bundle identifier, so the installed
+    /// .app and a `swift run` from the checkout read two different domains — a
+    /// `defaults write QuantJobs configDirectory` aimed at one silently missed
+    /// the other, and the app carried on reading a stale seeded copy in
+    /// Application Support. One suite, one place to point either at.
+    nonisolated(unsafe) static let overrides =
+        UserDefaults(suiteName: overrideDomain) ?? .standard
+    static let overrideDomain = "local.quantjobs.shared"
+
     /// The checkout this binary is running from, found by walking up from the
     /// executable until a `companies.json` turns up.
     ///
@@ -56,7 +67,7 @@ enum ConfigStore {
                !env.isEmpty {
                 return URL(fileURLWithPath: (env as NSString).expandingTildeInPath)
             }
-            if let s = UserDefaults.standard.string(forKey: dirDefaultsKey) {
+            if let s = overrides.string(forKey: dirDefaultsKey) {
                 return URL(fileURLWithPath: s)
             }
             if let repo = repoDirectory { return repo }
@@ -66,7 +77,7 @@ enum ConfigStore {
             }
             return appSupportDirectory
         }
-        set { UserDefaults.standard.set(newValue.path, forKey: dirDefaultsKey) }
+        set { overrides.set(newValue.path, forKey: dirDefaultsKey) }
     }
 
     static var companiesURL: URL { directory.appendingPathComponent("companies.json") }

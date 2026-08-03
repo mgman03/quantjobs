@@ -43,8 +43,12 @@ cd QuantJobsApp
 Because the app is signed ad-hoc rather than notarised, the **first launch needs
 right-click → Open**. Double-clicking gets blocked by Gatekeeper. You only do it once.
 
-On first launch macOS may ask whether QuantJobs can read the folder holding
-`companies.json`. Click Allow, or the board list stays empty.
+**Keep the checkout out of `~/Desktop`, `~/Documents` and `~/Downloads`.** macOS
+gates those three folders, so an app reading its config from one gets a permission
+prompt — and because `make-app.sh` signs ad-hoc, every rebuild looks like a new app
+and the prompt comes back. Anywhere else (`~/quant-internships`, `~/Developer/…`) and
+you're never asked. If you do keep it in a guarded folder, click Allow or the board
+list stays empty.
 
 ## Commands
 
@@ -205,8 +209,17 @@ export QUANTJOBS_CONFIG=/path/to/checkout
 ```
 
 An app installed to `/Applications` isn't in the checkout, so it falls back to
-`~/Library/Application Support/QuantJobs`, seeded from a copy inside the bundle. Point
-it at your checkout with the variable above if you want one shared config.
+`~/Library/Application Support/QuantJobs`, seeded from a copy inside the bundle. To
+have it share your checkout instead — which is what you want if you use both tools —
+point it there once:
+
+```bash
+defaults write local.quantjobs.shared configDirectory ~/quant-internships
+```
+
+(That domain is deliberate — `UserDefaults.standard` keys off the bundle
+identifier, so the installed app and a `swift run` from the checkout would
+otherwise read two different places.)
 
 ## Notes
 
