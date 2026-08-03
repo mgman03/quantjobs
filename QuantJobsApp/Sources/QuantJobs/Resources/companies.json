@@ -47,7 +47,7 @@
       "name": "AQR Capital",
       "token": "aqr",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 1"
     },
     {
       "name": "Citadel",
@@ -62,7 +62,7 @@
       "host": "www.citadel.com",
       "site": "",
       "tier": 1,
-      "segment": "Hedge Funds"
+      "segment": "Tier 1"
     },
     {
       "name": "Citadel Securities",
@@ -76,7 +76,7 @@
       "host": "www.citadelsecurities.com",
       "site": "",
       "tier": 1,
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 1"
     },
     {
       "tier": 1,
@@ -101,7 +101,7 @@
       "name": "DRW",
       "token": "drweng",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 1"
     },
     {
       "token": "",
@@ -128,7 +128,7 @@
       ],
       "ats": "greenhouse",
       "tier": 1,
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 1"
     },
     {
       "tier": 1,
@@ -141,7 +141,7 @@
       "name": "IMC Trading",
       "token": "imc",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 1"
     },
     {
       "tier": 1,
@@ -154,7 +154,7 @@
       "name": "Jane Street",
       "token": "janestreet",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 1"
     },
     {
       "tier": 1,
@@ -167,7 +167,7 @@
       "name": "Jump Trading",
       "token": "jumptrading",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 1"
     },
     {
       "token": "",
@@ -208,7 +208,7 @@
       "host": "mlp.eightfold.ai",
       "site": "",
       "tier": 1,
-      "segment": "Hedge Funds"
+      "segment": "Tier 1"
     },
     {
       "name": "Netflix",
@@ -262,7 +262,7 @@
       "name": "Optiver",
       "note": "Their listing renders 16 roles per category page and loads the rest with JavaScript; there is no API, sitemap or page parameter, so this gets the newest 16 of each category rather than every posting.",
       "ats": "optiver",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 1"
     },
     {
       "tier": 1,
@@ -286,7 +286,7 @@
       "name": "Point72",
       "token": "point72",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 1"
     },
     {
       "tier": 1,
@@ -299,7 +299,7 @@
       "name": "Qube RT",
       "token": "quberesearchandtechnologies",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 1"
     },
     {
       "tier": 1,
@@ -312,7 +312,7 @@
       "name": "Radix Trading",
       "token": "radixuniversity",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 1"
     },
     {
       "name": "SIG",
@@ -327,7 +327,7 @@
       "host": "careers.sig.com",
       "site": "",
       "tier": 1,
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 1"
     },
     {
       "tier": 1,
@@ -340,7 +340,7 @@
       "name": "Squarepoint Capital",
       "token": "squarepointcapital",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 1"
     },
     {
       "tier": 1,
@@ -365,7 +365,7 @@
       "name": "Tower Research",
       "token": "towerresearchcapital",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 1"
     },
     {
       "tier": 1,
@@ -377,7 +377,7 @@
       ],
       "name": "Two Sigma",
       "ats": "twosigma",
-      "segment": "Hedge Funds"
+      "segment": "Tier 1"
     },
     {
       "tier": 1,
@@ -390,7 +390,7 @@
       "name": "Virtu Financial",
       "token": "virtu",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 1"
     },
     {
       "tier": 1,
@@ -404,7 +404,7 @@
       "name": "XTX Markets",
       "token": "xtxmarketstechnologies",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 1"
     },
     {
       "name": "Adobe",
@@ -454,7 +454,7 @@
       "name": "Akuna Capital",
       "token": "akunacapital",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "name": "AMD",
@@ -520,7 +520,7 @@
       "name": "Aquatic Capital",
       "token": "aquaticcapitalmanagement",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "name": "Arrowstreet",
@@ -534,7 +534,7 @@
       "host": "arrowstreetcapital.wd5.myworkdayjobs.com",
       "site": "Arrowstreet",
       "tier": 2,
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -584,7 +584,7 @@
       "name": "Belvedere Trading",
       "token": "belvederetrading",
       "ats": "lever",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -621,7 +621,7 @@
       "name": "Capstone",
       "token": "capstoneinvestmentadvisors",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -634,7 +634,7 @@
       "name": "Chicago Trading Co",
       "token": "",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "name": "Citi",
@@ -755,7 +755,7 @@
       "name": "Engineers Gate",
       "token": "engineersgate",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -780,7 +780,7 @@
       "name": "ExodusPoint",
       "token": "exoduspoint",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -803,7 +803,7 @@
       "name": "Five Rings",
       "token": "fiveringsllc",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -816,7 +816,7 @@
       "name": "Flow Traders",
       "token": "flowtraders",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -841,7 +841,7 @@
       "name": "GSA Capital",
       "token": "gsacapital",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -854,7 +854,7 @@
       "name": "Headlands Tech",
       "token": "headlandstechnologiesllc",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -917,7 +917,7 @@
       "name": "Man Group",
       "token": "mangroup",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -930,7 +930,7 @@
       "name": "Marshall Wace",
       "token": "marshallwace",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "name": "Marvell",
@@ -971,7 +971,7 @@
       "name": "Maven Securities",
       "token": "",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "name": "Micron",
@@ -1063,7 +1063,7 @@
       "name": "Old Mission Capital",
       "token": "oldmissioncapital",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "name": "PayPal",
@@ -1088,7 +1088,7 @@
       "name": "PDT Partners",
       "token": "pdtpartners",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -1100,7 +1100,7 @@
       "name": "PEAK6",
       "token": "",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -1148,7 +1148,7 @@
       "name": "Quadrature Capital",
       "token": "quadraturecapital",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -1161,7 +1161,7 @@
       "name": "Quantlab",
       "token": "",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -1174,7 +1174,7 @@
       "name": "Radix Trading (Experienced)",
       "token": "radixexperienced",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -1294,7 +1294,7 @@
       "name": "Schonfeld",
       "token": "schonfeld",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -1318,7 +1318,7 @@
       "name": "TransMarket Group",
       "token": "transmarketgroup",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -1352,7 +1352,7 @@
       "name": "Vatic Labs",
       "token": "vaticlabs",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -1364,7 +1364,7 @@
       "name": "Voleon",
       "token": "voleon",
       "ats": "ashby",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -1376,7 +1376,7 @@
       "name": "Walleye Capital",
       "token": "walleyecapital-external-students",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -1388,7 +1388,7 @@
       "name": "Walleye Capital (Full-Time)",
       "token": "walleyecapital-external-fulltime",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -1413,7 +1413,7 @@
       "name": "Winton",
       "token": "winton",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "tier": 2,
@@ -1425,7 +1425,7 @@
       ],
       "name": "Wolverine Trading",
       "ats": "wolverine",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 2"
     },
     {
       "name": "Workday",
@@ -1451,7 +1451,7 @@
       "name": "WorldQuant",
       "token": "worldquant",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 2"
     },
     {
       "name": "Zoom",
@@ -1512,7 +1512,7 @@
       "name": "Bracebridge",
       "token": "bracebridgecapital",
       "ats": "greenhouse",
-      "segment": "Hedge Funds"
+      "segment": "Tier 3"
     },
     {
       "tier": 3,
@@ -1549,7 +1549,7 @@
       "name": "Da Vinci Derivatives",
       "token": "davinciderivatives",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 3"
     },
     {
       "tier": 3,
@@ -1585,7 +1585,7 @@
       "name": "DV Trading",
       "token": "dvtrading",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 3"
     },
     {
       "tier": 3,
@@ -1598,7 +1598,7 @@
       "name": "Eclipse Trading",
       "token": "eclipsetrading",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 3"
     },
     {
       "tier": 3,
@@ -1634,7 +1634,7 @@
       "name": "Geneva Trading",
       "token": "genevatrading",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 3"
     },
     {
       "tier": 3,
@@ -1647,7 +1647,7 @@
       "name": "Grasshopper",
       "token": "grasshopperasia",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 3"
     },
     {
       "tier": 3,
@@ -1684,7 +1684,7 @@
       "name": "Keyrock",
       "token": "keyrock",
       "ats": "ashby",
-      "segment": "Hedge Funds"
+      "segment": "Tier 3"
     },
     {
       "tier": 3,
@@ -1864,7 +1864,7 @@
       "name": "Simplex Trading",
       "token": "simplextrading",
       "ats": "greenhouse",
-      "segment": "Market Makers & HFT"
+      "segment": "Tier 3"
     },
     {
       "tier": 3,

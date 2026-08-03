@@ -10,6 +10,22 @@ struct ContentView: View {
     @State private var showingFailures = false
     @State private var showingPlaces = false
     @State private var showingSources = false
+    @State private var showingFirms = false
+
+    /// "All firms" / "Quant" / "62 firms" — the state at a glance.
+    private var firmsLabel: String {
+        let on = model.selectedFirms.count
+        let total = model.companies.count { $0.isConfigured }
+        if on == total { return "All firms" }
+        for node in model.firmTree where model.checkState(node.ids,
+                                                          usable: node.usable) == .on {
+            let others = model.firmTree.filter { $0.group != node.group }
+            if others.allSatisfy({ model.enabledCount($0.ids) == 0 }) {
+                return AppModel.groupLabel(node.group)
+            }
+        }
+        return "\(on) firms"
+    }
 
     /// "Anywhere" / "Europe" / "3 places" — enough to see the state at a glance.
     private var placesLabel: String {
@@ -136,9 +152,6 @@ struct ContentView: View {
                 }
             }
 
-            Section("Firms") {
-                FirmTree(model: model)
-            }
         }
         .navigationSplitViewColumnWidth(min: 200, ideal: 224, max: 280)
         .safeAreaInset(edge: .bottom) {
@@ -196,6 +209,21 @@ struct ContentView: View {
                 PlaceFilter(model: model)
             }
             .help("Filter by continent, then drill into cities")
+
+            Button {
+                showingFirms.toggle()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "building.2")
+                    Text(firmsLabel)
+                    Image(systemName: "chevron.down").font(.system(size: 8))
+                }
+                .font(.callout)
+            }
+            .popover(isPresented: $showingFirms, arrowEdge: .bottom) {
+                FirmFilter(model: model)
+            }
+            .help("Choose which firms to scrape")
 
             Menu {
                 Picker("", selection: $model.sinceDays) {

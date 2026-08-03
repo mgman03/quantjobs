@@ -271,9 +271,11 @@ so in a read-me alongside the app.
   apply both as an AND, which read as two filters when it only ever meant London. Now
   a continent scopes which cities are on offer, and as soon as you pick one the cities
   do the filtering.
-- **The firm tree checkbox is tri-state**: a filled tick when every board in a branch
-  is on, a dash when only some are, an empty box when none. Hovering says what a click
-  will do, since clicking a part-selected branch turns the whole thing on.
+- **Three pickers sit together above the table** — location, firms, date — and all
+  work the same way: click the group on the left to narrow the list on the right,
+  tick either to select. The firm picker groups quant firms by **tier** and big tech
+  by **FAANG+ / Frontier AI / Startups**. A part-selected group shows a half-filled
+  box, and hovering says what a click will do.
 - **Remembers how you left it.** Category, level, the All/Quant/Big Tech switch, every
   filter (continent, city, tag, location, date window), the toggles, which list you
   were on and whether the detail panel was open all come back on the next launch.
