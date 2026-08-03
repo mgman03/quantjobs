@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// Reads and writes the same `companies.json` / `categories.json` the Python CLI uses,
 /// so the two tools can share one config folder.
@@ -92,6 +93,11 @@ enum ConfigStore {
     /// Copy the bundled defaults into the config folder the first time we run
     /// against a location that has no config yet.
     static func seedIfNeeded() {
+        seedMissingFiles()
+        mergeBundledRoster()
+    }
+
+    private static func seedMissingFiles() {
         let fm = FileManager.default
         try? fm.createDirectory(at: directory, withIntermediateDirectories: true)
 
@@ -102,6 +108,56 @@ enum ConfigStore {
                 try? fm.copyItem(at: seed, to: url)
             }
         }
+    }
+
+    /// Where we recorded the roster the bundle last shipped.
+    private static var seedStampURL: URL {
+        directory.appendingPathComponent(".seed-version")
+    }
+
+    /// Bring an existing config up to date when the app itself is upgraded.
+    ///
+    /// Seeding only writes files that are *missing*, so an installed app that
+    /// already had a config kept the roster it first shipped with — forever. A
+    /// new version could add twenty firms, repair a broken token or correct a
+    /// note, and none of it reached anyone who had already run the app once.
+    ///
+    /// So: whenever the bundled roster differs from the one we last merged,
+    /// fold it in. The maintainer's fields win, because those are the ones that
+    /// get fixed; the user's own on/off choices and any firms they added
+    /// themselves are left alone.
+    private static func mergeBundledRoster() {
+        guard let seedURL = Bundle.module.url(forResource: "companies",
+                                              withExtension: "json"),
+              let seedData = try? Data(contentsOf: seedURL) else { return }
+
+        let stamp = SHA256.hash(data: seedData).map { String(format: "%02x", $0) }.joined()
+        let seen = (try? String(contentsOf: seedStampURL, encoding: .utf8))?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard seen != stamp else { return }
+
+        // Record the stamp either way — a roster we can't parse shouldn't make
+        // every launch retry the same merge.
+        defer { try? stamp.write(to: seedStampURL, atomically: true, encoding: .utf8) }
+
+        guard let bundled = try? JSONDecoder().decode(CompanyFile.self, from: seedData),
+              var current = try? loadCompanies() else { return }
+
+        let mine = Dictionary(current.companies.map { ($0.name, $0) },
+                              uniquingKeysWith: { a, _ in a })
+        var merged: [Company] = []
+        for var firm in bundled.companies {
+            // Their choice, not ours — a firm they switched off stays off.
+            if let existing = mine[firm.name] { firm.enabled = existing.enabled }
+            merged.append(firm)
+        }
+        // Anything they added by hand isn't in the bundle; keep it.
+        let bundledNames = Set(bundled.companies.map(\.name))
+        merged.append(contentsOf: current.companies.filter { !bundledNames.contains($0.name) })
+
+        current.companies = merged
+        current.comment = bundled.comment
+        try? saveCompanies(current)
     }
 
     // MARK: companies

@@ -228,6 +228,19 @@ defaults write local.quantjobs.shared configDirectory ~/quant-internships
 identifier, so the installed app and a `swift run` from the checkout would
 otherwise read two different places.)
 
+## Updating
+
+**The app:** download the [latest DMG][dmg] and drag it over the old one. Your saved
+and applied roles, settings and on/off choices are kept — they live outside the app.
+The firm list is refreshed from the new version on first launch: firms added since
+your version arrive, repaired tokens and corrected notes come with them, and firms you
+switched on or off stay how you left them. Anything you added by hand is untouched.
+
+**The CLI:** `git pull`. Note that `companies.json` is both the shipped roster and your
+live config, so if you've toggled firms in the app git will report a conflict there —
+`git checkout --theirs companies.json` takes the new roster if you don't mind losing
+your on/off choices.
+
 ## Notes
 
 - `.seen.json` tracks postings you've already been shown, which powers `--new-only`.

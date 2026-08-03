@@ -23,3 +23,6 @@ QuantJobs.app/
 
 # macOS
 .DS_Store
+
+# Written by the app to know which bundled roster it last merged.
+.seed-version
