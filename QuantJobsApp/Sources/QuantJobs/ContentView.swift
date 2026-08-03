@@ -90,7 +90,6 @@ struct ContentView: View {
             }
         }
         .toolbar { toolbarContent }
-        .searchable(text: $model.search, placement: .toolbar, prompt: "Filter roles")
         .sheet(isPresented: $model.showBoardEditor) {
             CompaniesView(model: model)
         }
@@ -185,6 +184,7 @@ struct ContentView: View {
     // MARK: - Filter bar
 
     private var filterBar: some View {
+        VStack(alignment: .leading, spacing: 6) {
         HStack(spacing: 12) {
             Picker("", selection: $model.level) {
                 ForEach(Level.allCases) {
@@ -249,9 +249,13 @@ struct ContentView: View {
             .fixedSize()
             .help("How recently the role was posted")
 
-            if model.hasExtraFilters {
-                Divider().frame(height: 16)
+            Spacer(minLength: 8)
 
+            searchField
+        }
+
+        if model.hasExtraFilters {
+            HStack(spacing: 6) {
                 ScrollView(.horizontal) {
                     HStack(spacing: 6) { chips }
                         .padding(.vertical, 1)
@@ -262,11 +266,37 @@ struct ContentView: View {
                     .buttonStyle(.link)
                     .font(.caption)
             }
-
-            Spacer(minLength: 0)
+        }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
+    }
+
+    /// Lives in the filter row rather than the window toolbar. In the toolbar it
+    /// was drawn across the top of the inspector, so the field's capsule and the
+    /// panel's rounded corner overlapped whenever a role was selected.
+    private var searchField: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "magnifyingglass")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("Filter roles", text: $model.search)
+                .textFieldStyle(.plain)
+                .frame(width: 150)
+            if !model.search.isEmpty {
+                Button { model.search = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .font(.callout)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 6))
+        .fixedSize()
+        .help("Filter the roles already on screen")
     }
 
     /// The strip that appears once anything is hidden, so hidden roles are
@@ -303,7 +333,8 @@ struct ContentView: View {
             Text("kept even after a board takes the posting down")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Spacer()
+            Spacer(minLength: 8)
+            searchField
             Button("Back to Results") { model.list = .results }
                 .buttonStyle(.link)
                 .font(.caption)
