@@ -1,14 +1,44 @@
 #!/bin/bash
 # Build a release binary and wrap it in a double-clickable QuantJobs.app.
+#
+#   ./make-app.sh                 install to /Applications and show it in Finder
+#   ./make-app.sh --dmg           build QuantJobs.dmg to hand to someone else
+#   ./make-app.sh --to <path>     put the .app somewhere specific
+#   ./make-app.sh --no-reveal     skip the Finder window
 set -euo pipefail
 
 cd "$(dirname "$0")"
-APP="${1:-/Applications/QuantJobs.app}"
-REVEAL=1
-[ "${2:-}" = "--no-reveal" ] && REVEAL=0
 
-# /Applications needs a writable spot; fall back to the user's own folder.
-if ! mkdir -p "$(dirname "$APP")" 2>/dev/null || [ ! -w "$(dirname "$APP")" ]; then
+APP="/Applications/QuantJobs.app"
+REVEAL=1
+DMG=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        # Only take the next argument as a path if it isn't another flag,
+        # or a bare `--dmg --no-reveal` names its image "--no-reveal".
+        --dmg)        if [ $# -gt 1 ] && [ "${2#-}" = "$2" ]; then
+                          DMG="$2"; shift
+                      else
+                          DMG="$PWD/QuantJobs.dmg"
+                      fi ;;
+        --to)         APP="$2"; shift ;;
+        --no-reveal)  REVEAL=0 ;;
+        -h|--help)    sed -n '2,7p' "$0"; exit 0 ;;
+        *)            echo "unknown option: $1" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+# A disk image is built from a throwaway copy, never from /Applications.
+STAGE=""
+if [ -n "$DMG" ]; then
+    STAGE="$(mktemp -d)/QuantJobs"
+    trap 'rm -rf "$(dirname "$STAGE")"' EXIT
+    APP="$STAGE/QuantJobs.app"
+    mkdir -p "$STAGE"
+elif ! mkdir -p "$(dirname "$APP")" 2>/dev/null || [ ! -w "$(dirname "$APP")" ]; then
+    # /Applications needs a writable spot; fall back to the user's own folder.
     APP="$HOME/Applications/QuantJobs.app"
     mkdir -p "$(dirname "$APP")"
 fi
@@ -66,14 +96,50 @@ PLIST
 # Ad-hoc signature so Gatekeeper lets a locally built app run.
 codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true
 
+# ── Disk image ──────────────────────────────────────────────────────────
+# The drag-here-to-install layout people expect: the app, a symlink to
+# /Applications, and a note about the Gatekeeper prompt they'll hit first.
+if [ -n "$DMG" ]; then
+    ln -s /Applications "$STAGE/Applications"
+
+    cat > "$STAGE/Read me first.txt" <<'TXT'
+QuantJobs
+
+1. Drag QuantJobs.app onto the Applications folder here.
+2. First launch: right-click the app and choose Open. macOS blocks
+   double-clicking an app that isn't notarised by an Apple developer account,
+   and right-click → Open is the standard way past that. You only do it once.
+3. That's it. The app ships with its own copy of the firm list and settles it
+   into ~/Library/Application Support/QuantJobs on first launch, so there is
+   nothing else to download and no folder permission to grant.
+
+To share one config with the command-line tool instead, clone the repo and
+point the app at your checkout:
+
+   defaults write local.quantjobs.shared configDirectory ~/quant-internships
+
+Keep that checkout out of ~/Desktop, ~/Documents and ~/Downloads — macOS gates
+those three, and the app will ask permission every time it is rebuilt.
+
+Source and docs: https://github.com/mgman03/quantjobs
+TXT
+
+    rm -f "$DMG"
+    hdiutil create -quiet -volname "QuantJobs" -srcfolder "$STAGE" \
+        -ov -format UDZO "$DMG"
+    echo "built $DMG ($(du -h "$DMG" | cut -f1))"
+    [ "$REVEAL" = "1" ] && open -R "$DMG"
+    exit 0
+fi
+
 echo "built $APP"
 
 # Let Finder and Spotlight notice it, then show it to the user.
 /usr/bin/touch "$APP"
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
     -f "$APP" >/dev/null 2>&1 || true
-# An `&&` here would make the script exit 1 whenever REVEAL is 0, which under
-# `set -e` in make-dmg.sh aborted the whole build.
+# An `&&` here would exit 1 whenever REVEAL is 0, which under `set -e` would
+# abort a caller mid-build.
 if [ "$REVEAL" = "1" ]; then
     open -R "$APP"
 fi

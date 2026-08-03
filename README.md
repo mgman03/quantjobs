@@ -37,7 +37,7 @@ For the Mac app (macOS 14+, Xcode command-line tools):
 ```bash
 cd QuantJobsApp
 ./make-app.sh          # builds and installs to /Applications, then shows it in Finder
-./make-dmg.sh          # or build QuantJobs.dmg to hand to someone else
+./make-app.sh --dmg    # or build QuantJobs.dmg to hand to someone else
 ```
 
 Because the app is signed ad-hoc rather than notarised, the **first launch needs

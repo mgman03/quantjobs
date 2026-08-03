@@ -16,7 +16,7 @@ __pycache__/
 *.pyc
 QuantJobsApp/Icon/QuantJobs.iconset/
 QuantJobsApp/Icon/QuantJobs.icns
-# make-dmg.sh and make-app.sh drop these in the checkout; both are rebuildable
+# make-app.sh drops these in the checkout; both are rebuildable
 # and the DMG is a couple of megabytes, so neither belongs in the history.
 *.dmg
 QuantJobs.app/
