@@ -34,11 +34,34 @@ enum Scraper {
         }
     }
 
+    /// Roughly how long each kind of board takes. The slow ones page HTML ten
+    /// rows at a time or sit behind a rate limit; starting them last means
+    /// everything else waits on them.
+    static func expectedCost(_ ats: ATS) -> Int {
+        switch ats {
+        case .citadel: 100
+        case .twosigma: 90
+        case .eightfold: 80
+        case .jibe: 40
+        case .workday: 30
+        case .optiver, .amazon: 20
+        case .simplify: 15
+        case .uber: 10
+        case .smartrecruiters: 8
+        case .wolverine: 3
+        default: 1
+        }
+    }
+
     /// Run every board with at most `workers` in flight, reporting each one as
     /// it lands so the UI can show progress rather than a long blank spinner.
-    static func run(_ companies: [Company], deep: Bool, workers: Int = 8,
+    static func run(_ rawCompanies: [Company], deep: Bool, workers: Int = 10,
                     onBoard: @Sendable @escaping (BoardResult) async -> Void) async {
-        guard !companies.isEmpty else { return }
+        guard !rawCompanies.isEmpty else { return }
+        // Slowest first, so they overlap the quick ones instead of trailing.
+        let companies = rawCompanies.sorted {
+            expectedCost($0.ats) > expectedCost($1.ats)
+        }
         let limit = max(1, min(workers, companies.count))
 
         await withTaskGroup(of: BoardResult.self) { group in

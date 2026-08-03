@@ -9,7 +9,6 @@ struct ContentView: View {
     @State private var selection: Set<Job.ID> = []
     @State private var showingFailures = false
     @State private var showingPlaces = false
-    @State private var showingFilters = false
     @State private var showingSources = false
 
     /// "Anywhere" / "Europe" / "3 places" — enough to see the state at a glance.
@@ -197,6 +196,28 @@ struct ContentView: View {
                 PlaceFilter(model: model)
             }
             .help("Filter by continent, then drill into cities")
+
+            Menu {
+                Picker("", selection: $model.sinceDays) {
+                    Text("Any time").tag(Int?.none)
+                    Text("Last 7 days").tag(Int?.some(7))
+                    Text("Last 14 days").tag(Int?.some(14))
+                    Text("Last 30 days").tag(Int?.some(30))
+                    Text("Last 90 days").tag(Int?.some(90))
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                    Text(model.sinceDays.map { "Last \($0)d" } ?? "Any time")
+                    Image(systemName: "chevron.down").font(.system(size: 8))
+                }
+                .font(.callout)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("How recently the role was posted")
 
             if model.hasExtraFilters {
                 Divider().frame(height: 16)
@@ -544,18 +565,6 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem {
-            Button {
-                showingFilters.toggle()
-            } label: {
-                Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
-            }
-            .popover(isPresented: $showingFilters, arrowEdge: .bottom) {
-                FilterPanel(model: model)
-            }
-            .help("Date, location, tag and matching options")
-        }
-
         ToolbarItem {
             Menu {
                 ForEach(AppModel.ExportFormat.allCases) { format in

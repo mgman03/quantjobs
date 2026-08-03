@@ -1014,6 +1014,21 @@ def scrape_one(c: dict, deep: bool) -> tuple[dict, list[dict], str | None]:
     return c, jobs, None
 
 
+# Roughly how long each kind of board takes. The slow ones are slow because
+# they page HTML ten rows at a time or sit behind a rate limit, and if they
+# start last everything else waits on them — so they go first.
+ATS_COST = {
+    "citadel": 100, "twosigma": 90, "eightfold": 80, "jibe": 40,
+    "workday": 30, "optiver": 20, "amazon": 20, "simplify": 15,
+    "uber": 10, "smartrecruiters": 8, "wolverine": 3,
+}
+
+
+def by_expected_cost(companies: list[dict]) -> list[dict]:
+    """Slowest boards first, so they overlap the quick ones."""
+    return sorted(companies, key=lambda c: -ATS_COST.get(c.get("ats", ""), 1))
+
+
 def scrape(companies: list[dict], deep: bool, workers: int,
            progress: bool = True) -> tuple[list[dict], list[tuple[str, str]]]:
     jobs: list[dict] = []
@@ -1021,7 +1036,8 @@ def scrape(companies: list[dict], deep: bool, workers: int,
     done = 0
     progress = progress and sys.stderr.isatty()  # \r is noise in a pipe or log
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
-        futs = {ex.submit(scrape_one, c, deep): c for c in companies}
+        futs = {ex.submit(scrape_one, c, deep): c
+                for c in by_expected_cost(companies)}
         for fut in concurrent.futures.as_completed(futs):
             c, got, err = fut.result()
             done += 1

@@ -34,6 +34,24 @@ struct QuantJobsApp: App {
 
                 Divider()
 
+                Toggle("Merge the same role across offices", isOn: $model.mergeRoles)
+                Toggle("Search full descriptions (slower)", isOn: $model.deep)
+                Toggle("Record this run in the seen list", isOn: $model.recordState)
+
+                Divider()
+
+                Picker("Firm tag", selection: $model.tagFilter) {
+                    Text("Any tag").tag(String?.none)
+                    ForEach(model.allTags, id: \.self) { Text($0).tag(String?.some($0)) }
+                }
+
+                Divider()
+
+                Button("Clear All Filters", action: model.clearFilters)
+                    .disabled(!model.hasExtraFilters)
+
+                Divider()
+
                 Button("Manage Boards…") { model.showBoardEditor = true }
 
                 Divider()
