@@ -24,7 +24,14 @@ Old Mission Capital Software Engineer – 2027 Internship Program  Chicago, IL  
 
 ## Install
 
-Clone it and run — there's nothing to install for the CLI.
+**Mac app:** [download QuantJobs.dmg][dmg] (macOS 14+), drag it onto Applications,
+then **right-click → Open** the first time — macOS blocks double-clicking an app that
+isn't notarised by a paid Apple developer account. You only do it once. Nothing else
+to download; the app carries its own copy of the firm list.
+
+[dmg]: https://github.com/mgman03/quantjobs/releases/latest/download/QuantJobs.dmg
+
+**Command line:** clone it and run — there's nothing to install.
 
 ```bash
 git clone https://github.com/mgman03/quantjobs.git
@@ -32,12 +39,12 @@ cd quantjobs
 ./quantjobs.py scrape -c swe -l intern
 ```
 
-For the Mac app (macOS 14+, Xcode command-line tools):
+To build the app yourself instead of downloading it (needs Xcode command-line tools):
 
 ```bash
 cd QuantJobsApp
 ./make-app.sh          # builds and installs to /Applications, then shows it in Finder
-./make-app.sh --dmg    # or build QuantJobs.dmg to hand to someone else
+./make-app.sh --dmg    # or build the disk image yourself
 ```
 
 Because the app is signed ad-hoc rather than notarised, the **first launch needs
