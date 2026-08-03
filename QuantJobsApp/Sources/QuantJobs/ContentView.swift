@@ -182,18 +182,6 @@ struct ContentView: View {
             .fixedSize()
             .help("Which level of role to look for")
 
-            Divider().frame(height: 16)
-
-            Picker("", selection: $model.groupFilter) {
-                Text("All").tag(String?.none)
-                ForEach(AppModel.groups, id: \.self) { group in
-                    Text(AppModel.groupLabel(group)).tag(String?.some(group))
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .help("Which slice of the firm list to scrape and show")
 
             Button {
                 showingPlaces.toggle()
@@ -483,9 +471,18 @@ struct ContentView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
-                if model.newCount > 0 {
-                    Label("\(model.newCount) new", systemImage: "sparkles")
-                        .foregroundStyle(.tint)
+                if model.visibleNewCount > 0 || model.newOnly {
+                    Button {
+                        model.newOnly.toggle()
+                    } label: {
+                        Label(model.newOnly ? "showing new only"
+                                            : "\(model.visibleNewCount) new",
+                              systemImage: model.newOnly ? "sparkles.rectangle.stack.fill"
+                                                         : "sparkles")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tint)
+                    .help("Show only roles you haven't seen before")
                 }
             }
 
@@ -518,8 +515,9 @@ struct ContentView: View {
             .help("Which boards these results came from")
 
             if let lastRun = model.lastRun {
-                Text(lastRun, format: .dateTime.hour().minute())
+                Text("checked \(lastRun, format: .dateTime.hour().minute())")
                     .foregroundStyle(.secondary)
+                    .help("When the boards were last fetched")
             }
         }
         .font(.caption)
@@ -734,6 +732,14 @@ struct JobDetailContent: View {
 
     private func header(_ job: Job) -> some View {
         VStack(alignment: .leading, spacing: 6) {
+            if job.linkUnverified {
+                Label("Link not confirmed — this firm blocks automated checks, "
+                      + "so the posting may have closed",
+                      systemImage: "questionmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if tracking?.isDelisted == true {
                 Label("No longer listed — kept because you saved it",
                       systemImage: "xmark.circle")

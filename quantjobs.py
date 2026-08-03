@@ -582,6 +582,46 @@ SIMPLIFY_URL = ("https://raw.githubusercontent.com/SimplifyJobs/"
                 "Summer2027-Internships/dev/.github/scripts/listings.json")
 _SIMPLIFY_CACHE: dict[str, list] = {}
 
+# A second-hand listing is only worth showing if the posting is still there,
+# so anything from an aggregator gets its link checked before we believe it.
+LINK_OK, LINK_DEAD, LINK_BLOCKED = "ok", "dead", "blocked"
+
+
+def check_link(url: str, timeout: int = 12) -> str:
+    """Classify a job link: reachable, gone, or can't tell.
+
+    A 404/410 means the posting has been taken down. A 403/400 usually means
+    the firm blocks scripted requests (Meta does), which says nothing about
+    whether the job exists — so that stays 'blocked' rather than 'dead', and
+    the row survives with a caveat instead of being silently dropped.
+    """
+    if not url:
+        return LINK_DEAD
+    req = urllib.request.Request(url, headers={
+        "User-Agent": UA,
+        "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return LINK_OK if r.status < 400 else LINK_BLOCKED
+    except urllib.error.HTTPError as e:
+        if e.code in (404, 410):
+            return LINK_DEAD
+        return LINK_BLOCKED
+    except Exception:
+        return LINK_BLOCKED          # timeout, DNS, reset — inconclusive
+
+
+def verify_links(jobs: list[dict], workers: int = 6) -> list[dict]:
+    """Check every link in parallel, drop the ones that are definitely gone."""
+    if not jobs:
+        return jobs
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
+        for job, status in zip(jobs, ex.map(lambda j: check_link(j["url"]), jobs)):
+            job["link_status"] = status
+    return [j for j in jobs if j["link_status"] != LINK_DEAD]
+
 
 def fetch_simplify(c: dict, deep: bool) -> list[dict]:
     """Community internship feed, for firms with no reachable board of their own.
@@ -603,23 +643,33 @@ def fetch_simplify(c: dict, deep: bool) -> list[dict]:
         raise FetchError("unexpected Simplify payload")
 
     wanted = (c.get("query") or c["name"]).strip().lower()
+    # Aggregated rows go stale quietly, so drop anything long in the tooth.
+    max_age = int(c.get("max_age_days", 120))
+    cutoff = (dt.date.today() - dt.timedelta(days=max_age)).isoformat()
+
     out = []
     for j in listings:
         if not j.get("active", True) or not j.get("is_visible", True):
             continue
         if (j.get("company_name") or "").strip().lower() != wanted:
             continue
+        posted = epoch_date(j.get("date_posted"))
+        if posted and posted < cutoff:
+            continue
         out.append({
             "title": j.get("title", ""),
             "location": "; ".join(j.get("locations") or []),
             "url": j.get("url", ""),
-            "posted": epoch_date(j.get("date_posted")),
+            "posted": posted,
             "department": j.get("category", "") or "",
             "description": "",
         })
     if not out:
-        raise FetchError(f"no '{wanted}' listings in the Simplify feed")
-    return out
+        raise FetchError(f"no current '{wanted}' listings in the Simplify feed")
+
+    # This is the whole point of a second-hand source: confirm the posting is
+    # still up before showing it.
+    return verify_links(out)
 
 
 ADAPTERS = {
@@ -991,6 +1041,7 @@ def scrape(companies: list[dict], deep: bool, workers: int,
 # ─────────────────────────────── output ──────────────────────────────
 
 FIELDS = ["company", "title", "short_title", "location", "city", "country", "continent",
+          "link_status",
           "level", "posted", "department", "url"]
 
 

@@ -82,6 +82,17 @@ enum Levels {
         }
     }
 
+    /// Same rule `classify` uses: the level words must appear in the title or
+    /// department, and a seniority word in the title vetoes it.
+    static func matches(_ level: Level, title: String, department: String) -> Bool {
+        let wanted = level.matchKeys
+        guard !wanted.isEmpty else { return true }
+        let label = "\(title.lowercased()) \(department.lowercased())"
+        guard wanted.contains(where: { matcher(for: $0)?.matches(label) ?? false })
+        else { return false }
+        return !senior.matches(title.lowercased())
+    }
+
     /// Best-guess label for a posting, shown in the Level column.
     static func detect(title: String, department: String) -> String {
         let blob = "\(title) \(department)".lowercased()
@@ -103,6 +114,13 @@ struct CategoryMatcher: Sendable {
         name = category.name
         include = PhraseMatcher(category.include)
         exclude = PhraseMatcher(category.exclude)
+    }
+
+    /// Category only — no level test. Split out so a scrape can record which
+    /// categories a posting belongs to once, and switching category afterwards
+    /// is a set lookup rather than another trip to the boards.
+    func acceptsCategory(_ job: RawJob, deep: Bool) -> Bool {
+        accepts(job, level: .any, deep: deep)
     }
 
     /// Does this posting match the requested category and level?

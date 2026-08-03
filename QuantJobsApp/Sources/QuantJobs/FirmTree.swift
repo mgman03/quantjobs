@@ -26,11 +26,11 @@ struct FirmTree: View {
 
             if open {
                 ForEach(node.tiers) { tierNode in
-                    let key = "\(node.group).\(tierNode.tier)"
+                    let key = "\(node.group).\(tierNode.segment)"
                     let tierOpen = expandedTiers.contains(key)
 
                     branchRow(
-                        title: "Tier \(tierNode.tier)",
+                        title: tierNode.segment,
                         state: model.checkState(tierNode.ids, usable: tierNode.usable),
                         on: model.enabledCount(tierNode.ids), usable: tierNode.usable,
                         indent: 1,
@@ -130,7 +130,7 @@ struct FirmTree: View {
     private func symbol(_ state: AppModel.Checked) -> String {
         switch state {
         case .on: "checkmark.square.fill"
-        case .mixed: "minus.square.fill"
+        case .mixed: "square.lefthalf.filled"
         case .off: "square"
         }
     }

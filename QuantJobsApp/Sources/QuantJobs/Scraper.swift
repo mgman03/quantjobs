@@ -20,7 +20,8 @@ enum Scraper {
                     url: r.url, posted: r.posted, department: r.department,
                     description: r.description, ats: c.ats, tags: c.tags,
                     level: Levels.detect(title: r.title, department: r.department),
-                    places: LocationParser.parse(r.location))
+                    places: LocationParser.parse(r.location),
+                    linkStatus: r.linkStatus)
             }
             return BoardResult(company: c, jobs: jobs, failure: nil)
         } catch let e as FetchError {

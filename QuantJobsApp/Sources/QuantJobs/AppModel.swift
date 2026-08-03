@@ -239,8 +239,33 @@ final class AppModel {
         return mergeRoles ? stored.mergedByRole() : stored
     }
 
+    // A scrape now keeps every category, so `jobs` runs to thousands of rows.
+    // Filtering, merging and sorting that on every redraw — and the status bar
+    // asks for it several times per pass — is far too much work to repeat.
+    @ObservationIgnored private var visibleCacheKey = ""
+    @ObservationIgnored private var visibleCache: [Job] = []
+    @ObservationIgnored private var resultsVersion = 0
+
+    private var visibleKey: String {
+        "\(resultsVersion)|\(list.rawValue)|\(showHidden)|\(mergeRoles)|"
+        + "\(selectedCategoryID)|\(level.rawValue)|\(search)|"
+        + "\(tagFilter ?? "-")|\(sinceDays.map(String.init) ?? "-")|"
+        + "\(newOnly)|\(locationFilter)|"
+        + "\(continentFilter.sorted().joined(separator: ","))|"
+        + "\(cityFilter.sorted().joined(separator: ","))"
+    }
+
     /// Rows actually shown, for whichever list is selected.
     var visibleJobs: [Job] {
+        let key = visibleKey
+        if key == visibleCacheKey { return visibleCache }
+        let computed = computeVisibleJobs()
+        visibleCacheKey = key
+        visibleCache = computed
+        return computed
+    }
+
+    private func computeVisibleJobs() -> [Job] {
         if let status = list.status {
             // A saved list honours the search box and nothing else: category,
             // level and date filters exist to narrow a scrape, and applying
@@ -252,16 +277,24 @@ final class AppModel {
         let q = query
         let cutoff = q.cutoffDate
         let kept = jobs.filter { job in
+            guard job.matchedCategories.contains(selectedCategoryID) else { return false }
+            guard level == .any || job.matchedLevels.contains(level.rawValue) else {
+                return false
+            }
             guard q.matchesLiveFilters(job, cutoff: cutoff) else { return false }
             if !showHidden, tracked[job.key]?.status == .hidden { return false }
             return true
         }
         // Merge after filtering, so a city filter leaves a merged row holding
-        // only the locations you asked for.
-        return mergeRoles ? kept.mergedByRole() : kept
+        // only the locations you asked for — then sort, because merging picks a
+        // new primary row and would otherwise scramble the order.
+        return (mergeRoles ? kept.mergedByRole() : kept).sortedByRecency()
     }
 
     /// How many results the hidden filter is currently holding back.
+    /// Recomputed as filters change, so the badge always matches the list.
+    var visibleNewCount: Int { visibleJobs.count { $0.isNew } }
+
     var hiddenInResults: Int {
         guard list == .results else { return 0 }
         let q = query
@@ -296,6 +329,7 @@ final class AppModel {
             }
         }
         ConfigStore.saveTracked(tracked)
+        resultsVersion += 1
     }
 
     /// Splits a row back into the individual postings it stands for.
@@ -330,6 +364,7 @@ final class AppModel {
         entry.note = note
         tracked[job.key] = entry
         ConfigStore.saveTracked(tracked)
+        resultsVersion += 1
     }
 
     /// Refresh snapshots and last-seen dates for anything a scrape just returned.
@@ -344,7 +379,10 @@ final class AppModel {
             tracked[job.key] = entry
             changed = true
         }
-        if changed { ConfigStore.saveTracked(tracked) }
+        if changed {
+            ConfigStore.saveTracked(tracked)
+            resultsVersion += 1
+        }
     }
 
     var firmsRepresented: Int { Set(visibleJobs.map(\.company)).count }
@@ -444,7 +482,10 @@ final class AppModel {
     /// The filters that change *what gets fetched* rather than what's shown,
     /// so a change here has to go back to the boards.
     var refreshFingerprint: String {
-        "\(selectedCategoryID)|\(level.rawValue)|\(groupFilter ?? "-")|\(deep)"
+        // Category and level are applied to what we already have, so they are
+        // deliberately absent: only the set of boards and deep matching change
+        // what has to be fetched.
+        "\(selectedFirms.map(\.id).joined(separator: ","))|\(deep)"
     }
 
     private var refreshTask: Task<Void, Never>?
@@ -635,6 +676,7 @@ final class AppModel {
             tracked.removeValue(forKey: key)
         }
         ConfigStore.saveTracked(tracked)
+        resultsVersion += 1
     }
 
     func isDelisted(_ job: Job) -> Bool { tracked[job.key]?.isDelisted ?? false }
@@ -642,10 +684,10 @@ final class AppModel {
     // MARK: - The firm tree
 
     struct FirmTierNode: Identifiable, Sendable {
-        let tier: Int
+        let segment: String
         let ids: [Company.ID]
         let usable: Int              // how many are actually configured
-        var id: Int { tier }
+        var id: String { segment }
     }
 
     struct FirmGroupNode: Identifiable, Sendable {
@@ -672,10 +714,13 @@ final class AppModel {
                 .filter { $0.tags.contains(group) }
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name)
                             == .orderedAscending }
-            let tiers = Set(members.map(\.tier)).sorted().map { tier -> FirmTierNode in
-                let inTier = members.filter { $0.tier == tier }
-                return FirmTierNode(tier: tier, ids: inTier.map(\.id),
-                                    usable: inTier.count { $0.isConfigured })
+            // Order segments by size so the big ones lead.
+            let segments = Dictionary(grouping: members, by: \.segment)
+                .sorted { $0.value.count == $1.value.count
+                    ? $0.key < $1.key : $0.value.count > $1.value.count }
+            let tiers = segments.map { name, firms in
+                FirmTierNode(segment: name, ids: firms.map(\.id),
+                             usable: firms.count { $0.isConfigured })
             }
             return FirmGroupNode(group: group, tiers: tiers,
                                  ids: members.map(\.id),
@@ -726,10 +771,10 @@ final class AppModel {
     func scrape() {
         guard !isScraping else { return }
         let firms = selectedFirms
-        guard !firms.isEmpty, let category = selectedCategory else { return }
+        guard !firms.isEmpty else { return }
 
         flushCompanies()
-        let matcher = CategoryMatcher(category)
+        let matchers = categories.map(CategoryMatcher.init)
         let q = query
         let known = seen
 
@@ -748,8 +793,25 @@ final class AppModel {
             // Rows land as each board answers, so the table fills in rather than
             // sitting blank behind a spinner.
             await Scraper.run(firms, deep: q.deep) { result in
-                var kept = result.jobs.filter { q.keep($0, matcher: matcher) }
-                for i in kept.indices { kept[i].isNew = known[kept[i].key] == nil }
+                // Tag every posting with the categories and levels it matches,
+                // then keep anything that landed in at least one category. That
+                // makes switching category or level a filter, not a re-fetch.
+                var kept: [Job] = []
+                for var job in result.jobs {
+                    let raw = RawJob(title: job.title, location: job.location,
+                                     url: job.url, posted: job.posted,
+                                     department: job.department,
+                                     description: job.description)
+                    let cats = matchers.filter { $0.acceptsCategory(raw, deep: q.deep) }
+                    guard !cats.isEmpty else { continue }
+                    job.matchedCategories = Set(cats.map(\.name))
+                    job.matchedLevels = Set(Level.allCases
+                        .filter { Levels.matches($0, title: job.title,
+                                                 department: job.department) }
+                        .map(\.rawValue))
+                    job.isNew = known[job.key] == nil
+                    kept.append(job)
+                }
                 // Every key the board returned, before the category filter —
                 // that's what "is this posting still listed?" has to be judged
                 // against, or a swe-only run would call every quant role dead.
@@ -780,6 +842,7 @@ final class AppModel {
             scrapedKeys.formUnion(allKeys)
         }
         jobs.append(contentsOf: batch)
+        resultsVersion += 1
     }
 
     private func finishScrape() {
@@ -789,7 +852,10 @@ final class AppModel {
             showingCache = false
         }
         jobs = jobs.deduplicated().sortedByRecency()
-        newCount = jobs.filter(\.isNew).count
+        resultsVersion += 1
+        // Count what the table shows, not the whole cache — now that a scrape
+        // keeps every category, the raw figure was in the thousands.
+        newCount = visibleJobs.filter(\.isNew).count
         isScraping = false
         lastRun = Date()
         if recordState { recordSeen(jobs) }
@@ -832,7 +898,10 @@ final class AppModel {
                 changed = true
             }
         }
-        if changed { ConfigStore.saveTracked(tracked) }
+        if changed {
+            ConfigStore.saveTracked(tracked)
+            resultsVersion += 1
+        }
     }
 
     func cancel() {

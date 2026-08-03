@@ -9,6 +9,9 @@ struct RawJob: Sendable {
     var posted = ""
     var department = ""
     var description = ""
+    /// "ok" for a firm's own board — it is the source of truth. Aggregated
+    /// rows get checked and come back "ok" or "blocked".
+    var linkStatus: String = "ok"
 }
 
 /// Each adapter turns a company config into raw postings.
@@ -511,6 +514,55 @@ enum Adapters {
             }
     }
 
+    // MARK: - Link checking
+
+    /// A second-hand listing is only worth showing if the posting is still
+    /// there, so anything from an aggregator gets its link checked.
+    ///
+    /// A 404/410 means it's gone. A 403/400 usually means the firm blocks
+    /// scripted requests (Meta does), which says nothing about whether the job
+    /// exists — so that stays "blocked" and the row survives with a caveat
+    /// rather than being silently dropped.
+    static func checkLink(_ url: String) async -> String {
+        guard let link = URL(string: url), !url.isEmpty else { return "dead" }
+        var req = URLRequest(url: link)
+        req.timeoutInterval = 12
+        req.setValue("text/html,application/xhtml+xml,*/*;q=0.8",
+                     forHTTPHeaderField: "Accept")
+        do {
+            let (_, response) = try await HTTP.session.data(for: req)
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 200
+            if code == 404 || code == 410 { return "dead" }
+            return code < 400 ? "ok" : "blocked"
+        } catch {
+            return "blocked"          // timeout, DNS, reset — inconclusive
+        }
+    }
+
+    /// Check every link at once, drop the ones that are definitely gone.
+    static func verifyLinks(_ jobs: [RawJob]) async -> [RawJob] {
+        guard !jobs.isEmpty else { return jobs }
+        var checked = [RawJob?](repeating: nil, count: jobs.count)
+        await withTaskGroup(of: (Int, String).self) { group in
+            var next = 0
+            let lanes = min(6, jobs.count)
+            for _ in 0..<lanes {
+                let i = next; next += 1
+                group.addTask { (i, await checkLink(jobs[i].url)) }
+            }
+            while let (i, status) = await group.next() {
+                var job = jobs[i]
+                job.linkStatus = status
+                checked[i] = job
+                if next < jobs.count {
+                    let j = next; next += 1
+                    group.addTask { (j, await checkLink(jobs[j].url)) }
+                }
+            }
+        }
+        return checked.compactMap { $0 }.filter { $0.linkStatus != "dead" }
+    }
+
     // MARK: - Simplify community feed
 
     /// A parsed row of the feed. Sendable so it can leave the cache actor —
@@ -566,11 +618,19 @@ enum Adapters {
         let rows = try await SimplifyFeed.shared.rows(url)
         let wanted = ((c.query?.isEmpty == false) ? c.query! : c.name)
             .trimmingCharacters(in: .whitespaces).lowercased()
-        let out = rows.filter { $0.company == wanted }.map(\.job)
+        // Aggregated rows go stale quietly, so drop anything long in the tooth.
+        let cutoff = Job.dateFormatter.string(
+            from: Date().addingTimeInterval(-120 * 86_400))
+        let out = rows
+            .filter { $0.company == wanted }
+            .map(\.job)
+            .filter { $0.posted.isEmpty || $0.posted >= cutoff }
         if out.isEmpty {
-            throw FetchError.badPayload("no '\(wanted)' listings in the Simplify feed")
+            throw FetchError.badPayload(
+                "no current '\(wanted)' listings in the Simplify feed")
         }
-        return out
+        // The whole point of a second-hand source: confirm it's still up.
+        return await verifyLinks(out)
     }
 
     // MARK: - Two Sigma
@@ -593,15 +653,27 @@ enum Adapters {
             let ns = html as NSString
 
             var added = 0
-            for m in Self.twoSigmaCard.matches(
+            for m in Self.twoSigmaAnchor.matches(
                 in: html, range: NSRange(location: 0, length: ns.length)) {
                 let url = ns.substring(with: m.range(at: 1))
                 guard seen.insert(url).inserted else { continue }
                 added += 1
+
+                // The location span sits just after the anchor; search a short
+                // window rather than letting the regex roam the document.
+                let after = m.range.location + m.range.length
+                let window = NSRange(location: after,
+                                     length: min(900, ns.length - after))
+                var where_ = ""
+                if window.length > 0,
+                   let l = Self.twoSigmaLoc.firstMatch(in: html, range: window) {
+                    where_ = Self.twoSigmaLocation(
+                        Clean.html(ns.substring(with: l.range(at: 1))))
+                }
+
                 out.append(RawJob(
                     title: Clean.html(ns.substring(with: m.range(at: 2))),
-                    location: Self.twoSigmaLocation(
-                        Clean.html(ns.substring(with: m.range(at: 3)))),
+                    location: where_,
                     url: url,
                     posted: "",        // not shown in the listing
                     department: "", description: ""))
@@ -612,9 +684,10 @@ enum Adapters {
         return out
     }
 
-    private static let twoSigmaCard = try! NSRegularExpression(
-        pattern: "href=\"(https://careers\\.twosigma\\.com/careers/JobDetail/[^\"#]+)\"[^>]*>\\s*(.*?)\\s*</a>.*?paragraph_inner-span\">\\s*([^<]*)\\s*</span>",
-        options: [.dotMatchesLineSeparators])
+    private static let twoSigmaAnchor = try! NSRegularExpression(
+        pattern: "href=\"(https://careers\\.twosigma\\.com/careers/JobDetail/[^\"#]+)\"[^>]*>([^<]*)</a>")
+    private static let twoSigmaLoc = try! NSRegularExpression(
+        pattern: "paragraph_inner-span\">\\s*([^<]*)")
 
     /// "United States - NY New York" is country-first; flip it round.
     private static func twoSigmaLocation(_ raw: String) -> String {

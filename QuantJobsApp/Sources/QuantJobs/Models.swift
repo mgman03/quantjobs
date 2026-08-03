@@ -62,6 +62,9 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
     var note: String?
     /// 1 = the names people target first, 2 = strong, 3 = everything else.
     var tier: Int = 3
+    /// What kind of firm it is — "FAANG+", "Frontier AI", "Hedge Funds"… The
+    /// tree groups on this, which reads better than a tier number.
+    var segment: String = "Other"
 
     var id: String { name }
 
@@ -92,16 +95,18 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
     init(name: String, ats: ATS, token: String? = nil, host: String? = nil,
          tenant: String? = nil, site: String? = nil, query: String? = nil,
          enabled: Bool = true, tags: [String] = [], note: String? = nil,
-         tier: Int = 3) {
+         tier: Int = 3, segment: String = "Other") {
         self.name = name; self.ats = ats; self.token = token
         self.host = host; self.tenant = tenant; self.site = site
         self.query = query
         self.enabled = enabled; self.tags = tags; self.note = note
         self.tier = tier
+        self.segment = segment
     }
 
     enum CodingKeys: String, CodingKey {
         case name, ats, token, host, tenant, site, query, enabled, tags, note, tier
+        case segment
     }
 
     var tierLabel: String {
@@ -122,6 +127,7 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
         site = try c.decodeIfPresent(String.self, forKey: .site)
         query = try c.decodeIfPresent(String.self, forKey: .query)
         tier = try c.decodeIfPresent(Int.self, forKey: .tier) ?? 3
+        segment = try c.decodeIfPresent(String.self, forKey: .segment) ?? "Other"
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
         note = try c.decodeIfPresent(String.self, forKey: .note)
@@ -143,6 +149,7 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
             if let query, !query.isEmpty { try c.encode(query, forKey: .query) }
         }
         try c.encode(tier, forKey: .tier)
+        try c.encode(segment, forKey: .segment)
         try c.encode(enabled, forKey: .enabled)
         if !tags.isEmpty { try c.encode(tags, forKey: .tags) }
         if let note, !note.isEmpty { try c.encode(note, forKey: .note) }
@@ -268,6 +275,17 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
     /// Structured reading of `location`, filled in when the job is built.
     var places: [Place] = []
 
+    /// "ok" unless the row came from an aggregator whose link we couldn't
+    /// confirm — "blocked" means the firm refuses scripted requests.
+    var linkStatus: String = "ok"
+
+    var linkUnverified: Bool { linkStatus != "ok" }
+
+    /// Worked out once per scrape so category and level become instant
+    /// filters instead of reasons to re-fetch every board.
+    var matchedCategories: Set<String> = []
+    var matchedLevels: Set<String> = []
+
     /// Other postings of the same role at different locations, folded into
     /// this row. Empty when nothing was merged.
     var variants: [Variant] = []
@@ -321,7 +339,8 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
     /// anything written to disk.
     enum CodingKeys: String, CodingKey {
         case company, title, location, url, posted, department, description
-        case ats, tags, level, places, variants
+        case ats, tags, level, places, variants, linkStatus
+        case matchedCategories, matchedLevels
     }
 
     static let dateFormatter: DateFormatter = {
