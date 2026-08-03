@@ -13,6 +13,14 @@ if ! mkdir -p "$(dirname "$APP")" 2>/dev/null || [ ! -w "$(dirname "$APP")" ]; t
     mkdir -p "$(dirname "$APP")"
 fi
 
+# The bundle carries its own copy of the config, used to seed a fresh install
+# that isn't sitting in a checkout. Refresh it from the repo first, or an app
+# installed to /Applications ships whatever defaults were current the last time
+# anyone thought to copy them by hand.
+for f in companies categories locations; do
+    cp "../$f.json" "Sources/QuantJobs/Resources/$f.json"
+done
+
 swift build -c release
 BIN=$(swift build -c release --show-bin-path)
 

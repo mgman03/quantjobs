@@ -164,6 +164,10 @@ enum Adapters {
 
     // MARK: - Workday
 
+    /// Shared by every Workday board, so the cap is on the platform as a whole
+    /// rather than per firm.
+    static let workdayGate = RequestGate(limit: 8)
+
     /// Workday CXS. Config needs host (tenant.wdN.myworkdayjobs.com), tenant, site.
     static func workday(_ c: Company, deep: Bool) async throws -> [RawJob] {
         guard let host = c.host, let tenant = c.tenant, let site = c.site,
@@ -180,7 +184,9 @@ enum Adapters {
                 "appliedFacets": [String: String](),
                 "limit": pageSize, "offset": offset, "searchText": c.query ?? "",
             ])
-            let payload = try await HTTP.object(endpoint, body: body)
+            let payload = try await workdayGate.run {
+                try await HTTP.object(endpoint, body: body)
+            }
             return (payload["jobPostings"] as? [[String: Any]] ?? []).map { j in
                 let path = j["externalPath"] as? String ?? ""
                 let bullets = (j["bulletFields"] as? [String] ?? []).joined(separator: " ")
@@ -200,7 +206,9 @@ enum Adapters {
             "appliedFacets": [String: String](),
             "limit": pageSize, "offset": 0, "searchText": c.query ?? "",
         ])
-        let head = try await HTTP.object(endpoint, body: body)
+        let head = try await workdayGate.run {
+            try await HTTP.object(endpoint, body: body)
+        }
         let total = min((head["total"] as? Int) ?? 0, cap)
         var out = (head["jobPostings"] as? [[String: Any]] ?? []).map { j -> RawJob in
             let path = j["externalPath"] as? String ?? ""

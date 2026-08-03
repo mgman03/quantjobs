@@ -187,12 +187,14 @@ struct ContentView: View {
     private var filterBar: some View {
         HStack(spacing: 12) {
             Picker("", selection: $model.level) {
-                ForEach(Level.allCases) { Text($0.shortLabel).tag($0) }
+                ForEach(Level.allCases) {
+                    Text($0.shortLabel).tag($0).help($0.hint)
+                }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
             .fixedSize()
-            .help("Which level of role to look for")
+            .help(model.level.hint)
 
 
             Button {

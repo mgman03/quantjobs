@@ -32,7 +32,11 @@ import urllib.request
 from html import unescape
 from typing import Any, Iterable
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# The config normally sits beside this script, which is what makes a checkout
+# self-contained. $QUANTJOBS_CONFIG overrides it, and the Mac app reads the same
+# variable, so pointing one tool somewhere else points both.
+HERE = os.path.expanduser(os.environ.get("QUANTJOBS_CONFIG") or "") or SCRIPT_DIR
 COMPANIES_FILE = os.path.join(HERE, "companies.json")
 CATEGORIES_FILE = os.path.join(HERE, "categories.json")
 LOCATIONS_FILE = os.path.join(HERE, "locations.json")
@@ -205,6 +209,14 @@ def fetch_smartrecruiters(c: dict, deep: bool) -> list[dict]:
     return out
 
 
+# Every Workday tenant sits behind the same front end, and a big board is a
+# hundred-plus round trips because pages cap at 20. A full run once reported seven
+# Workday boards broken that all answered fine on their own, so there is a ceiling
+# somewhere. Six in flight is the compromise: those same seven boards verify
+# cleanly at that rate, and it barely costs anything against eight workers.
+_WORKDAY_GATE = threading.Semaphore(6)
+
+
 def fetch_workday(c: dict, deep: bool) -> list[dict]:
     """Workday CXS. Config needs: host (tenant.wdN.myworkdayjobs.com), tenant, site."""
     host, tenant, site = c.get("host"), c.get("tenant"), c.get("site")
@@ -217,7 +229,8 @@ def fetch_workday(c: dict, deep: bool) -> list[dict]:
         # an optional `query` narrows it server-side.
         body = json.dumps({"appliedFacets": {}, "limit": 20, "offset": offset,
                            "searchText": c.get("query", "")}).encode()
-        payload = http_json(endpoint, data=body)
+        with _WORKDAY_GATE:
+            payload = http_json(endpoint, data=body)
         batch = payload.get("jobPostings", [])
         # Workday reports the count on the first page only; every page after
         # that says total=0, which would end the loop after 40 rows.

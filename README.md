@@ -1,8 +1,12 @@
 # quantjobs
 
-Scrapes internship / new-grad postings straight from firms' job-board APIs — 108 of
-them, quant shops and big tech. Pick a category (`swe`, `quant-trading`,
-`quant-research`, …), pick which firms to watch, get a table or CSV.
+Scrapes internship / new-grad postings straight from firms' job-board APIs — 150 of
+them, quant shops and big tech, with 110 switched on out of the box. Pick a category
+(`swe`, `quant-trading`, `quant-research`, …), pick which firms to watch, get a table
+or CSV.
+
+Dead links are dropped before you ever see them — see [Do the links actually
+work?](#do-the-links-actually-work).
 
 No dependencies — Python 3.9+ standard library only.
 
@@ -49,6 +53,14 @@ There's also a native Mac app in `QuantJobsApp/` — see [The Mac app](#the-mac-
 --format, -f     table (default) | csv | json | md
 --out, -o        write to a file instead of stdout
 ```
+
+`intern-or-newgrad` and `any` are not the same thing, and the difference bites:
+`intern-or-newgrad` means *early career only* — a posting has to read as an
+internship **or** a new-grad role. `any` switches the level test off altogether, so
+senior and experienced postings come too. Jane Street's SWE board is the clean
+example: `intern`, `newgrad` and `intern-or-newgrad` all return 0 right now, while
+`any` returns 26 — every one of them experienced. In the Mac app these are the
+**Both** and **All levels** segments, and hovering either says which is which.
 
 Examples:
 
@@ -100,12 +112,17 @@ page, so an unfiltered board like Nvidia's is dozens of round trips.
 ```
 
 Two tags are meaningful rather than merely descriptive: **`quant`** and **`bigtech`**
-split the roster into the two groups the app's filter bar switches between.
+split the roster into the two groups the app's Firms picker is built around.
 
-`tier` ranks the firm: **1** is the names people target first, **2** is strong and
-on by default, **3** is everything else and ships disabled. It's a judgement call
-rather than a fact, so edit it freely — it only controls default ordering and what's
-switched on.
+`tier` ranks the firm: **1** is the names people target first, **2** is strong,
+**3** is everything else. Tiers 1 and 2 ship enabled and tier 3 ships off. It's a
+judgement call rather than a fact, so edit it freely — it only controls what's
+switched on by default.
+
+`segment` is the sub-group the app's Firms picker lists down its left-hand side.
+Quant firms use `Tier 1` / `Tier 2` / `Tier 3`; big tech uses `FAANG+` /
+`Frontier AI` / `Startups`. `Startups` means private and still scaling — a public
+company belongs in `FAANG+` however small it started.
 
 Don't know a firm's token? Point `discover` at their careers page:
 
@@ -149,80 +166,103 @@ happens to mention "sales" is still kept.
 
 ## Which firms are wired up
 
-**108 boards are live and verified**, out of 154 in the file. The roster is
-ranked into tiers, and tier 3 ships switched off — the default run is the names worth
-opening first, not everything that happened to resolve.
+**150 of the 154 entries have a working source**, and **110 ship enabled** —
+`./quantjobs.py verify` returns *110 working, 0 broken* in about four and a half
+minutes (last run 2026-08-03). The roster splits into the two groups the app's Firms
+picker is built around:
 
-**Tier 1 (31)** — the firms people target first:
+| group | segment | firms | on by default |
+|---|---|--:|--:|
+| Quant | Tier 1 | 19 | 19 |
+| Quant | Tier 2 | 30 | 26 |
+| Quant | Tier 3 | 8 | 0 |
+| Big Tech | FAANG+ | 66 | 55 |
+| Big Tech | Frontier AI | 18 | 8 |
+| Big Tech | Startups | 13 | 2 |
 
-Amazon · Anthropic · Apple · AQR Capital · Citadel · Citadel Securities ·
-Databricks · DRW · Google · Hudson River Trading · IMC Trading · Jane Street ·
-Jump Trading · Meta · Microsoft · Millennium · Netflix · Nvidia · OpenAI ·
-Optiver · Palantir · Point72 · Qube RT · Radix Trading · SIG ·
-Squarepoint Capital · Stripe · Tower Research · Two Sigma · Virtu Financial ·
-XTX Markets
+**Tier 1** — the quant firms people target first, all 19 live:
 
-All 31 now have a source, but not all sources are equal — see below. Four of them — Apple, Google, Meta and Microsoft — publish
-nothing a script can read: their own endpoints need a browser session, their sitemaps
-return the single-page-app shell or 403, and no ATS sits in front of them. Those four
-come from the [Simplify / Pitt CSC community internship feed][simplify] instead, which
-links to each firm's own application page. It's second-hand and internships-only, so
-treat it as a lead rather than the firm's board.
+AQR Capital · Citadel · Citadel Securities · DRW · Hudson River Trading ·
+IMC Trading · Jane Street · Jump Trading · Millennium · Optiver · Point72 ·
+Qube RT · Radix Trading · SIG · Squarepoint Capital · Tower Research ·
+Two Sigma · Virtu Financial · XTX Markets
+
+**Frontier AI** — Anduril · Anthropic · Aurora · Cohere · Databricks · Decagon ·
+ElevenLabs · Harvey · LangChain · Mercor · Modal · Nuro · OpenAI · Perplexity ·
+Physical Intelligence · Replit · Scale AI · Waymo
+
+For the rest, ask the tool rather than trusting a list in a README that drifts:
+
+```bash
+./quantjobs.py companies        # every firm, its board, and whether it's on
+./quantjobs.py verify           # prove the enabled ones still resolve
+./quantjobs.py verify --all     # including the ones that ship off
+```
+
+Boards are spread across 13 platforms — Greenhouse (97), Workday (20), Ashby (16),
+Simplify (4), Citadel and Eightfold and Jibe and Lever (2 each), and one apiece for
+amazon.jobs, Optiver, Two Sigma, Uber and Wolverine.
+
+### The four firms with no board at all
+
+Only **Chicago Trading Co, Maven Securities, PEAK6 and Quantlab** have no source.
+Each sits in `companies.json` as a disabled placeholder carrying a `note` saying what
+was tried, so you can see they were considered rather than missed — all four render
+their boards client-side with no ATS fingerprint in the HTML (rechecked 2026-08-03).
+
+### Apple, Google, Meta and Microsoft
+
+These four publish nothing a script can read: their own endpoints need a browser
+session, and no ATS sits in front of them. They come from the [Simplify / Pitt CSC
+community internship feed][simplify] instead, which links to each firm's own
+application page. It's second-hand and internships-only, so treat it as a lead rather
+than the firm's board.
 
 [simplify]: https://github.com/SimplifyJobs/Summer2027-Internships
 
-I cross-checked that feed against the firms' own sites rather than assuming it works:
+Rechecked on 2026-08-03 by pulling the feed and running every link through the
+verifier:
 
-| firm | links resolve? | freshness | verdict |
-|---|---|---|---|
-| Apple | 3/3 return 200, page titles match the role | 12 listings, ~72 days | works |
-| Microsoft | verified, page title matches exactly | 1 listing, ~75 days | works but thin |
-| Google | 200, but the pages are client-rendered so the role can't be confirmed | 3 listings, ~13 days | plausible, unverified |
-| Meta | metacareers.com returns 400 to scripts | 9 of 14 over 90 days | leads only |
+| firm | listings | links | ships |
+|---|--:|---|---|
+| Apple | 12 | 11 resolve 200, 1 dead and dropped | **on** |
+| Microsoft | 4 | 3 resolve 200, 1 dead and dropped | **on** |
+| Meta | 5 | metacareers.com returns 400 to scripts — unconfirmable | off |
+| Google | 3 | all three resolved dead | off |
 
-Each firm's entry in `companies.json` records its own verdict, so the caveat travels
-with the data rather than living only here.
-
-**Tier 2 (81 live)** — strong, well-regarded, on by default:
-
-Adobe · Affirm · Airbnb · Akuna Capital · AMD · Analog Devices · Anduril ·
-Applied Materials · Aquatic Capital · Arrowstreet · Asana · Astera Labs ·
-Autodesk · Belvedere Trading · Block · Brex · Capstone · Citi · Cloudflare ·
-Cohere · Coinbase · Datadog · Discord · Dropbox · eBay · Elastic ·
-Engineers Gate · Epic Games · ExodusPoint · Figma · Five Rings ·
-Flow Traders · GitLab · GSA Capital · Headlands Tech · Instacart · Intel ·
-KLA · Lyft · Man Group · Marshall Wace · Marvell · Mastercard · Micron ·
-MongoDB · Morgan Stanley · Nasdaq · NXP · Okta · Old Mission Capital ·
-PayPal · PDT Partners · Perplexity · Pinterest · Pure Storage ·
-Quadrature Capital · Radix Trading (Experienced) · Ramp · Reddit ·
-Riot Games · Robinhood · Roblox · Rubrik · Salesforce · Samsara · Scale AI ·
-Schonfeld · SpaceX · TransMarket Group · Twilio · Uber · Vatic Labs · Voleon ·
-Walleye Capital · Walleye Capital (Full-Time) · Waymo · Winton ·
-Wolverine Trading · Workday · WorldQuant · Zoom
-
-**Tier 3 (38, off by default)** — smaller shops and startups. Switch any of them
-on from the Firms tree in the app's sidebar, or flip `enabled` in the file.
-
-
-### What isn't wired up, and why
-
-16 entries sit in `companies.json` as **disabled placeholders** with a `note`, so you
-can see they were considered rather than missed.
-
-Of the actual FAANG, only **Amazon** has an endpoint you can call without a browser
-session. The rest were each tried and rejected for a specific reason recorded in the
-file: Apple redirects scripted callers to an error page, Google's careers API 404s
-without auth, Meta's GraphQL needs an `fb_dtsg` session token, Microsoft's service
-refused the connection, and Netflix has moved to Eightfold (which would need its own
-adapter).
-
-On the quant side, Citadel Securities, Two Sigma, SIG, Quantlab, Radix, Maven,
-Wolverine, PEAK6 and CTC still run client-rendered sites with no public JSON board.
-Optiver and Walleye are a different case — their Greenhouse boards *resolve* but serve
-zero postings, so they're off rather than broken.
+Meta and Google ship **off** because nothing about them can be confirmed today. Flip
+`enabled` if you want the leads anyway; Meta's arrive flagged as unverified in the
+detail panel. Each firm's entry records its own verdict, so the caveat travels with
+the data rather than living only here.
 
 Caveat on HRT: its public Greenhouse board is a small talent-community board, so most
 HRT roles won't appear.
+
+## Do the links actually work?
+
+A job board that sends you to dead postings is worse than no job board, and
+second-hand feeds go stale fastest. So every posting's URL is checked before it
+reaches you — a `HEAD` (falling back to `GET`) against the real link, run in parallel
+at the end of a scrape:
+
+| result | meaning | what happens |
+|---|---|---|
+| **ok** | under 400 | kept |
+| **dead** | 404 or 410 — the posting is gone | **dropped, you never see it** |
+| **blocked** | 403, 400, timeout, DNS — inconclusive | kept, flagged |
+
+The three-way split matters. A firm that blocks scripted callers (Meta returns 400 to
+anything without a browser session) is not the same as a posting that has closed, and
+collapsing the two would either flood the table with dead links or silently delete
+every role at the strictest firms. Anything inconclusive is kept and the detail panel
+says so — *"Link not confirmed — this firm blocks automated checks"* — rather than
+quietly vanishing.
+
+This is why Google ships off: its Simplify entries look fine until you follow them,
+and all three resolved dead on the last check.
+
+Both implementations do this; it's `check_link` / `verify_links` in `quantjobs.py`
+and `Adapters.checkLink` / `verifyLinks` in the app.
 
 ## The Mac app
 
@@ -247,23 +287,27 @@ Because the app is signed ad-hoc rather than notarised, the first launch needs
 **right-click → Open** once; double-clicking gets blocked by Gatekeeper. The DMG says
 so in a read-me alongside the app.
 
-- Categories in the sidebar; an **All / Quant / Big Tech** switch above the results
-  that narrows both what's on screen and which boards the next scrape hits.
-- Every other active filter shows as a **removable chip** next to it, so you can always
-  see why the list is as short as it is.
+- Categories and the Saved / Applied / Hidden lists live in the sidebar. Everything
+  that narrows the results sits in one row above the table: level, location, firms,
+  date.
+- Every active filter shows as a **removable chip** under that row — tag, continent,
+  city, date window, free-text search, unseen-only, deep-match — so you can always see
+  why the list is as short as it is, and clear any one of them with a click.
 - A **detail panel** on the right for the selected role — team, board, tags, the full
   description when the board ships one, and a button straight to the posting.
-- **Doesn't re-scrape on every launch.** A full pass is ~107 boards and tens of
+- **Doesn't re-scrape on every launch.** A full pass is ~110 boards and tens of
   thousands of postings, so it only refreshes when the cached results are more than
   six hours old; otherwise the window opens instantly on what it already had and waits
-  for ⌘R. A first run starts on the Quant half rather than all 107 boards.
+  for ⌘R. A first run starts on the Quant half rather than all 110 boards.
 - **The status bar carries a read-only "sources" panel** — which platforms the results
   came from, how many boards each, and anything that failed. Choosing *which* firms to
-  scrape is the Firms tree in the sidebar; adding or editing a board is Scrape ▸ Manage
-  Boards.
-- **Level and firm-group switches sit together above the table**, and changing either
-  (or the category) re-runs the scrape automatically after a short pause, so the list
-  matches the controls without you pressing ⌘R.
+  scrape is the Firms picker above the table; adding or editing a board is
+  Scrape ▸ Manage Boards.
+- **The level switch sits above the table** next to the pickers, and changing it (or
+  the category, or which firms are on) re-runs the scrape automatically after a short
+  pause, so the list matches the controls without you pressing ⌘R. **Both** means
+  early-career only; **All levels** switches the level test off entirely and lets
+  senior roles through. Hovering either says so.
 - **The detail panel appears when you select a role** and gets out of the way when you
   don't have one, instead of permanently taking a third of the window. It's driven by
   the selection alone — closing it deselects the row.
@@ -274,11 +318,13 @@ so in a read-me alongside the app.
 - **Three pickers sit together above the table** — location, firms, date — and all
   work the same way: click the group on the left to narrow the list on the right,
   tick either to select. The firm picker groups quant firms by **tier** and big tech
-  by **FAANG+ / Frontier AI / Startups**. A part-selected group shows a half-filled
-  box, and hovering says what a click will do.
+  by **FAANG+ / Frontier AI / Startups**, in that order, with the firms beside them
+  listed A-Z across the whole selection. A part-selected group shows a half-filled
+  box, a focused group is highlighted rather than bolded, and hovering says what a
+  click will do.
 - **Remembers how you left it.** Category, level, the All/Quant/Big Tech switch, every
-  filter (continent, city, tag, location, date window), the toggles, which list you
-  were on and whether the detail panel was open all come back on the next launch.
+  filter (continent, city, tag, location, date window), the toggles and which list you
+  were on all come back on the next launch.
   Cached results are only restored when they match the query you're returning to, so
   the table is never labelled one thing while showing another.
 - **Opens populated.** The last run is cached, so the window comes up with results
@@ -291,7 +337,8 @@ so in a read-me alongside the app.
 - **The same role across offices folds into one row.** Firms post one job per city, so
   `Campus Software Engineer` appeared five times differing only by location; now it's
   one row reading `London, GB +4`, with a separate link per posting in the detail
-  panel. Roughly 126 postings collapse to 99 rows. Turn it off in Filters.
+  panel. Roughly 126 postings collapse to 99 rows. Turn it off in Scrape ▸ Merge the
+  same role across offices.
 - **Save / Applied / Hidden** as three buttons on every row (plus right-click and the
   detail panel). Hidden roles drop out of the results with a `N hidden roles — Show Hidden`
   strip at the top so they're never silently missing; Saved and Applied get their own
@@ -307,7 +354,8 @@ so in a read-me alongside the app.
   instead of taking the run down.
 - Unseen roles get a dot, driven by the same `.seen.json` as `--new-only`.
 - ⌘R scrapes, double-click opens a posting, and the results export to CSV / JSON / MD.
-- **Boards** manages `companies.json` — sorted by tier, with a tier filter and search.
+- **Scrape ▸ Manage Boards** edits `companies.json` — sorted by tier, with a tier
+  filter and search.
   **Turn On** / **Turn Off** act on whatever is on screen (or on your selection, if you
   have one), so switching a slice of firms is one click rather than select-then-hunt.
   **Presets** replaces the lot: *Only Tier 1*, *Tier 1 + 2*, *Only Quant*, *Only Big
@@ -317,24 +365,31 @@ The icon is generated, not checked in as a binary blob: `Icon/make-icon.swift` d
 every size natively with Core Graphics, and `make-app.sh` builds the `.icns` on first
 run.
 
-By default it finds the config by walking up from the binary until it hits a
+By default the app finds the config by walking up from the binary until it hits a
 `companies.json` — so a `swift run` in the checkout, or a `.app` built into it, shares
-one folder with the CLI and nothing is hardcoded. Override it with either:
+one folder with the CLI and nothing is hardcoded. The CLI reads the config sitting
+beside `quantjobs.py` for the same reason.
+
+**`$QUANTJOBS_CONFIG` overrides both**, so pointing one tool somewhere else points the
+other:
 
 ```bash
-export QUANTJOBS_CONFIG=/path/to/checkout          # per-run
-defaults write QuantJobs configDirectory /path/to/checkout   # persistent
+export QUANTJOBS_CONFIG=/path/to/checkout                    # both tools, per-run
+defaults write QuantJobs configDirectory /path/to/checkout   # the app, persistently
 ```
 
 A `.app` installed outside the checkout (which is what `make-app.sh` does by default)
-won't find it that way, so point it with one of the above or let it fall back to
-`~/Library/Application Support/QuantJobs`, which it seeds from its bundled copy.
+can't walk up to one, so point it with one of the above or let it fall back to
+`~/Library/Application Support/QuantJobs`, which it seeds from the copy inside the
+bundle. `make-app.sh` refreshes that bundled copy from the repo before it builds, so a
+fresh install starts on the same defaults the checkout has.
 
-**First launch:** because that config lives under `~/Desktop`, macOS will ask whether
-QuantJobs may read the folder. Click Allow, or the board list stays empty. The window
-comes up either way — the config is read on a background task precisely so a pending
-permission prompt can't leave you staring at a process with no UI. (Re-running
-`make-app.sh` re-signs the bundle ad-hoc, which can make macOS ask again.)
+**First launch:** if the config lives somewhere macOS guards — `~/Desktop`,
+`~/Documents`, `~/Downloads` — you'll be asked whether QuantJobs may read the folder.
+Click Allow, or the board list stays empty. The window comes up either way: the config
+is read on a background task precisely so a pending permission prompt can't leave you
+staring at a process with no UI. (Re-running `make-app.sh` re-signs the bundle
+ad-hoc, which makes macOS ask again.)
 
 ### Keeping the two honest
 
@@ -347,6 +402,7 @@ port change can be diffed against the Python original:
 ./.build/debug/QuantJobs --check --model                   # drive the real app model
 ./.build/debug/QuantJobs --check --render /tmp             # snapshot the detail panel
 ./.build/debug/QuantJobs --check --track                  # saved / applied / hidden
+./.build/debug/QuantJobs --check --settings               # settings survive a restart
 ./.build/debug/QuantJobs --check --parse < locs.txt       # diff the location parser
 ./.build/debug/QuantJobs --scrape-on-launch               # scrape immediately (screenshots)
 ```
@@ -359,9 +415,10 @@ Both implementations currently return identical results across `swe`,
 `quant-trading`, `quant-research`, `quant-dev`, `hardware`, `data` and `all`,
 at every level, with and without `--deep`.
 
-The one place they deliberately differ is Workday paging: the app fetches the pages
-concurrently once the first response reveals the total, which takes a full 65-board
-scrape from ~45s to ~11s. The set of roles is the same either way.
+The one place they deliberately differ is Workday paging: the app fetches a board's
+pages concurrently once the first response reveals the total, where the CLI walks them
+in order. The set of roles is the same either way. Both cap how many Workday requests
+are in flight at once — see the note on Workday below.
 
 ### Tracking applications
 
@@ -386,8 +443,17 @@ The CLI reads the same file:
   `--new-only`. Delete it to reset; pass `--no-state` to leave it untouched.
 - Boards are fetched in parallel (`--workers`, default 8) with retries on timeouts.
   A firm that fails is reported at the end and never kills the run.
+- **Workday is rate-limited on purpose.** Every tenant sits behind one front end, a
+  board is dozens of round trips because pages cap at 20 rows, and there are 20
+  Workday boards in the roster. Unthrottled, a full run put enough load on it that
+  seven boards came back as failures — all of which answered fine on their own. Both
+  tools now cap how many Workday requests are in flight at once (2 in the CLI, 6 in
+  the app, which fetches a board's pages concurrently). If you see a cluster of
+  same-platform failures that pass when retried alone, this is the shape of it.
 - Nothing is authenticated and nothing is logged in — these are the same public
   endpoints the firms' own careers pages call.
+- `tools-build-locations.py` regenerates `locations.json` from scratch. You only need
+  it if you're extending the gazetteer.
 - Boards drift. Three adapters needed fixing once there were enough firms to notice:
   Ashby had dropped `departmentName` / `publishedDate` from the GraphQL schema it was
   being asked for (it now uses the public posting API, which also ships descriptions

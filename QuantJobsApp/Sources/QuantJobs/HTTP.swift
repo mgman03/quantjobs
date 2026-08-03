@@ -149,3 +149,48 @@ enum Clean {
         }
     }
 }
+
+/// Caps how many requests may be in flight against one host at a time.
+///
+/// Workday needs this: every tenant sits behind the same front end, a board is
+/// dozens of round trips because pages cap at 20, and the app fetches those
+/// pages five at a time with boards running in parallel. Without a cap a full
+/// run puts dozens of requests on Workday at once, and it starts resetting
+/// connections — a run once reported seven Workday boards broken that each
+/// answered fine on their own.
+actor RequestGate {
+
+    private let limit: Int
+    private var active = 0
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+
+    init(limit: Int) { self.limit = limit }
+
+    func acquire() async {
+        if active < limit { active += 1; return }
+        await withCheckedContinuation { waiting.append($0) }
+    }
+
+    func release() {
+        // Hand the slot straight to whoever is queued rather than dropping the
+        // count and making them race for it.
+        if waiting.isEmpty { active -= 1 } else { waiting.removeFirst().resume() }
+    }
+
+    /// Runs `body` holding a slot, releasing it however `body` ends.
+    ///
+    /// Deliberately `nonisolated`: the body runs in the caller's context, so a
+    /// non-Sendable payload like Workday's `[String: Any]` never has to cross
+    /// the actor boundary. Only the slot bookkeeping hops onto the actor.
+    nonisolated func run<T>(_ body: () async throws -> T) async rethrows -> T {
+        await acquire()
+        do {
+            let value = try await body()
+            await release()
+            return value
+        } catch {
+            await release()
+            throw error
+        }
+    }
+}

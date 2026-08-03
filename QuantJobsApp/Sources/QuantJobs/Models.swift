@@ -234,7 +234,7 @@ enum Level: String, CaseIterable, Identifiable, Sendable {
         case .intern: "Internship"
         case .newgrad: "New Grad"
         case .internOrNewgrad: "Intern or New Grad"
-        case .any: "Any Level"
+        case .any: "All Levels"
         }
     }
 
@@ -244,7 +244,18 @@ enum Level: String, CaseIterable, Identifiable, Sendable {
         case .intern: "Intern"
         case .newgrad: "New Grad"
         case .internOrNewgrad: "Both"
-        case .any: "Any"
+        case .any: "All levels"
+        }
+    }
+
+    /// "Any" reads like "both of the above" when it actually means the opposite:
+    /// no level filter, so experienced roles come too. Spell that out on hover.
+    var hint: String {
+        switch self {
+        case .intern: "Internships, summer analyst and co-op programmes."
+        case .newgrad: "Graduate, campus and entry-level roles."
+        case .internOrNewgrad: "Either of the two — early career only."
+        case .any: "No level filter at all — experienced and senior roles included."
         }
     }
 
