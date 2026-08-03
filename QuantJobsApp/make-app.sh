@@ -106,9 +106,17 @@ if [ -n "$DMG" ]; then
 QuantJobs
 
 1. Drag QuantJobs.app onto the Applications folder here.
-2. First launch: right-click the app and choose Open. macOS blocks
-   double-clicking an app that isn't notarised by an Apple developer account,
-   and right-click → Open is the standard way past that. You only do it once.
+2. Open it. macOS will refuse the first time, because this app isn't notarised
+   -- that needs a paid Apple developer account. The dialog offers only
+   "Move to Trash" or "Done":
+
+     - Click DONE. Not Move to Trash.
+     - Go to System Settings > Privacy & Security and scroll to Security.
+       A line there says QuantJobs was blocked, with an "Open Anyway" button.
+     - Click it, authenticate, and it opens. You are never asked again.
+
+   (On macOS 14 and earlier you can instead right-click the app and choose
+   Open, which does it in one step. macOS 15 removed that shortcut.)
 3. That's it. The app ships with its own copy of the firm list and settles it
    into ~/Library/Application Support/QuantJobs on first launch, so there is
    nothing else to download and no folder permission to grant.

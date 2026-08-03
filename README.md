@@ -24,10 +24,20 @@ Old Mission Capital Software Engineer – 2027 Internship Program  Chicago, IL  
 
 ## Install
 
-**Mac app:** [download QuantJobs.dmg][dmg] (macOS 14+), drag it onto Applications,
-then **right-click → Open** the first time — macOS blocks double-clicking an app that
-isn't notarised by a paid Apple developer account. You only do it once. Nothing else
-to download; the app carries its own copy of the firm list.
+**Mac app:** [download QuantJobs.dmg][dmg] (macOS 14+) and drag it onto Applications.
+Nothing else to download — the app carries its own copy of the firm list.
+
+The first launch takes one extra step, because this app isn't notarised (that needs a
+paid Apple developer account). macOS will refuse to open it and offer only *Move to
+Trash* or *Done*:
+
+1. Click **Done** — not Move to Trash.
+2. Open **System Settings → Privacy & Security**, scroll to **Security**. There's a
+   line saying QuantJobs was blocked, with an **Open Anyway** button.
+3. Click it and authenticate. It opens, and you're never asked again.
+
+On macOS 14 and earlier, right-click → Open does the same job in one step. macOS 15
+removed that shortcut, so the route above is the one that works now.
 
 [dmg]: https://github.com/mgman03/quantjobs/releases/latest/download/QuantJobs.dmg
 
@@ -47,8 +57,8 @@ cd QuantJobsApp
 ./make-app.sh --dmg    # or build the disk image yourself
 ```
 
-Because the app is signed ad-hoc rather than notarised, the **first launch needs
-right-click → Open**. Double-clicking gets blocked by Gatekeeper. You only do it once.
+An app you built yourself isn't quarantined, so Gatekeeper leaves it alone — the
+Privacy & Security step above only applies to a downloaded copy.
 
 **Keep the checkout out of `~/Desktop`, `~/Documents` and `~/Downloads`.** macOS
 gates those three folders, so an app reading its config from one gets a permission
