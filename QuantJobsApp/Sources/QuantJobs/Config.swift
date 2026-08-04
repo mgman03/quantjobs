@@ -90,6 +90,24 @@ enum ConfigStore {
 
     // MARK: seeding
 
+    /// The bundled copy of the config, or nil if it isn't there.
+    ///
+    /// Deliberately not the compiler-generated `Bundle.module`, which *traps*
+    /// when the resource bundle is missing. Because seeding runs on every
+    /// launch, a damaged or half-copied install didn't degrade — it killed the
+    /// app at startup with no window and no message. Looking the bundle up by
+    /// hand turns that into "no seed available".
+    nonisolated(unsafe) static let seedBundle: Bundle? = {
+        let name = "QuantJobs_QuantJobs.bundle"
+        var roots = [Bundle.main.bundleURL]
+        if let resources = Bundle.main.resourceURL { roots.insert(resources, at: 0) }
+        roots.append(Bundle.main.bundleURL.deletingLastPathComponent())
+        for root in roots {
+            if let found = Bundle(url: root.appendingPathComponent(name)) { return found }
+        }
+        return nil
+    }()
+
     /// Copy the bundled defaults into the config folder the first time we run
     /// against a location that has no config yet.
     static func seedIfNeeded() {
@@ -104,7 +122,7 @@ enum ConfigStore {
         for (name, url) in [("companies", companiesURL), ("categories", categoriesURL),
                             ("locations", locationsURL)] {
             guard !fm.fileExists(atPath: url.path) else { continue }
-            if let seed = Bundle.module.url(forResource: name, withExtension: "json") {
+            if let seed = seedBundle?.url(forResource: name, withExtension: "json") {
                 try? fm.copyItem(at: seed, to: url)
             }
         }
@@ -127,8 +145,8 @@ enum ConfigStore {
     /// get fixed; the user's own on/off choices and any firms they added
     /// themselves are left alone.
     private static func mergeBundledRoster() {
-        guard let seedURL = Bundle.module.url(forResource: "companies",
-                                              withExtension: "json"),
+        guard let seedURL = seedBundle?.url(forResource: "companies",
+                                            withExtension: "json"),
               let seedData = try? Data(contentsOf: seedURL) else { return }
 
         let stamp = SHA256.hash(data: seedData).map { String(format: "%02x", $0) }.joined()
@@ -155,6 +173,9 @@ enum ConfigStore {
         let bundledNames = Set(bundled.companies.map(\.name))
         merged.append(contentsOf: current.companies.filter { !bundledNames.contains($0.name) })
 
+        // Don't touch the file when the merge is a no-op — the common case
+        // after the first launch on a new version.
+        guard merged != current.companies || bundled.comment != current.comment else { return }
         current.companies = merged
         current.comment = bundled.comment
         try? saveCompanies(current)
@@ -169,7 +190,10 @@ enum ConfigStore {
 
     static func saveCompanies(_ file: CompanyFile) throws {
         let enc = JSONEncoder()
-        enc.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
+        // Sorted keys so the file is byte-stable. Swift and Python order keys
+        // differently, so without this every launch rewrote companies.json into
+        // a 600-line git diff that changed nothing.
+        enc.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes, .sortedKeys]
         try enc.encode(file).write(to: companiesURL, options: .atomic)
     }
 
