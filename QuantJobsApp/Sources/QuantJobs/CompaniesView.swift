@@ -324,6 +324,24 @@ struct CompanyEditor: View {
                         prompt: Text("intern"))
                     .help("This board is one big search index; these terms narrow "
                           + "it before the category filter runs.")
+
+                case .sitemap:
+                    TextField("Host", text: Binding(
+                        get: { company.host ?? "" }, set: { company.host = $0 }))
+                    .help("The firm's own domain, e.g. www.hudsonrivertrading.com")
+                    TextField("Sitemap", text: Binding(
+                        get: { company.sitemap ?? "" }, set: { company.sitemap = $0 }),
+                        prompt: Text("jobs-sitemap.xml"))
+                    .help("The sitemap file listing the job pages")
+                    TextField("URL contains", text: Binding(
+                        get: { company.path ?? "" }, set: { company.path = $0 }),
+                        prompt: Text("/job/"))
+                    .help("Only sitemap URLs containing this count as jobs")
+                    Toggle("Read the office from the page title", isOn: Binding(
+                        get: { company.titleLoc ?? false },
+                        set: { company.titleLoc = $0 ? true : nil }))
+                    .help("For sites that write \"London Technology Internship\" "
+                          + "and state the office nowhere else")
                 }
 
                 TextField("Tags", text: $tagText)

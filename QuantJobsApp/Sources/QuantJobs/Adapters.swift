@@ -31,7 +31,7 @@ enum Adapters {
         case .uber:            try await uber(c, deep: deep)
         case .wolverine:       try await wolverine(c, deep: deep)
         case .citadel:         try await citadel(c, deep: deep)
-        case .hrt:             try await hrt(c, deep: deep)
+        case .sitemap:         try await sitemapJobs(c, deep: deep)
         case .optiver:         try await optiver(c, deep: deep)
         case .twosigma:        try await twoSigma(c, deep: deep)
         case .simplify:        try await simplify(c, deep: deep)
@@ -719,32 +719,41 @@ enum Adapters {
         return "\(rest), \(country)"
     }
 
-    // MARK: - Hudson River Trading
+    // MARK: - Sites with no board at all
 
-    /// HRT publishes nothing a job board would recognise: its Greenhouse token
-    /// is a talent-community placeholder holding three generic entries, and the
-    /// careers page links only to that. The real roles are a WordPress custom
-    /// post type that isn't exposed through the REST API — but every one of
-    /// them is in the sitemap, and each page states its title and offices.
-    static let hrtGate = RequestGate(limit: 6)
+    /// Firms whose real roles exist only as pages in their own sitemap.
+    ///
+    /// Some sites publish nothing a job board would recognise — no ATS, no
+    /// feed, a careers page that is prose — yet every role has a URL, because
+    /// the CMS lists them for search engines. HRT is the type case: its public
+    /// Greenhouse board holds three talent-community signposts while seventy
+    /// roles sit on its own site.
+    static let sitemapGate = RequestGate(limit: 6)
 
     private static let hrtLoc = try! NSRegularExpression(
         pattern: "class='summary-info'>(.*?)</div>", options: [.dotMatchesLineSeparators])
     private static let hrtTitle = try! NSRegularExpression(
         pattern: "<title>(.*?)</title>", options: [.dotMatchesLineSeparators])
     private static let hrtSitemap = try! NSRegularExpression(
-        pattern: "<loc>([^<]+/hrt-job/[^<]+)</loc>")
+        pattern: "<loc>([^<]+)</loc>")
 
-    static func hrt(_ c: Company, deep: Bool) async throws -> [RawJob] {
-        let host = c.host ?? "www.hudsonrivertrading.com"
-        let raw = try await HTTP.data("https://\(host)/hrt_jobs-sitemap.xml",
+    static func sitemapJobs(_ c: Company, deep: Bool) async throws -> [RawJob] {
+        guard let host = c.host, !host.isEmpty,
+              let file = c.sitemap, !file.isEmpty else {
+            throw FetchError.misconfigured("sitemap adapter needs host and sitemap")
+        }
+        let marker = c.path ?? "/"
+        let raw = try await HTTP.data("https://\(host)/\(file)",
                                       headers: Self.browserHeaders)
         let xml = String(decoding: raw, as: UTF8.self)
         let ns = xml as NSString
         let urls = hrtSitemap.matches(in: xml,
                                       range: NSRange(location: 0, length: ns.length))
             .map { ns.substring(with: $0.range(at: 1)) }
-        guard !urls.isEmpty else { throw FetchError.badPayload("no jobs in the HRT sitemap") }
+            .filter { $0.contains(marker) }
+        guard !urls.isEmpty else {
+            throw FetchError.badPayload("no job pages in \(file)")
+        }
 
         // The sitemap's <lastmod> is deliberately unused: every entry carries
         // the same timestamp, so it says when the sitemap was regenerated, not
@@ -753,7 +762,9 @@ enum Adapters {
         var out: [RawJob] = []
         await withTaskGroup(of: RawJob?.self) { group in
             for url in urls {
-                group.addTask { await hrtOne(url) }
+                group.addTask {
+                    await sitemapOne(url, titleLoc: c.titleLoc == true, firm: c.name)
+                }
             }
             for await job in group { if let job { out.append(job) } }
         }
@@ -763,13 +774,14 @@ enum Adapters {
         let missing = urls.count - out.count
         guard missing <= max(3, urls.count / 10) else {
             throw FetchError.badPayload(
-                "only read \(out.count) of \(urls.count) HRT job pages")
+                "only read \(out.count) of \(urls.count) job pages")
         }
         return out
     }
 
-    private static func hrtOne(_ url: String) async -> RawJob? {
-        guard let raw = try? await hrtGate.run({
+    private static func sitemapOne(_ url: String, titleLoc: Bool,
+                                   firm: String) async -> RawJob? {
+        guard let raw = try? await sitemapGate.run({
             try await HTTP.data(url, headers: Self.browserHeaders)
         }) else { return nil }
         let html = String(decoding: raw, as: UTF8.self)
@@ -777,9 +789,18 @@ enum Adapters {
         let whole = NSRange(location: 0, length: ns.length)
 
         guard let t = hrtTitle.firstMatch(in: html, range: whole) else { return nil }
-        let title = Clean.html(ns.substring(with: t.range(at: 1)))
-            .components(separatedBy: "|").first?
-            .trimmingCharacters(in: .whitespaces) ?? ""
+        var title = Clean.html(ns.substring(with: t.range(at: 1)))
+            .trimmingCharacters(in: .whitespaces)
+        // Page titles carry the firm: "AI Researcher | Hudson River Trading",
+        // "London Technology Internship - Marshall Wace".
+        for sep in ["|", " - ", " – ", " — "] {
+            guard let head = title.components(separatedBy: sep).first,
+                  head.count != title.count else { continue }
+            if sep == "|" || title.lowercased().contains(firm.lowercased()) {
+                title = head.trimmingCharacters(in: .whitespaces)
+                break
+            }
+        }
         guard !title.isEmpty else { return nil }
 
         var where_ = ""
@@ -793,6 +814,7 @@ enum Adapters {
                 .filter { !$0.isEmpty && $0 != "|" }
                 .joined(separator: ", ")
         }
+        if where_.isEmpty && titleLoc { where_ = LocationParser.leadingCity(title) }
         return RawJob(title: title, location: where_, url: url,
                       posted: "", department: "", description: "")
     }

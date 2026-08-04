@@ -67,6 +67,21 @@ enum LocationParser {
 
     nonisolated(unsafe) static var gazetteer = Gazetteer.empty
 
+    /// The office out of "London Technology Internship".
+    ///
+    /// Checked against the gazetteer rather than taken on faith: `parse` treats
+    /// unrecognised words as a city, so handing it a job title cheerfully
+    /// returns "London Technology Internship" as a place. Longest match first,
+    /// so "New York" beats "New".
+    static func leadingCity(_ title: String) -> String {
+        let words = title.split(whereSeparator: { !$0.isLetter }).map(String.init)
+        for n in stride(from: min(3, words.count), through: 1, by: -1) {
+            let candidate = words.prefix(n).joined(separator: " ").lowercased()
+            if let hit = gazetteer.cities[candidate] { return hit.name }
+        }
+        return ""
+    }
+
     // Commas are absent on purpose: inside one group they separate city from
     // region from country.
     private static let placeSplit = try! NSRegularExpression(

@@ -5,7 +5,7 @@ import Foundation
 enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
     case greenhouse, lever, ashby, smartrecruiters, workday, amazon
     case eightfold, jibe, uber, wolverine, citadel, optiver, twosigma, simplify
-    case hrt
+    case sitemap
 
     var id: String { rawValue }
 
@@ -25,7 +25,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         case .optiver: "optiver.com"
         case .twosigma: "twosigma.com"
         case .simplify: "Simplify feed"
-        case .hrt: "hudsonrivertrading.com"
+        case .sitemap: "own site"
         }
     }
 
@@ -34,6 +34,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         case token      // a single board slug
         case workday    // host + tenant + site
         case query      // no slug at all; one search index, narrowed by a query
+        case sitemap    // host + which sitemap file to read jobs out of
     }
 
     var configStyle: ConfigStyle {
@@ -41,7 +42,8 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         // Eightfold and Jibe are hosted platforms addressed by hostname, so
         // they reuse the Workday-style host fields rather than a slug.
         case .workday, .eightfold, .jibe, .citadel: .workday
-        case .amazon, .uber, .wolverine, .optiver, .twosigma, .simplify, .hrt: .query
+        case .sitemap: .sitemap
+        case .amazon, .uber, .wolverine, .optiver, .twosigma, .simplify: .query
         default: .token
         }
     }
@@ -59,6 +61,11 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
     var tenant: String?
     var site: String?
     var query: String?
+    /// `sitemap` adapters: which sitemap file lists the jobs, what marks a URL
+    /// as one, and whether the office has to be read out of the page title.
+    var sitemap: String?
+    var path: String?
+    var titleLoc: Bool?
     var enabled: Bool
     var tags: [String]
     var note: String?
@@ -77,6 +84,7 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
         case .token: token ?? ""
         case .workday: host ?? ""
         case .query: query ?? "intern"
+        case .sitemap: host ?? ""
         }
     }
 
@@ -84,11 +92,13 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
         switch ats {
         case .eightfold: !(host ?? "").isEmpty && !(tenant ?? "").isEmpty
         case .jibe, .citadel: !(host ?? "").isEmpty
+        case .sitemap: !(host ?? "").isEmpty && !(sitemap ?? "").isEmpty
         default:
             switch ats.configStyle {
             case .token: !(token ?? "").isEmpty
             case .workday: !(host ?? "").isEmpty && !(tenant ?? "").isEmpty
                             && !(site ?? "").isEmpty
+            case .sitemap: !(host ?? "").isEmpty && !(sitemap ?? "").isEmpty
             case .query: true      // nothing to configure
             }
         }
@@ -108,7 +118,8 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case name, ats, token, host, tenant, site, query, enabled, tags, note, tier
-        case segment
+        case segment, sitemap, path
+        case titleLoc = "title_loc"
     }
 
     var tierLabel: String {
@@ -128,6 +139,9 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
         tenant = try c.decodeIfPresent(String.self, forKey: .tenant)
         site = try c.decodeIfPresent(String.self, forKey: .site)
         query = try c.decodeIfPresent(String.self, forKey: .query)
+        sitemap = try c.decodeIfPresent(String.self, forKey: .sitemap)
+        path = try c.decodeIfPresent(String.self, forKey: .path)
+        titleLoc = try c.decodeIfPresent(Bool.self, forKey: .titleLoc)
         tier = try c.decodeIfPresent(Int.self, forKey: .tier) ?? 3
         segment = try c.decodeIfPresent(String.self, forKey: .segment) ?? "Other"
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
@@ -149,6 +163,13 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
             try c.encode(site ?? "", forKey: .site)
         case .query:
             if let query, !query.isEmpty { try c.encode(query, forKey: .query) }
+        case .sitemap:
+            // Written in full: dropping these would leave the entry unusable,
+            // and the encoder only emits the keys its style names.
+            try c.encode(host ?? "", forKey: .host)
+            try c.encode(sitemap ?? "", forKey: .sitemap)
+            if let path, !path.isEmpty { try c.encode(path, forKey: .path) }
+            if titleLoc == true { try c.encode(true, forKey: .titleLoc) }
         }
         try c.encode(tier, forKey: .tier)
         try c.encode(segment, forKey: .segment)

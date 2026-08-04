@@ -167,9 +167,15 @@ Physical Intelligence · Replit · Scale AI · Waymo
 Run `./quantjobs.py companies` for the full list rather than trusting a README that
 drifts.
 
-**Hudson River Trading** is read from its own site. Its public Greenhouse board is a
-talent-community placeholder holding three generic entries — not the ~70 roles it
-actually has open — so the adapter walks HRT's jobs sitemap instead.
+**Hudson River Trading** and **Marshall Wace** are read from their own sites. HRT's
+public Greenhouse board is a talent-community placeholder holding three generic
+entries rather than the ~70 roles it has open; Marshall Wace's carries a single
+Recruitment Assistant posting while its internships live as pages on mwam.com. The
+`sitemap` adapter walks each firm's own sitemap instead.
+
+**ExodusPoint** ships off. Its Greenhouse board holds two signposts — "Investment -
+ExodusPoint Jobs Page" and "Non-Investment - Referral" — rather than roles, and its
+site lists nothing. Two non-jobs in the table is worse than an absent firm.
 
 Four firms have no scriptable board at all — Chicago Trading Co, Maven Securities,
 PEAK6 and Quantlab — and sit in `companies.json` as disabled placeholders with a note
@@ -206,7 +212,7 @@ dropping it.
 
 - **`ats`** — one of `greenhouse`, `lever`, `ashby`, `smartrecruiters`, `workday`,
   `amazon`, `eightfold`, `jibe`, `uber`, `wolverine`, `citadel`, `optiver`,
-  `twosigma`, `simplify`, `hrt`. Most take a `token`; a few need other fields — see
+  `twosigma`, `simplify`, `sitemap`. Most take a `token`; a few need other fields — see
   [INTERNALS.md](INTERNALS.md#board-adapters).
 - **`tags`** — `quant` and `bigtech` decide which half of the app's Firms picker a
   firm lands in. The rest are descriptive and usable with `--tag`.

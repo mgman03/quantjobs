@@ -475,8 +475,25 @@ HRT_TITLE = re.compile(r"<title>(.*?)</title>", re.S)
 HRT_SUMMARY = re.compile(r"class='summary-info'>(.*?)</div>", re.S)
 
 
-def hrt_one(url: str) -> dict | None:
-    """Title and offices from a single HRT job page."""
+def leading_city(title: str) -> str:
+    """The office out of "London Technology Internship".
+
+    Checked against the gazetteer rather than accepted on faith:
+    parse_locations() treats any unrecognised words as a city, so feeding it a
+    job title happily returns "London Technology Internship" as a place.
+    Longest match first, so "New York" beats "New".
+    """
+    g = gazetteer()
+    words = re.findall(r"[A-Za-z]+", title)
+    for n in range(min(3, len(words)), 0, -1):
+        candidate = " ".join(words[:n])
+        if candidate.lower() in g.get("cities", {}):
+            return g["cities"][candidate.lower()]["name"]
+    return ""
+
+
+def sitemap_one(url: str, title_loc: bool = False, firm: str = "") -> dict | None:
+    """Title and offices from a single job page."""
     try:
         html = http(url, headers=BROWSER_HEADERS).decode("utf-8", "replace")
     except FetchError:
@@ -484,7 +501,18 @@ def hrt_one(url: str) -> dict | None:
     m = HRT_TITLE.search(html)
     if not m:
         return None
-    title = strip_html(m.group(1)).split("|")[0].strip()
+    title = strip_html(m.group(1))
+    # Page titles carry the firm: "London Technology Internship - Marshall Wace",
+    # "AI Researcher | Hudson River Trading". Drop whichever separator is used.
+    for sep in ("|", " - ", " – ", " — "):
+        head = title.split(sep)[0].strip()
+        if firm and title != head and firm.lower() in title.lower():
+            title = head
+            break
+        if sep == "|" and title != head:
+            title = head
+            break
+    title = title.strip()
     if not title:
         return None
     where = ""
@@ -492,32 +520,52 @@ def hrt_one(url: str) -> dict | None:
         # "London <span>|</span> New York" — the separators are markup.
         parts = [strip_html(x) for x in re.split(r"<[^>]+>", summary.group(1))]
         where = ", ".join(p for p in (x.strip() for x in parts) if p and p != "|")
+    if not where and title_loc:
+        where = leading_city(title)
     return {"title": title, "location": where, "url": url,
             "posted": "", "department": "", "description": ""}
 
 
-def fetch_hrt(c: dict, deep: bool) -> list[dict]:
-    """Hudson River Trading, via its jobs sitemap."""
-    host = c.get("host", "www.hudsonrivertrading.com")
-    xml = http(f"https://{host}/hrt_jobs-sitemap.xml",
+def fetch_sitemap(c: dict, deep: bool) -> list[dict]:
+    """Firms whose real roles exist only as pages in their own sitemap.
+
+    Some sites publish nothing a job board would recognise — no ATS, no feed,
+    and a careers page that is prose — yet every role has a URL, because the CMS
+    lists them for search engines. Config:
+
+        host      the domain
+        sitemap   which sitemap file, e.g. "hrt_jobs-sitemap.xml"
+        path      substring a URL must contain to count as a job
+        title_loc true to read the office out of the title, for sites that
+                  write "London Technology Internship" and state it nowhere else
+    """
+    host = c.get("host", "")
+    sitemap = c.get("sitemap", "")
+    if not host or not sitemap:
+        raise FetchError("sitemap adapter needs host and sitemap in companies.json")
+    marker = c.get("path", "/")
+    xml = http(f"https://{host}/{sitemap}",
                headers=BROWSER_HEADERS).decode("utf-8", "replace")
-    urls = re.findall(r"<loc>([^<]+/hrt-job/[^<]+)</loc>", xml)
+    urls = [u for u in re.findall(r"<loc>([^<]+)</loc>", xml) if marker in u]
     if not urls:
-        raise FetchError("no jobs in the HRT sitemap")
+        raise FetchError(f"no job pages in {sitemap}")
 
     # The sitemap's <lastmod> is deliberately ignored: every entry carries the
     # same timestamp, so it records when the sitemap was regenerated rather than
     # when anything was posted. Using it would date all 72 roles today and float
     # them above genuinely fresh postings. Undated is honest; wrong is not.
+    title_loc = bool(c.get("title_loc"))
+    firm = c.get("name", "")
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
-        out = [job for job in ex.map(hrt_one, urls) if job]
+        out = [job for job in ex.map(lambda u: sitemap_one(u, title_loc, firm), urls)
+               if job]
 
     # One page per role means a network hiccup silently shrinks the board, and a
     # board that quietly returns 60 of 72 roles is worse than one that says it
     # failed. Tolerate the odd miss, report anything worse.
     missing = len(urls) - len(out)
     if missing > max(3, len(urls) // 10):
-        raise FetchError(f"only read {len(out)} of {len(urls)} HRT job pages")
+        raise FetchError(f"only read {len(out)} of {len(urls)} job pages")
     return out
 
 
@@ -760,7 +808,7 @@ ADAPTERS = {
     "uber": fetch_uber,
     "wolverine": fetch_wolverine,
     "citadel": fetch_citadel,
-    "hrt": fetch_hrt,
+    "sitemap": fetch_sitemap,
     "optiver": fetch_optiver,
     "twosigma": fetch_twosigma,
     "simplify": fetch_simplify,
@@ -1095,7 +1143,7 @@ def scrape_one(c: dict, deep: bool) -> tuple[dict, list[dict], str | None]:
 # they page HTML ten rows at a time or sit behind a rate limit, and if they
 # start last everything else waits on them — so they go first.
 ATS_COST = {
-    "citadel": 100, "twosigma": 90, "eightfold": 80, "hrt": 70, "jibe": 40,
+    "citadel": 100, "twosigma": 90, "eightfold": 80, "sitemap": 70, "jibe": 40,
     "workday": 30, "optiver": 20, "amazon": 20, "simplify": 15,
     "uber": 10, "smartrecruiters": 8, "wolverine": 3,
 }
@@ -1213,10 +1261,12 @@ def is_configured(c: dict) -> bool:
         return all(c.get(k) for k in ("host", "tenant", "site"))
     if ats == "eightfold":
         return bool(c.get("host") and c.get("tenant"))
+    if ats == "sitemap":
+        return bool(c.get("host") and c.get("sitemap"))
     if ats in ("jibe", "citadel"):
         return bool(c.get("host"))
     if ats in ("amazon", "uber", "wolverine", "optiver", "twosigma",
-               "simplify", "hrt"):
+               "simplify"):
         return True          # nothing to configure
     return bool(c.get("token"))
 

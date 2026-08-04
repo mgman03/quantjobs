@@ -124,7 +124,7 @@
       "tier": 1
     },
     {
-      "ats": "hrt",
+      "ats": "sitemap",
       "enabled": true,
       "name": "Hudson River Trading",
       "note": "Sourced from HRT's own site via its jobs sitemap. Its public Greenhouse board (hrttalentcommunity) is a talent-community placeholder holding three generic entries, not the real roles.",
@@ -134,7 +134,10 @@
         "hft",
         "prop"
       ],
-      "tier": 1
+      "tier": 1,
+      "host": "www.hudsonrivertrading.com",
+      "sitemap": "hrt_jobs-sitemap.xml",
+      "path": "/hrt-job/"
     },
     {
       "ats": "greenhouse",
@@ -778,7 +781,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "ExodusPoint",
       "segment": "Tier 2",
       "tags": [
@@ -787,7 +790,8 @@
         "multistrat"
       ],
       "tier": 2,
-      "token": "exoduspoint"
+      "token": "exoduspoint",
+      "note": "Its Greenhouse board holds two signposts \u2014 'Investment - ExodusPoint Jobs Page' and 'Non-Investment - Referral' \u2014 rather than roles, and exoduspoint.com lists nothing and gives an email address. Off, because two non-jobs in the table is worse than an absent firm."
     },
     {
       "ats": "greenhouse",
@@ -927,7 +931,7 @@
       "token": "mangroup"
     },
     {
-      "ats": "greenhouse",
+      "ats": "sitemap",
       "enabled": true,
       "name": "Marshall Wace",
       "segment": "Tier 2",
@@ -937,7 +941,11 @@
         "london"
       ],
       "tier": 2,
-      "token": "marshallwace"
+      "host": "www.mwam.com",
+      "sitemap": "internships-sitemap.xml",
+      "path": "/internships/",
+      "title_loc": true,
+      "note": "Marshall Wace's Greenhouse board (marshallwace) carries a single Recruitment Assistant posting. The internships live as pages on mwam.com and are read from its internships sitemap."
     },
     {
       "ats": "workday",
@@ -1510,7 +1518,8 @@
         "av"
       ],
       "tier": 3,
-      "token": "aurorainnovation"
+      "token": "aurorainnovation",
+      "note": "greenhouse/aurorainnovation 404s and aurora.tech renders its board client-side with no ATS fingerprint (checked 2026-08-04)."
     },
     {
       "ats": "greenhouse",
