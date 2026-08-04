@@ -668,6 +668,26 @@ final class AppModel {
         if changed { saveCompanies() }
     }
 
+    /// The selection as it was before the last preset, so a misclick that
+    /// replaces a curated roster is one button away from being undone.
+    private(set) var undoableSelection: [Company.ID: Bool]?
+
+    func snapshotSelection() {
+        undoableSelection = Dictionary(companies.map { ($0.id, $0.enabled) },
+                                       uniquingKeysWith: { a, _ in a })
+    }
+
+    func undoSelectionChange() {
+        guard let snapshot = undoableSelection else { return }
+        for i in companies.indices {
+            if let was = snapshot[companies[i].id] { companies[i].enabled = was }
+        }
+        undoableSelection = nil
+        saveCompanies()
+        rebuildFirmIndex()
+        resultsVersion += 1
+    }
+
     /// "I'm not interested in this firm" straight from a job row: switches the
     /// board off and drops its rows from the current results, so the decision
     /// takes effect without waiting for a re-scrape.

@@ -128,9 +128,29 @@ enum ConfigStore {
         }
     }
 
-    /// Where we recorded the roster the bundle last shipped.
+    /// Where we recorded the roster the bundle last shipped: its hash, and the
+    /// names it contained. The names matter — without them a firm the user
+    /// deleted looks identical to a firm they've never seen, so every upgrade
+    /// resurrected everything they'd removed.
     private static var seedStampURL: URL {
         directory.appendingPathComponent(".seed-version")
+    }
+
+    private struct SeedStamp: Codable {
+        var hash: String
+        var names: [String]
+    }
+
+    private static func readStamp() -> SeedStamp? {
+        guard let data = try? Data(contentsOf: seedStampURL) else { return nil }
+        if let stamp = try? JSONDecoder().decode(SeedStamp.self, from: data) {
+            return stamp
+        }
+        // The first version of this file was a bare hash. Treat it as "we have
+        // merged before but don't know what was in it".
+        let text = String(decoding: data, as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : SeedStamp(hash: text, names: [])
     }
 
     /// Bring an existing config up to date when the app itself is upgraded.
@@ -149,25 +169,46 @@ enum ConfigStore {
                                             withExtension: "json"),
               let seedData = try? Data(contentsOf: seedURL) else { return }
 
-        let stamp = SHA256.hash(data: seedData).map { String(format: "%02x", $0) }.joined()
-        let seen = (try? String(contentsOf: seedStampURL, encoding: .utf8))?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard seen != stamp else { return }
-
-        // Record the stamp either way — a roster we can't parse shouldn't make
-        // every launch retry the same merge.
-        defer { try? stamp.write(to: seedStampURL, atomically: true, encoding: .utf8) }
+        let hash = SHA256.hash(data: seedData).map { String(format: "%02x", $0) }.joined()
+        let previous = readStamp()
+        guard previous?.hash != hash else { return }
 
         guard let bundled = try? JSONDecoder().decode(CompanyFile.self, from: seedData),
               var current = try? loadCompanies() else { return }
 
+        // Record what this bundle held either way, so a roster we can't merge
+        // doesn't make every launch retry it.
+        defer {
+            let stamp = SeedStamp(hash: hash, names: bundled.companies.map(\.name))
+            if let data = try? JSONEncoder().encode(stamp) {
+                try? data.write(to: seedStampURL, options: .atomic)
+            }
+        }
+
         let mine = Dictionary(current.companies.map { ($0.name, $0) },
                               uniquingKeysWith: { a, _ in a })
+        // A firm that was in the last bundle but isn't in the config now was
+        // deleted on purpose — the README offers removal as a way to prune the
+        // roster, so bringing it back on every update would ignore that. On a
+        // first merge there's no previous list, so nothing counts as deleted.
+        let removedOnPurpose = Set(previous?.names ?? []).subtracting(mine.keys)
+
+        // With no previous record there's no way to tell a firm the user
+        // deleted from one they've never seen, so the first merge only updates
+        // what's already there. That costs an install the firms added in the
+        // version it's upgrading to — they arrive with the next one — which is
+        // a far better trade than wiping a roster someone curated by hand.
+        let firstMerge = previous == nil
+
         var merged: [Company] = []
         for var firm in bundled.companies {
-            // Their choice, not ours — a firm they switched off stays off.
-            if let existing = mine[firm.name] { firm.enabled = existing.enabled }
-            merged.append(firm)
+            if let existing = mine[firm.name] {
+                // Their choice, not ours — a firm they switched off stays off.
+                firm.enabled = existing.enabled
+                merged.append(firm)
+            } else if !firstMerge && !removedOnPurpose.contains(firm.name) {
+                merged.append(firm)
+            }
         }
         // Anything they added by hand isn't in the bundle; keep it.
         let bundledNames = Set(bundled.companies.map(\.name))

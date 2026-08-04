@@ -107,12 +107,18 @@ enum Clean {
         "&hellip;": "…", "&bull;": "•",
     ]
 
+    /// Compiled once. This runs over every posting's text on every scrape, so
+    /// rebuilding the pattern per call was paying for a regex compile tens of
+    /// thousands of times a run.
+    private static let numericEntity =
+        try! NSRegularExpression(pattern: "&#(x?)([0-9a-fA-F]+);")
+
     static func entities(_ s: String) -> String {
         var t = s
         for (k, v) in namedEntities { t = t.replacingOccurrences(of: k, with: v) }
         // Numeric entities: &#8217; / &#x2019;
         guard t.contains("&#") else { return t }
-        let rx = try! NSRegularExpression(pattern: "&#(x?)([0-9a-fA-F]+);")
+        let rx = numericEntity
         let ns = t as NSString
         var out = ""
         var cursor = 0

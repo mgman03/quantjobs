@@ -546,9 +546,12 @@ def fetch_optiver(c: dict, deep: bool) -> list[dict]:
     return out
 
 
-TWOSIGMA_CARD = re.compile(
-    r'href="(https://careers\.twosigma\.com/careers/JobDetail/[^"#]+)"[^>]*>'
-    r'\s*(.*?)\s*</a>.*?paragraph_inner-span">\s*([^<]*)\s*</span>', re.S)
+# Anchor first, then the location span in a short window after it. One regex
+# spanning both used `.*?` across the whole document, which let a single match
+# swallow the anchors in between — 58 roles on the page came back as 10.
+TWOSIGMA_ANCHOR = re.compile(
+    r'href="(https://careers\.twosigma\.com/careers/JobDetail/[^"#]+)"[^>]*>([^<]*)</a>')
+TWOSIGMA_LOC = re.compile(r'paragraph_inner-span">\s*([^<]*)')
 
 
 def twosigma_location(raw: str) -> str:
@@ -573,20 +576,25 @@ def fetch_twosigma(c: dict, deep: bool) -> list[dict]:
     while offset <= 400:
         html = http(f"https://careers.twosigma.com/careers/OpenRoles?jobOffset={offset}",
                     headers=BROWSER_HEADERS).decode("utf-8", "replace")
-        rows = TWOSIGMA_CARD.findall(html)
-        fresh = [r for r in rows if r[0] not in seen]
-        if not fresh:
-            break
-        for url, title, loc in fresh:
+        added = 0
+        for m in TWOSIGMA_ANCHOR.finditer(html):
+            url = m.group(1)
+            if url in seen:
+                continue
             seen.add(url)
+            added += 1
+            window = html[m.end():m.end() + 900]
+            found = TWOSIGMA_LOC.search(window)
             out.append({
-                "title": strip_html(title),
-                "location": twosigma_location(strip_html(loc)),
+                "title": strip_html(m.group(2)),
+                "location": twosigma_location(strip_html(found.group(1))) if found else "",
                 "url": url,
                 "posted": "",          # not shown in the listing
                 "department": "",
                 "description": "",
             })
+        if added == 0:
+            break
         offset += 10
     return out
 

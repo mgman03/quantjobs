@@ -448,6 +448,19 @@ enum HeadlessCheck {
                 print("             \u{2318}R refetched \(fullCount) board(s)")
             }
 
+            // A preset replaces the whole roster; undo has to put it back.
+            do {
+                let before = model.companies.filter(\.enabled).map(\.name).sorted()
+                model.snapshotSelection()
+                model.setEnabled(true, for: model.companies.filter { $0.tier <= 1 }.map(\.id))
+                model.setEnabled(false, for: model.companies.filter { $0.tier > 1 }.map(\.id))
+                let afterPreset = model.companies.filter(\.enabled).count
+                model.undoSelectionChange()
+                let restored = model.companies.filter(\.enabled).map(\.name).sorted()
+                print("undo      \(before.count) enabled → preset \(afterPreset) → "
+                      + "undo \(restored.count) · identical=\(restored == before)")
+            }
+
             print("filters   hasExtra=\(model.hasExtraFilters) (expected false)")
 
             print("\nfirm picker layout:")

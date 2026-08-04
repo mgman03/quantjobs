@@ -154,6 +154,11 @@ Things that are load-bearing:
 - **The swap is done by a detached shell script**, because a bundle can't be replaced
   underneath the process running out of it. The script waits for the pid to go away,
   moves the new copy in, and relaunches.
+- **A firm you deleted stays deleted.** The stamp records the names the last
+  bundle held, so the merge can tell "removed on purpose" from "never seen". With
+  no previous stamp it can't, so the *first* merge only updates firms already
+  present — an install gains the firms added in the version it's upgrading to on
+  the following update, which beats wiping a roster someone curated by hand.
 - **No quarantine.** A disk image fetched with URLSession isn't quarantined — that
   attribute is applied by browsers, not by the network — so the replacement launches
   without the "Apple could not verify" dialog.
@@ -184,6 +189,12 @@ same-platform failures that pass when retried alone, this is the shape of it.
 
 **Cloudflare.** Citadel's two boards sit behind one tenant and throttle each other
 into 403s if hit in parallel, so those requests are serialised and paced.
+
+**One regex spanning two things swallows what's between them.** Two Sigma's cards
+were matched with a single pattern running from the job anchor to the location span
+via `.*?`, so one match could consume the anchors in between: 58 roles on the page
+came back as 10, and the CLI silently under-reported the board for weeks. Both tools
+now match the anchor, then look for the location in a bounded window after it.
 
 **Regex backtracking differs.** A pattern with `.*?` that Python's `re` handles fine
 can pin a core in `NSRegularExpression`, which backtracks where Python doesn't. One

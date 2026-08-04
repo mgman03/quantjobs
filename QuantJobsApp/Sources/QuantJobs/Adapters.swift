@@ -697,6 +697,11 @@ enum Adapters {
     private static let twoSigmaLoc = try! NSRegularExpression(
         pattern: "paragraph_inner-span\">\\s*([^<]*)")
 
+    /// Region code and city, e.g. "NY New York". Compiled once: this is called
+    /// per posting.
+    private static let twoSigmaRegion =
+        try! NSRegularExpression(pattern: "^([A-Z]{2})\\s+(.+)$")
+
     /// "United States - NY New York" is country-first; flip it round.
     private static func twoSigmaLocation(_ raw: String) -> String {
         let parts = raw.components(separatedBy: " - ")
@@ -704,7 +709,7 @@ enum Adapters {
             .filter { !$0.isEmpty }
         guard parts.count == 2 else { return raw.trimmingCharacters(in: .whitespaces) }
         let country = parts[0], rest = parts[1]
-        let rx = try! NSRegularExpression(pattern: "^([A-Z]{2})\\s+(.+)$")
+        let rx = twoSigmaRegion
         let ns = rest as NSString
         if let m = rx.firstMatch(in: rest, range: NSRange(location: 0, length: ns.length)) {
             return "\(ns.substring(with: m.range(at: 2))), "
@@ -729,8 +734,7 @@ enum Adapters {
 
         // Take the category list from the page rather than hard-coding it.
         var cats: [String] = []
-        let catRx = try! NSRegularExpression(
-            pattern: #"href="/join-us/jobs/([a-z0-9-]+)/[a-z0-9-]+/"#)
+        let catRx = optiverCategory
         let rootNS = root as NSString
         for m in catRx.matches(in: root,
                                range: NSRange(location: 0, length: rootNS.length)) {
@@ -771,6 +775,9 @@ enum Adapters {
         }
         return out
     }
+
+    private static let optiverCategory = try! NSRegularExpression(
+        pattern: #"href="/join-us/jobs/([a-z0-9-]+)/[a-z0-9-]+/"#)
 
     private static let optiverJob = try! NSRegularExpression(
         pattern: "<a\\s+href=\"(/join-us/jobs/([a-z0-9-]+)/([a-z0-9-]+)/[^\"#]+)\"[^>]*>([^<]+)</a>\\s*</h3>\\s*<p[^>]*>([^<]*)</p>",

@@ -122,15 +122,26 @@ struct CompaniesView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                if model.undoableSelection != nil {
+                    Divider().frame(height: 16)
+                    Button {
+                        model.undoSelectionChange()
+                    } label: {
+                        Label("Undo Preset", systemImage: "arrow.uturn.backward")
+                    }
+                    .help("Put the board selection back as it was before the preset")
+                }
+
                 Divider().frame(height: 16)
 
                 Menu {
                     Section("Presets — replaces the whole selection") {
-                        Button("Only Tier 1") { onlyTier(1) }
-                        Button("Tier 1 + 2 (default)") { onlyTier(2) }
-                        Button("Only Quant") { onlyGroup("quant") }
-                        Button("Only Big Tech") { onlyGroup("bigtech") }
+                        Button("Only Tier 1") { model.snapshotSelection(); onlyTier(1) }
+                        Button("Tier 1 + 2 (default)") { model.snapshotSelection(); onlyTier(2) }
+                        Button("Only Quant") { model.snapshotSelection(); onlyGroup("quant") }
+                        Button("Only Big Tech") { model.snapshotSelection(); onlyGroup("bigtech") }
                         Button("Everything On") {
+                            model.snapshotSelection()
                             model.setEnabled(true, for: model.companies.map(\.id))
                         }
                     }
