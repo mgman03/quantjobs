@@ -36,8 +36,20 @@ locally would be silly.
 **`citadel`** (both Citadel entries) and **`optiver`** read HTML rather than JSON —
 their careers sites are server-rendered with no public API. Citadel takes a `host`.
 
-**`uber`**, **`wolverine`** and **`twosigma`** are one-firm APIs with nothing to
-configure.
+**`uber`**, **`wolverine`**, **`twosigma`** and **`hrt`** are one-firm sources with
+nothing to configure.
+
+**`hrt`** is the odd one. Hudson River Trading's public Greenhouse board
+(`hrttalentcommunity`) holds three generic entries — "HRT Talent Community", "Campus
+Talent Community" and one real posting — while the firm has ~70 roles open. The real
+ones are a WordPress custom post type that isn't exposed through the REST API and
+isn't listed on the careers page, but every one of them appears in
+`/hrt_jobs-sitemap.xml`, and each page carries its title in `<title>` and its offices
+in a `summary-info` div. That's one request per role, so it's rate-limited and
+reports failure if it can't read most of them — a board quietly returning 60 of 72
+roles is worse than one that says it failed. The sitemap's `<lastmod>` is ignored on
+purpose: every entry shares a timestamp, so it records when the sitemap was
+regenerated, and using it would date every HRT role today.
 
 **`simplify`** reads the [Simplify / Pitt CSC community internship feed][simplify] for
 firms with no board of their own, matching on `query` (the exact company name) and

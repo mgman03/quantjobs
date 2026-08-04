@@ -22,6 +22,10 @@ struct QuantJobsApp: App {
         WindowGroup("Quant Jobs") {
             ContentView(model: model)
                 .frame(minWidth: 900, minHeight: 520)
+                .onReceive(NotificationCenter.default.publisher(
+                    for: NSApplication.didBecomeActiveNotification)) { _ in
+                    model.reloadCompaniesIfChangedOnDisk()
+                }
         }
         .defaultSize(width: 1440, height: 820)
         .commands {

@@ -466,6 +466,61 @@ BROWSER_HEADERS = {
 }
 
 
+# HRT publishes nothing a job board would recognise: its Greenhouse token is a
+# talent-community placeholder with three generic entries, and the careers page
+# links only to that. The real roles are a WordPress custom post type — not in
+# the REST API, but every one of them is in the sitemap, and each page carries
+# its title and offices in markup.
+HRT_TITLE = re.compile(r"<title>(.*?)</title>", re.S)
+HRT_SUMMARY = re.compile(r"class='summary-info'>(.*?)</div>", re.S)
+
+
+def hrt_one(url: str) -> dict | None:
+    """Title and offices from a single HRT job page."""
+    try:
+        html = http(url, headers=BROWSER_HEADERS).decode("utf-8", "replace")
+    except FetchError:
+        return None
+    m = HRT_TITLE.search(html)
+    if not m:
+        return None
+    title = strip_html(m.group(1)).split("|")[0].strip()
+    if not title:
+        return None
+    where = ""
+    if summary := HRT_SUMMARY.search(html):
+        # "London <span>|</span> New York" — the separators are markup.
+        parts = [strip_html(x) for x in re.split(r"<[^>]+>", summary.group(1))]
+        where = ", ".join(p for p in (x.strip() for x in parts) if p and p != "|")
+    return {"title": title, "location": where, "url": url,
+            "posted": "", "department": "", "description": ""}
+
+
+def fetch_hrt(c: dict, deep: bool) -> list[dict]:
+    """Hudson River Trading, via its jobs sitemap."""
+    host = c.get("host", "www.hudsonrivertrading.com")
+    xml = http(f"https://{host}/hrt_jobs-sitemap.xml",
+               headers=BROWSER_HEADERS).decode("utf-8", "replace")
+    urls = re.findall(r"<loc>([^<]+/hrt-job/[^<]+)</loc>", xml)
+    if not urls:
+        raise FetchError("no jobs in the HRT sitemap")
+
+    # The sitemap's <lastmod> is deliberately ignored: every entry carries the
+    # same timestamp, so it records when the sitemap was regenerated rather than
+    # when anything was posted. Using it would date all 72 roles today and float
+    # them above genuinely fresh postings. Undated is honest; wrong is not.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
+        out = [job for job in ex.map(hrt_one, urls) if job]
+
+    # One page per role means a network hiccup silently shrinks the board, and a
+    # board that quietly returns 60 of 72 roles is worse than one that says it
+    # failed. Tolerate the odd miss, report anything worse.
+    missing = len(urls) - len(out)
+    if missing > max(3, len(urls) // 10):
+        raise FetchError(f"only read {len(out)} of {len(urls)} HRT job pages")
+    return out
+
+
 def fetch_citadel(c: dict, deep: bool) -> list[dict]:
     """Citadel / Citadel Securities. Config: host."""
     host = c.get("host")
@@ -705,6 +760,7 @@ ADAPTERS = {
     "uber": fetch_uber,
     "wolverine": fetch_wolverine,
     "citadel": fetch_citadel,
+    "hrt": fetch_hrt,
     "optiver": fetch_optiver,
     "twosigma": fetch_twosigma,
     "simplify": fetch_simplify,
@@ -1039,7 +1095,7 @@ def scrape_one(c: dict, deep: bool) -> tuple[dict, list[dict], str | None]:
 # they page HTML ten rows at a time or sit behind a rate limit, and if they
 # start last everything else waits on them — so they go first.
 ATS_COST = {
-    "citadel": 100, "twosigma": 90, "eightfold": 80, "jibe": 40,
+    "citadel": 100, "twosigma": 90, "eightfold": 80, "hrt": 70, "jibe": 40,
     "workday": 30, "optiver": 20, "amazon": 20, "simplify": 15,
     "uber": 10, "smartrecruiters": 8, "wolverine": 3,
 }
@@ -1160,7 +1216,7 @@ def is_configured(c: dict) -> bool:
     if ats in ("jibe", "citadel"):
         return bool(c.get("host"))
     if ats in ("amazon", "uber", "wolverine", "optiver", "twosigma",
-               "simplify"):
+               "simplify", "hrt"):
         return True          # nothing to configure
     return bool(c.get("token"))
 

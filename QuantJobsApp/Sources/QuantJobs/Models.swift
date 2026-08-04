@@ -5,6 +5,7 @@ import Foundation
 enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
     case greenhouse, lever, ashby, smartrecruiters, workday, amazon
     case eightfold, jibe, uber, wolverine, citadel, optiver, twosigma, simplify
+    case hrt
 
     var id: String { rawValue }
 
@@ -24,6 +25,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         case .optiver: "optiver.com"
         case .twosigma: "twosigma.com"
         case .simplify: "Simplify feed"
+        case .hrt: "hudsonrivertrading.com"
         }
     }
 
@@ -39,7 +41,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         // Eightfold and Jibe are hosted platforms addressed by hostname, so
         // they reuse the Workday-style host fields rather than a slug.
         case .workday, .eightfold, .jibe, .citadel: .workday
-        case .amazon, .uber, .wolverine, .optiver, .twosigma, .simplify: .query
+        case .amazon, .uber, .wolverine, .optiver, .twosigma, .simplify, .hrt: .query
         default: .token
         }
     }

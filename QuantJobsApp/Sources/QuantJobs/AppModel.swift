@@ -599,16 +599,37 @@ final class AppModel {
 
     /// Coalesced write. Clicking through the tree fires a burst of changes and
     /// only the last state matters, so the disk write leaves the click path.
+    /// Pick up edits made outside the app — by the CLI, or by editing
+    /// companies.json by hand — instead of overwriting them.
+    ///
+    /// The two tools share one file, which the README sells as a feature, but
+    /// the app read it once at launch and wrote its own copy back on every
+    /// toggle. Anything changed on disk in between was silently lost the next
+    /// time you clicked something. Cheap to re-read, and the window becoming
+    /// active is exactly when you've come back from the other tool.
+    func reloadCompaniesIfChangedOnDisk() {
+        guard isLoaded, !isScraping, saveTask == nil,
+              let onDisk = try? ConfigStore.loadCompanies(),
+              onDisk.companies != companies else { return }
+        companies = onDisk.companies
+        fileComment = onDisk.comment
+        rebuildFirmIndex()
+        resultsVersion += 1
+    }
+
     func saveCompanies() {
         rebuildFirmIndex()
         let snapshot = CompanyFile(comment: fileComment, companies: companies)
         saveTask?.cancel()
-        saveTask = Task {
+        saveTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
             await Task.detached(priority: .utility) {
                 try? ConfigStore.saveCompanies(snapshot)
             }.value
+            // Cleared so "is a write pending?" is answerable. Left set, it
+            // stayed truthy forever after the first save.
+            self?.saveTask = nil
         }
     }
 

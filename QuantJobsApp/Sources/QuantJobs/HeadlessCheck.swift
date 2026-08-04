@@ -461,6 +461,20 @@ enum HeadlessCheck {
                       + "undo \(restored.count) · identical=\(restored == before)")
             }
 
+            // An edit made on disk while the app is open must win, not be
+            // overwritten the next time something is clicked.
+            do {
+                model.flushCompanies()      // land our own edits first
+                let before = model.companies.filter(\.enabled).count
+                var file = try! ConfigStore.loadCompanies()
+                for i in file.companies.indices { file.companies[i].enabled = false }
+                try! ConfigStore.saveCompanies(file)
+                model.reloadCompaniesIfChangedOnDisk()
+                let after = model.companies.filter(\.enabled).count
+                print("disk edit \(before) enabled in memory → file says 0 → "
+                      + "model now \(after) · adopted=\(after == 0)")
+            }
+
             print("filters   hasExtra=\(model.hasExtraFilters) (expected false)")
 
             print("\nfirm picker layout:")

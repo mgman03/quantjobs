@@ -167,6 +167,10 @@ Physical Intelligence · Replit · Scale AI · Waymo
 Run `./quantjobs.py companies` for the full list rather than trusting a README that
 drifts.
 
+**Hudson River Trading** is read from its own site. Its public Greenhouse board is a
+talent-community placeholder holding three generic entries — not the ~70 roles it
+actually has open — so the adapter walks HRT's jobs sitemap instead.
+
 Four firms have no scriptable board at all — Chicago Trading Co, Maven Securities,
 PEAK6 and Quantlab — and sit in `companies.json` as disabled placeholders with a note
 saying what was tried. Apple, Google, Meta and Microsoft publish nothing a script can
@@ -202,7 +206,7 @@ dropping it.
 
 - **`ats`** — one of `greenhouse`, `lever`, `ashby`, `smartrecruiters`, `workday`,
   `amazon`, `eightfold`, `jibe`, `uber`, `wolverine`, `citadel`, `optiver`,
-  `twosigma`, `simplify`. Most take a `token`; a few need other fields — see
+  `twosigma`, `simplify`, `hrt`. Most take a `token`; a few need other fields — see
   [INTERNALS.md](INTERNALS.md#board-adapters).
 - **`tags`** — `quant` and `bigtech` decide which half of the app's Firms picker a
   firm lands in. The rest are descriptive and usable with `--tag`.

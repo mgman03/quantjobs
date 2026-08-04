@@ -31,6 +31,7 @@ enum Adapters {
         case .uber:            try await uber(c, deep: deep)
         case .wolverine:       try await wolverine(c, deep: deep)
         case .citadel:         try await citadel(c, deep: deep)
+        case .hrt:             try await hrt(c, deep: deep)
         case .optiver:         try await optiver(c, deep: deep)
         case .twosigma:        try await twoSigma(c, deep: deep)
         case .simplify:        try await simplify(c, deep: deep)
@@ -716,6 +717,84 @@ enum Adapters {
                  + "\(ns.substring(with: m.range(at: 1))), \(country)"
         }
         return "\(rest), \(country)"
+    }
+
+    // MARK: - Hudson River Trading
+
+    /// HRT publishes nothing a job board would recognise: its Greenhouse token
+    /// is a talent-community placeholder holding three generic entries, and the
+    /// careers page links only to that. The real roles are a WordPress custom
+    /// post type that isn't exposed through the REST API — but every one of
+    /// them is in the sitemap, and each page states its title and offices.
+    static let hrtGate = RequestGate(limit: 6)
+
+    private static let hrtLoc = try! NSRegularExpression(
+        pattern: "class='summary-info'>(.*?)</div>", options: [.dotMatchesLineSeparators])
+    private static let hrtTitle = try! NSRegularExpression(
+        pattern: "<title>(.*?)</title>", options: [.dotMatchesLineSeparators])
+    private static let hrtSitemap = try! NSRegularExpression(
+        pattern: "<loc>([^<]+/hrt-job/[^<]+)</loc>")
+
+    static func hrt(_ c: Company, deep: Bool) async throws -> [RawJob] {
+        let host = c.host ?? "www.hudsonrivertrading.com"
+        let raw = try await HTTP.data("https://\(host)/hrt_jobs-sitemap.xml",
+                                      headers: Self.browserHeaders)
+        let xml = String(decoding: raw, as: UTF8.self)
+        let ns = xml as NSString
+        let urls = hrtSitemap.matches(in: xml,
+                                      range: NSRange(location: 0, length: ns.length))
+            .map { ns.substring(with: $0.range(at: 1)) }
+        guard !urls.isEmpty else { throw FetchError.badPayload("no jobs in the HRT sitemap") }
+
+        // The sitemap's <lastmod> is deliberately unused: every entry carries
+        // the same timestamp, so it says when the sitemap was regenerated, not
+        // when anything was posted. Dating all 72 roles today would float them
+        // above genuinely fresh postings.
+        var out: [RawJob] = []
+        await withTaskGroup(of: RawJob?.self) { group in
+            for url in urls {
+                group.addTask { await hrtOne(url) }
+            }
+            for await job in group { if let job { out.append(job) } }
+        }
+        // One page per role means a network hiccup silently shrinks the board,
+        // and a board that quietly returns 60 of 72 roles is worse than one
+        // that says it failed. Tolerate the odd miss, report anything worse.
+        let missing = urls.count - out.count
+        guard missing <= max(3, urls.count / 10) else {
+            throw FetchError.badPayload(
+                "only read \(out.count) of \(urls.count) HRT job pages")
+        }
+        return out
+    }
+
+    private static func hrtOne(_ url: String) async -> RawJob? {
+        guard let raw = try? await hrtGate.run({
+            try await HTTP.data(url, headers: Self.browserHeaders)
+        }) else { return nil }
+        let html = String(decoding: raw, as: UTF8.self)
+        let ns = html as NSString
+        let whole = NSRange(location: 0, length: ns.length)
+
+        guard let t = hrtTitle.firstMatch(in: html, range: whole) else { return nil }
+        let title = Clean.html(ns.substring(with: t.range(at: 1)))
+            .components(separatedBy: "|").first?
+            .trimmingCharacters(in: .whitespaces) ?? ""
+        guard !title.isEmpty else { return nil }
+
+        var where_ = ""
+        if let l = hrtLoc.firstMatch(in: html, range: whole) {
+            // "London <span>|</span> New York" — the separators are markup.
+            where_ = ns.substring(with: l.range(at: 1))
+                .replacingOccurrences(of: "<[^>]+>", with: "\u{1}",
+                                      options: .regularExpression)
+                .components(separatedBy: "\u{1}")
+                .map { Clean.html($0).trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty && $0 != "|" }
+                .joined(separator: ", ")
+        }
+        return RawJob(title: title, location: where_, url: url,
+                      posted: "", department: "", description: "")
     }
 
     // MARK: - Optiver
