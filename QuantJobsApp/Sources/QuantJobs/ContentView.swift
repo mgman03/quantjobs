@@ -544,8 +544,8 @@ struct ContentView: View {
             .width(min: 100, ideal: 128)
 
             TableColumn("Level", value: \.level) { job in
-                Text(job.level.isEmpty ? "–" : job.level)
-                    .foregroundStyle(job.level.isEmpty ? .secondary : .primary)
+                Text(job.levelLabel.isEmpty ? "–" : job.levelLabel)
+                    .foregroundStyle(job.levelLabel.isEmpty ? .secondary : .primary)
             }
             .width(54)
 
@@ -965,8 +965,10 @@ struct JobDetailContent: View {
                     row("As posted", job.location)
                 }
             }
-            row("Level", job.level.isEmpty ? "—" : job.level)
-            row("Posted", job.posted.isEmpty ? "not stated" : job.posted)
+            row("Level", job.levelLabel.isEmpty ? "—" : job.levelLabel)
+            row("Posted", job.posted.isEmpty
+                ? "not stated"
+                : job.age.map { "\(job.posted)  ·  \($0)" } ?? job.posted)
             if !job.department.isEmpty { row("Team", job.department) }
             row("Board", job.ats.label)
         }

@@ -344,6 +344,31 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
         return Job.dateFormatter.date(from: posted)
     }
 
+    /// "intern" is what the matcher calls it; this is what a person reads.
+    /// The raw value still backs sorting, so the column order is unaffected.
+    var levelLabel: String {
+        switch level {
+        case "intern": "Internship"
+        case "newgrad": "New Grad"
+        default: ""
+        }
+    }
+
+    /// How long the posting has been up. Boards state a date and nothing else,
+    /// so working out whether 2026-07-28 is recent is left to the reader.
+    var age: String? {
+        guard let posted = postedDate else { return nil }
+        let days = Calendar.current.dateComponents([.day], from: posted, to: Date()).day ?? 0
+        switch days {
+        case ..<0: return nil            // dated in the future; don't guess
+        case 0: return "today"
+        case 1: return "yesterday"
+        case 2..<14: return "\(days) days ago"
+        case 14..<60: return "\(days / 7) weeks ago"
+        default: return "\(days / 30) months ago"
+        }
+    }
+
     var isNew: Bool = false
 
     /// `isNew` is a property of the run, not of the job, so it stays out of
