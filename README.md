@@ -117,7 +117,12 @@ the two stay in sync and you can use whichever suits the moment.
   Location and firms are drill-down pickers: click a group on the left to narrow the
   list on the right, tick either to select. Active filters show as removable chips
   underneath, so you can always see why the list is short.
-- **Changing a filter re-runs the scrape** automatically after a short pause.
+- **Changing a filter updates the list straight away.** Level, location, date,
+  category and search are applied to what's already been fetched, so they're
+  instant — no network at all. Changing *which firms* does need boards fetched, and
+  only the ones you added are visited: adding one firm to a selection of a hundred
+  costs one request, not a hundred. Deselecting a firm just drops its rows.
+  ⌘R refetches everything when you want genuinely fresh results.
 - **Click a role for the detail panel** — team, board, tags, the description when the
   board ships one, and a button straight to the posting.
 - **Save / Applied / Hidden** on every row, each with its own list in the sidebar.

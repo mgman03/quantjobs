@@ -421,6 +421,33 @@ enum HeadlessCheck {
                 let on = model.selectedFirms.count { $0.tags.contains(group) }
                 print("          \(AppModel.groupLabel(group).padding(toLength: 10, withPad: " ", startingAt: 0)) \(on)")
             }
+            // Adding a firm should cost one board, not the whole selection.
+            do {
+                let all = model.companies.filter { $0.enabled && $0.isConfigured }
+                let victim = all.first!.id
+                model.setEnabled(false, for: victim)
+                model.scrape()
+                while model.isScraping { try? await Task.sleep(for: .milliseconds(50)) }
+                let baseline = model.jobs.count
+
+                model.setEnabled(true, for: victim)
+                model.scrape()
+                let asked = model.total
+                while model.isScraping { try? await Task.sleep(for: .milliseconds(50)) }
+                print("incremental  re-adding 1 firm fetched \(asked) board(s) "
+                      + "of \(all.count) selected — rows \(baseline) → \(model.jobs.count)")
+
+                // Same selection again: nothing left to fetch.
+                model.scrape()
+                print("             unchanged selection fetched \(model.isScraping ? model.total : 0) board(s)")
+                while model.isScraping { try? await Task.sleep(for: .milliseconds(50)) }
+
+                model.scrape(full: true)
+                let fullCount = model.total
+                while model.isScraping { try? await Task.sleep(for: .milliseconds(50)) }
+                print("             \u{2318}R refetched \(fullCount) board(s)")
+            }
+
             print("filters   hasExtra=\(model.hasExtraFilters) (expected false)")
 
             print("\nfirm picker layout:")

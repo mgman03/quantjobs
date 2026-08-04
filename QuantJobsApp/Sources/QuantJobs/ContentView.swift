@@ -713,7 +713,7 @@ struct ContentView: View {
 
         ToolbarItem {
             Button {
-                model.isScraping ? model.cancel() : model.scrape()
+                model.isScraping ? model.cancel() : model.scrape(full: true)
             } label: {
                 Label(model.isScraping ? "Stop" : "Scrape",
                       systemImage: model.isScraping ? "stop.fill" : "arrow.clockwise")

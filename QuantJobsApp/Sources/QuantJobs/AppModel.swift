@@ -776,10 +776,44 @@ final class AppModel {
 
     // MARK: - Scraping
 
-    func scrape() {
-        guard !isScraping else { return }
-        let firms = selectedFirms
-        guard !firms.isEmpty else { return }
+    /// Which firms the rows on screen came from, and whether they were fetched
+    /// with deep matching. Lets a selection change fetch only the difference.
+    private var fetchedFirms: Set<String> = []
+    private var fetchedDeep = false
+
+    /// `full` forces every selected board to be refetched — what ⌘R means.
+    /// Otherwise only boards we have no rows for are visited, so adding one
+    /// firm to a selection of a hundred costs one request, not a hundred.
+    func scrape(full: Bool = false) {
+        let selected = selectedFirms
+        guard !selected.isEmpty else { return }
+
+        // Deep matching changes what each board returns, so it invalidates
+        // everything; otherwise keep what we have and fetch the difference.
+        let reusable = !full && deep == fetchedDeep && !showingCache
+        let keep = reusable ? fetchedFirms.intersection(selected.map(\.name)) : []
+        let firms = selected.filter { !keep.contains($0.name) }
+
+        // Rows from firms that just left the selection shouldn't linger.
+        if reusable {
+            let wanted = Set(selected.map(\.name))
+            let before = jobs.count
+            jobs.removeAll { !wanted.contains($0.company) }
+            if jobs.count != before { resultsVersion += 1 }
+        }
+
+        guard !firms.isEmpty else {
+            // Everything on screen already covers the selection — nothing to
+            // fetch, so just let the table re-filter.
+            fetchedFirms = keep
+            resultsVersion += 1
+            return
+        }
+
+        // A selection change while a run is in flight supersedes it rather than
+        // being dropped, which used to leave the results not matching the
+        // controls until you pressed ⌘R. Stale callbacks are ignored by runID.
+        if isScraping { task?.cancel() }
 
         flushCompanies()
         let matchers = categories.map(CategoryMatcher.init)
@@ -788,7 +822,7 @@ final class AppModel {
 
         // Cached rows stay on screen until the first board answers, so the
         // table never blinks to empty on a refresh.
-        if !showingCache { jobs = [] }
+        if !showingCache && keep.isEmpty { jobs = [] }
         failures = []
         runID += 1
         let run = runID
@@ -797,6 +831,8 @@ final class AppModel {
         newCount = 0
         isScraping = true
         replacingCache = showingCache
+        fetchedDeep = q.deep
+        fetchedFirms = keep
 
         task = Task { [weak self] in
             guard let self else { return }
@@ -846,6 +882,10 @@ final class AppModel {
             jobs = []
         }
         scanned += 1
+        // Counted either way: a board that failed has been visited, and
+        // retrying it on every filter tweak would make the app crawl. ⌘R
+        // refetches everything.
+        fetchedFirms.insert(result.company.name)
         if let reason = result.failure {
             failures.append(ScrapeFailure(company: result.company.name, reason: reason))
         } else {

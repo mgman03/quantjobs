@@ -32,8 +32,8 @@ struct QuantJobsApp: App {
             }
             CommandGroup(replacing: .newItem) {}
             CommandMenu("Scrape") {
-                Button(model.isScraping ? "Cancel Scrape" : "Scrape Now") {
-                    model.isScraping ? model.cancel() : model.scrape()
+                Button(model.isScraping ? "Cancel Scrape" : "Refresh All Boards") {
+                    model.isScraping ? model.cancel() : model.scrape(full: true)
                 }
                 .keyboardShortcut("r")
 
