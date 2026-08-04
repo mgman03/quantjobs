@@ -81,4 +81,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool {
         true
     }
+
+    /// We don't take part in window restoration — see NSQuitAlwaysKeepsWindows
+    /// in the Info.plist. Answering this keeps AppKit from logging about it.
+    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+        false
+    }
 }

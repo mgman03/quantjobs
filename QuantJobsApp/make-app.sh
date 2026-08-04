@@ -95,6 +95,11 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key>    <string>14.0</string>
     <key>NSHighResolutionCapable</key>   <true/>
     <key>NSSupportsAutomaticTermination</key><true/>
+    <!-- Opt out of macOS window restoration. There is one window and the app
+         restores its own state, so restoration buys nothing — but any abnormal
+         exit makes macOS ask "it unexpectedly quit while reopening windows, try
+         again?" on the next launch, and that sticks around. -->
+    <key>NSQuitAlwaysKeepsWindows</key>  <false/>
 </dict>
 </plist>
 PLIST
