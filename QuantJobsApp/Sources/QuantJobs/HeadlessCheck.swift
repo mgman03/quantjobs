@@ -13,6 +13,7 @@ enum HeadlessCheck {
         if args.contains("--parse") { runParseCheck() }
         if args.contains("--track") { runTrackCheck() }
         if args.contains("--settings") { runSettingsCheck() }
+        if args.contains("--update") { runUpdateCheck() }
         if let i = args.firstIndex(of: "--render"), i + 1 < args.count {
             runRender(to: args[i + 1])
         }
@@ -110,6 +111,77 @@ enum HeadlessCheck {
                 to: scratch.appendingPathComponent(file))
         }
         ConfigStore.directoryOverride = scratch
+    }
+
+    /// `--check --update` exercises the version comparison and asks GitHub what
+    /// the latest release is. The comparison is what decides whether an update is
+    /// ever offered, and a string compare gets `1.0.10` vs `1.0.9` backwards.
+    private static func runUpdateCheck() -> Never {
+        let cases: [(String, String, Bool)] = [
+            ("v1.0.2", "1.0.1", true),
+            ("v1.0.1", "1.0.1", false),
+            ("v1.0.0", "1.0.1", false),
+            ("v1.0.10", "1.0.9", true),      // the one string compare fails
+            ("v1.1.0", "1.0.99", true),
+            ("v2.0", "1.9.9", true),
+            ("v1.0", "1.0.0", false),
+            ("1.0.2", "1.0.1", true),        // tags without the v
+        ]
+        var bad = 0
+        for (candidate, installed, want) in cases {
+            let got = Updater.isNewer(candidate, than: installed)
+            if got != want { bad += 1 }
+            print("  \(got == want ? "ok  " : "FAIL") \(candidate) newer than "
+                  + "\(installed)? \(got) (expected \(want))")
+        }
+        print(bad == 0 ? "version comparison OK" : "\(bad) COMPARISON(S) WRONG")
+
+        Task { @MainActor in
+            let updater = Updater()
+            print("\ninstalled version reports: \(Updater.currentVersion)")
+            print("running as a bundle: \(Updater.isBundled) "
+                  + "(false from .build, so installing is refused)")
+            await updater.check(quietly: false)
+            switch updater.phase {
+            case .available(let r):
+                print("latest on GitHub: \(r.version) — \(r.dmg.lastPathComponent)")
+            case .upToDate:
+                print("GitHub says we're current")
+            case .failed(let why):
+                print("check failed: \(why)")
+            default:
+                print("phase: \(updater.phase)")
+            }
+
+            // Run the whole install against a throwaway copy: download the real
+            // disk image, mount it, verify the bundle, and swap it in. Only the
+            // relaunch is skipped, since nothing is running out of the target.
+            if CommandLine.arguments.contains("--install"),
+               case .available(let release) = updater.phase {
+                let target = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("QuantJobs-installtest-\(UUID().uuidString).app")
+                print("\ninstalling \(release.version) into a throwaway copy…")
+                await updater.install(release, into: target, relaunch: false)
+
+                let plist = target.appendingPathComponent("Contents/Info.plist")
+                let landed = (NSDictionary(contentsOf: plist)?["CFBundleShortVersionString"]
+                              as? String) ?? "nothing"
+                print("  phase after install: \(updater.phase)")
+                print("  bundle now reports:  \(landed)")
+                // A tag and a plist version can legitimately differ, so the
+                // test is "a working bundle landed", not "it matches the tag".
+                let failed: Bool = if case .failed = updater.phase { true } else { false }
+                let runnable = FileManager.default.isExecutableFile(
+                    atPath: target.appendingPathComponent("Contents/MacOS/QuantJobs").path)
+                let ok = !failed && landed != "nothing" && runnable
+                print(ok ? "INSTALL OK — bundle swapped in and executable"
+                         : "INSTALL FAILED")
+                try? FileManager.default.removeItem(at: target)
+                exit(ok && bad == 0 ? 0 : 1)
+            }
+            exit(bad == 0 ? 0 : 1)
+        }
+        dispatchMain()
     }
 
     /// `--check --track` exercises saving, applying and hiding — including the

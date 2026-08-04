@@ -60,6 +60,7 @@ struct ContentView: View {
             let rows = rows
             VStack(spacing: 0) {
                 if let error = model.loadError { banner(error) }
+                updateBanner
                 if model.loadStalled && !model.isLoaded {
                     banner("macOS is asking whether QuantJobs may read "
                            + "\(ConfigStore.directory.lastPathComponent). Click Allow "
@@ -99,6 +100,7 @@ struct ContentView: View {
             // Deliberately after the window is up: the first read of the config
             // folder can trigger a macOS permission prompt.
             if !model.isLoaded { await model.reload() }
+            await model.updater.checkOnLaunch()
             // Refresh on open only when the cache is stale — otherwise the
             // window comes up instantly on last run's results and waits for ⌘R.
             if model.lastRun == nil && model.shouldRefreshOnLaunch { model.scrape() }
@@ -170,6 +172,78 @@ struct ContentView: View {
                         .padding(.bottom, 12)
                 }
             }
+        }
+    }
+
+    /// Sits above the results rather than in a modal: an update is worth
+    /// mentioning, not worth interrupting a search for.
+    @ViewBuilder
+    private var updateBanner: some View {
+        switch model.updater.phase {
+        case .available(let release) where !model.updater.dismissed:
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.down.circle.fill").foregroundStyle(.tint)
+                Text("QuantJobs \(release.version) is available.")
+                    .font(.callout)
+                Link("What's new", destination: release.page)
+                    .font(.caption)
+                Spacer()
+                Button("Update") {
+                    Task { await model.updater.install(release) }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                Button {
+                    model.updater.dismissed = true
+                } label: {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Not now")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(.tint.opacity(0.10))
+
+        case .busy(let what):
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text(what).font(.callout)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(.tint.opacity(0.10))
+
+        case .failed(let why):
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("Update failed — \(why)").font(.callout)
+                Spacer()
+                Button("Dismiss") { model.updater.clear() }
+                    .buttonStyle(.link).font(.caption)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(.orange.opacity(0.10))
+
+        case .upToDate:
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Text("You're on the latest version (\(Updater.currentVersion)).")
+                    .font(.callout)
+                Spacer()
+                Button("Dismiss") { model.updater.clear() }
+                    .buttonStyle(.link).font(.caption)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+
+        // Idle, mid-check, or an update the user waved away.
+        default:
+            EmptyView()
         }
     }
 

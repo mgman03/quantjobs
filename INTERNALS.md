@@ -109,6 +109,8 @@ change can be diffed against the Python original:
 ./.build/debug/QuantJobs --check --settings                # settings survive a restart
 ./.build/debug/QuantJobs --check --parse < locs.txt        # diff the location parser
 ./.build/debug/QuantJobs --check --render /tmp             # snapshot the detail panel
+./.build/debug/QuantJobs --check --update                  # version compare + ask GitHub
+./.build/debug/QuantJobs --check --update --install        # ...and do a real install
 ```
 
 Anything under `--check` that writes runs against a throwaway config directory, so a
@@ -124,6 +126,41 @@ walks them in order. The set of roles is the same either way.
 `--check --render` writes PNGs of the detail panel. `TextField` and link-style buttons
 are AppKit-backed and `ImageRenderer` can't rasterise them, so they come out as yellow
 blocks — that's a snapshot artifact, not a UI bug.
+
+## The updater
+
+`Updater.swift` asks `api.github.com/repos/<repo>/releases/latest`, compares the tag
+against the running bundle's `CFBundleShortVersionString`, and if it's newer offers to
+download the attached `.dmg`, mount it, and swap the bundle.
+
+Not Sparkle, deliberately: Sparkle is right when you're notarised and shipping to
+strangers, but here it adds a package dependency and an EdDSA key to a project with
+neither, and it wouldn't remove the Gatekeeper prompt — only an Apple developer
+account does that.
+
+Things that are load-bearing:
+
+- **`VERSION` at the repo root is the single source of truth.** `make-app.sh` reads
+  it into the Info.plist. Before that existed the bundle said `1.0` while the tag said
+  `v1.0.1`, so nothing could compare correctly. Bump it in the same commit as the tag.
+- **The comparison is numeric, not lexical.** `1.0.10` is newer than `1.0.9`, which a
+  string compare gets backwards. `--check --update` covers that case and seven others.
+- **A `swift run` binary refuses to install**, since it isn't a bundle and can't
+  replace itself. It says to pull instead.
+- **The image is checked before the swap**: it must carry `local.quantjobs.app` as its
+  bundle identifier, and must not be older than what's installed. It is *not* required
+  to match the tag exactly — a tag is typed by a human and a plist is written by the
+  build, so they drift harmlessly.
+- **The swap is done by a detached shell script**, because a bundle can't be replaced
+  underneath the process running out of it. The script waits for the pid to go away,
+  moves the new copy in, and relaunches.
+- **No quarantine.** A disk image fetched with URLSession isn't quarantined — that
+  attribute is applied by browsers, not by the network — so the replacement launches
+  without the "Apple could not verify" dialog.
+
+`--check --update` runs the comparison table and the live GitHub query;
+`--check --update --install` additionally runs the real download, mount, verify and
+swap against a throwaway copy of the app.
 
 ## Failure modes worth knowing
 

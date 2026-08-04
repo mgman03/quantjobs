@@ -411,6 +411,9 @@ final class AppModel {
 
     /// The full board editor, now reachable only from the Scrape menu.
     var showBoardEditor = false
+
+    /// Checks GitHub for a newer release; see Updater.
+    let updater = Updater()
     var refreshOnLaunch = true
     var refreshIfOlderThanHours = 6
 

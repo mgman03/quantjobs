@@ -240,7 +240,19 @@ otherwise read two different places.)
 
 ## Updating
 
-**The app:** download the [latest DMG][dmg] and drag it over the old one. Your saved
+**The app updates itself.** It asks GitHub once a day whether there's a newer
+release, and if there is, a bar appears above the results with the version, a link
+to what changed, and an Update button. Press it and the app downloads the disk
+image, checks it really is QuantJobs and really is newer, swaps itself out and
+relaunches. There's also **QuantJobs ▸ Check for Updates…** if you'd rather ask.
+
+Nothing is installed without you clicking Update, and nothing is sent anywhere — the
+check is one unauthenticated GET to the public releases API.
+
+Updating this way skips the Gatekeeper prompt a manual download triggers, because
+quarantine is applied by browsers rather than by the network.
+
+**By hand instead:** download the [latest DMG][dmg] and drag it over the old one. Your saved
 and applied roles, settings and on/off choices are kept — they live outside the app.
 The firm list is refreshed from the new version on first launch: firms added since
 your version arrive, repaired tokens and corrected notes come with them, and firms you

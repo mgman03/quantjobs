@@ -51,6 +51,12 @@ for f in companies categories locations; do
     cp "../$f.json" "Sources/QuantJobs/Resources/$f.json"
 done
 
+# One source of truth for the version: the updater compares what the running
+# bundle reports against the latest release tag, so a hardcoded Info.plist that
+# drifts from the tag makes it either miss updates or offer one forever.
+VERSION=$(tr -d '[:space:]' < ../VERSION)
+[ -n "$VERSION" ] || { echo "VERSION file is empty" >&2; exit 1; }
+
 swift build -c release
 BIN=$(swift build -c release --show-bin-path)
 
@@ -72,7 +78,7 @@ if [ ! -f Icon/QuantJobs.icns ]; then
 fi
 cp Icon/QuantJobs.icns "$APP/Contents/Resources/QuantJobs.icns"
 
-cat > "$APP/Contents/Info.plist" <<'PLIST'
+cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -84,8 +90,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleIconFile</key>          <string>QuantJobs.icns</string>
     <key>CFBundleIdentifier</key>        <string>local.quantjobs.app</string>
     <key>CFBundlePackageType</key>       <string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>1.0</string>
-    <key>CFBundleVersion</key>           <string>1</string>
+    <key>CFBundleShortVersionString</key><string>$VERSION</string>
+    <key>CFBundleVersion</key>           <string>$VERSION</string>
     <key>LSMinimumSystemVersion</key>    <string>14.0</string>
     <key>NSHighResolutionCapable</key>   <true/>
     <key>NSSupportsAutomaticTermination</key><true/>

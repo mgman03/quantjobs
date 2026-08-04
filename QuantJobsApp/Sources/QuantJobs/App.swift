@@ -25,6 +25,11 @@ struct QuantJobsApp: App {
         }
         .defaultSize(width: 1440, height: 820)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    Task { await model.updater.check(quietly: false) }
+                }
+            }
             CommandGroup(replacing: .newItem) {}
             CommandMenu("Scrape") {
                 Button(model.isScraping ? "Cancel Scrape" : "Scrape Now") {
