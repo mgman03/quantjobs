@@ -158,6 +158,13 @@ final class AppModel {
     private(set) var isScraping = false
     private(set) var scanned = 0
     private(set) var total = 0
+
+    /// Identifies the current scrape. Cancelling one clears `isScraping`
+    /// immediately, but boards already waiting on the network still call back —
+    /// and those callbacks were landing on the *next* run's counters, which is
+    /// how the status bar came to read "102/53 boards". Results carrying a
+    /// stale id are dropped.
+    private var runID = 0
     private(set) var lastRun: Date?
     private(set) var newCount = 0
     var loadError: String?
@@ -783,6 +790,8 @@ final class AppModel {
         // table never blinks to empty on a refresh.
         if !showingCache { jobs = [] }
         failures = []
+        runID += 1
+        let run = runID
         scanned = 0
         total = firms.count
         newCount = 0
@@ -817,9 +826,9 @@ final class AppModel {
                 // that's what "is this posting still listed?" has to be judged
                 // against, or a swe-only run would call every quant role dead.
                 let allKeys = result.jobs.map(\.key)
-                await self.ingest(result, keeping: kept, allKeys: allKeys)
+                await self.ingest(result, keeping: kept, allKeys: allKeys, run: run)
             }
-            self.finishScrape()
+            self.finishScrape(run: run)
         }
     }
 
@@ -828,7 +837,8 @@ final class AppModel {
     private var scrapedCompanies: Set<String> = []
 
     private func ingest(_ result: BoardResult, keeping batch: [Job],
-                        allKeys: [String]) {
+                        allKeys: [String], run: Int) {
+        guard run == runID else { return }      // a superseded scrape reporting in
         // First board home: swap the cached rows out for live ones.
         if replacingCache {
             replacingCache = false
@@ -846,7 +856,8 @@ final class AppModel {
         resultsVersion += 1
     }
 
-    private func finishScrape() {
+    private func finishScrape(run: Int) {
+        guard run == runID else { return }
         if replacingCache {          // every board failed; keep what we had
             replacingCache = false
         } else {
