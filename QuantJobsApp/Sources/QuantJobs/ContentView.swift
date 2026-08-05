@@ -94,6 +94,14 @@ struct ContentView: View {
         .sheet(isPresented: $model.showBoardEditor) {
             CompaniesView(model: model)
         }
+        // Deliberately inside ContentView rather than wrapped around it in
+        // App.swift. SwiftUI derives a window's autosave name from its view
+        // type, so wrapping ContentView in .onReceive renamed the window and
+        // orphaned the saved size and position.
+        .onReceive(NotificationCenter.default.publisher(
+            for: NSApplication.didBecomeActiveNotification)) { _ in
+            model.reloadCompaniesIfChangedOnDisk()
+        }
         .onChange(of: model.settingsFingerprint) { model.persistSettings() }
         .onChange(of: model.refreshFingerprint) { model.scheduleRefresh() }
         .task {
@@ -544,8 +552,8 @@ struct ContentView: View {
             .width(min: 100, ideal: 128)
 
             TableColumn("Level", value: \.level) { job in
-                Text(job.levelLabel.isEmpty ? "–" : job.levelLabel)
-                    .foregroundStyle(job.levelLabel.isEmpty ? .secondary : .primary)
+                Text(job.levelShort.isEmpty ? "–" : job.levelShort)
+                    .foregroundStyle(job.levelShort.isEmpty ? .secondary : .primary)
             }
             .width(54)
 

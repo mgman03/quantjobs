@@ -367,6 +367,16 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
         return Job.dateFormatter.date(from: posted)
     }
 
+    /// Short enough for the Level column, which is narrow — "Internship"
+    /// truncated to "Interns…" there. Matches the wording on the filter buttons.
+    var levelShort: String {
+        switch level {
+        case "intern": "Intern"
+        case "newgrad": "New Grad"
+        default: ""
+        }
+    }
+
     /// "intern" is what the matcher calls it; this is what a person reads.
     /// The raw value still backs sorting, so the column order is unaffected.
     var levelLabel: String {
