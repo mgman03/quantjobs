@@ -1281,6 +1281,17 @@ def write_out(rows: list[dict], path: str, fmt: str) -> None:
 # ──────────────────────────── seen-state ─────────────────────────────
 
 def job_key(j: dict) -> str:
+    """Identity for tracking and the seen list.
+
+    The URL, because it is the only thing separating two postings a firm makes
+    under the same title in the same city: Jane Street's London "Software
+    Engineer" exists as both a Summer Internship and a Full-Time New Grad role.
+    """
+    return j.get("url") or legacy_key(j)
+
+
+def legacy_key(j: dict) -> str:
+    """What job_key used to be, kept so old state still matches."""
     return f"{j['company']}|{j['title']}|{j['location']}".lower()
 
 
@@ -1380,14 +1391,12 @@ def cmd_scrape(args) -> int:
         j["short_title"] = short_title(j.get("title", ""))
         rows.append(j)
 
-    # De-duplicate on the URL, then sort newest-first with undated roles last.
-    # Deliberately not job_key(), which is company + title + location and says
-    # nothing about the level: Jane Street posts a Summer Internship *and* a
-    # Full-Time New Grad "Software Engineer" in London, and keyed that way the
-    # two collapsed into one. Two postings with different URLs are two postings.
+    # De-duplicate, then sort newest-first with undated roles last. job_key is
+    # the URL where there is one, so two postings a firm makes under the same
+    # title in the same city stay two rows.
     uniq, seen_keys = [], set()
     for r in rows:
-        k = r.get("url") or job_key(r)
+        k = job_key(r)
         if k not in seen_keys:
             seen_keys.add(k)
             uniq.append(r)
@@ -1402,13 +1411,16 @@ def cmd_scrape(args) -> int:
 
     if args.skip_hidden:
         hidden = tracked_keys("hidden")
-        rows = [r for r in rows if job_key(r) not in hidden]
+        rows = [r for r in rows if job_key(r) not in hidden
+                and legacy_key(r) not in hidden]
     if args.saved_only:
         saved = tracked_keys("favorite")
-        rows = [r for r in rows if job_key(r) in saved]
+        rows = [r for r in rows if job_key(r) in saved or legacy_key(r) in saved]
 
     seen = load_seen()
-    fresh = [r for r in rows if job_key(r) not in seen]
+    # The legacy key too, so the run after the key changed doesn't announce
+    # every posting as new.
+    fresh = [r for r in rows if job_key(r) not in seen and legacy_key(r) not in seen]
     if args.new_only:
         rows = fresh
     if not args.no_state:

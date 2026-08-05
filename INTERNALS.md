@@ -129,6 +129,7 @@ change can be diffed against the Python original:
 ./.build/debug/QuantJobs --check --render /tmp             # snapshot the detail panel
 ./.build/debug/QuantJobs --check --update                  # version compare + ask GitHub
 ./.build/debug/QuantJobs --check --update --install        # ...and do a real install
+./.build/debug/QuantJobs --check --migrate                 # tracked keys survive the key change
 ```
 
 Anything under `--check` that writes runs against a throwaway config directory, so a
@@ -247,6 +248,19 @@ now match the anchor, then look for the location in a bounded window after it.
 can pin a core in `NSRegularExpression`, which backtracks where Python doesn't. One
 Two Sigma pattern rescanned a 110 KB page per match and spun the app at 98% CPU; it's
 now a bounded two-step parse.
+
+**A posting is identified by its URL.** It used to be company + title +
+location, which cannot tell apart two postings a firm makes under one title in one
+city — Jane Street's London "Software Engineer" exists as both a Summer Internship
+and a Full-Time New Grad role. Keyed that way, deduplication collapsed the pair and
+the new-grad row won, so the internship appeared while a scrape streamed in and
+vanished when it finished; saving one also marked the other.
+
+`legacyKey` keeps the old form for two reasons. Tracked entries store a full snapshot
+of their posting, so `ConfigStore.loadTracked` recomputes the new key from that and
+rewrites the file once — nobody loses saved or applied roles. And the seen list has no
+snapshot to migrate from, so `isNew` checks both keys; without that, the first run
+after the change would announce every posting as new. `--check --migrate` covers it.
 
 **Tracked postings store a full copy.** `.tracked.json` keeps a snapshot of each saved
 or applied posting, not just an id — a board deletes a posting the moment it closes,

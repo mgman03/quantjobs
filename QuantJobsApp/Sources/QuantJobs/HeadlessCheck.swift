@@ -14,6 +14,7 @@ enum HeadlessCheck {
         if args.contains("--track") { runTrackCheck() }
         if args.contains("--settings") { runSettingsCheck() }
         if args.contains("--update") { runUpdateCheck() }
+        if args.contains("--migrate") { runMigrationCheck() }
         if let i = args.firstIndex(of: "--render"), i + 1 < args.count {
             runRender(to: args[i + 1])
         }
@@ -111,6 +112,43 @@ enum HeadlessCheck {
                 to: scratch.appendingPathComponent(file))
         }
         ConfigStore.directoryOverride = scratch
+    }
+
+    /// Tracked roles were keyed on company|title|location; they are keyed on
+    /// the posting URL now. The migration has to carry them across, or someone
+    /// loses everything they had saved.
+    private static func runMigrationCheck() -> Never {
+        useScratchConfig("migrate")
+        let job = Job(company: "Jane Street", title: "Software Engineer",
+                      location: "London",
+                      url: "https://www.janestreet.com/join-jane-street/position/1/",
+                      posted: "", department: "Summer Internship", description: "",
+                      ats: .janestreet, tags: ["quant"], level: "intern")
+        let legacy = job.legacyKey
+        print("old key: \(legacy)")
+        print("new key: \(job.key)")
+
+        // Write the file the way the previous version would have.
+        let entry = TrackedJob(status: .applied, job: job, updated: "2026-01-01",
+                               lastSeen: "2026-01-01", note: "phone screen booked")
+        ConfigStore.saveTracked([legacy: entry])
+
+        let loaded = ConfigStore.loadTracked()
+        let byNew = loaded[job.key]
+        print("after load: \(loaded.count) entry/entries")
+        print("  found under the new key: \(byNew != nil)")
+        print("  status kept:             \(byNew?.status == .applied)")
+        print("  note kept:               \(byNew?.note == "phone screen booked")")
+        print("  old key gone:            \(loaded[legacy] == nil)")
+
+        // And it must be written back, not re-migrated on every load.
+        let again = ConfigStore.loadTracked()
+        let ok = byNew != nil && byNew?.status == .applied
+            && byNew?.note == "phone screen booked" && loaded[legacy] == nil
+            && again[job.key] != nil
+        print(ok ? "MIGRATION OK — tracking survived the key change"
+                 : "MIGRATION FAILED")
+        exit(ok ? 0 : 1)
     }
 
     /// `--check --update` exercises the version comparison and asks GitHub what
@@ -493,6 +531,23 @@ enum HeadlessCheck {
                 let left = model.jobs.count { $0.company == firm }
                 print("repoint   \(firm): \(had) rows before → \(left) after "
                       + "· dropped=\(had > 0 && left == 0)")
+            }
+
+            // Saving an internship must not also mark the new-grad role a firm
+            // posts under the same title in the same city.
+            do {
+                let ldn = model.jobs.filter {
+                    $0.company == "Jane Street" && $0.title == "Software Engineer"
+                        && $0.location == "London" }
+                print("\nJane Street 'Software Engineer' London postings: \(ldn.count)")
+                if ldn.count >= 2 {
+                    model.setStatus(.favorite, for: [ldn[0]])
+                    let a = model.status(of: ldn[0]), b = model.status(of: ldn[1])
+                    print("    saved the first: \(a == .favorite)")
+                    print("    second untouched: \(b == nil)")
+                    print("    distinct keys:    \(ldn[0].key != ldn[1].key)")
+                    model.setStatus(nil, for: [ldn[0]])
+                }
             }
 
             // Where does a Jane Street SWE internship go?

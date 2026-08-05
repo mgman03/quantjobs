@@ -370,7 +370,19 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
     var countries: [String] { places.map(\.country).filter { !$0.isEmpty }.uniqued() }
 
     /// Stable identity for de-duplication and the seen-before store.
-    var key: String {
+    /// Identity for tracking and the seen list.
+    ///
+    /// The URL, because it is the only thing separating two postings a firm
+    /// makes under the same title in the same city: Jane Street's London
+    /// "Software Engineer" exists as both a Summer Internship and a Full-Time
+    /// New Grad role, and keying on company/title/location made saving one mark
+    /// the other.
+    var key: String { url.isEmpty ? legacyKey : url }
+
+    /// What `key` used to be. Kept so tracked entries written before the change
+    /// can be re-keyed from their snapshots, and so the seen list still
+    /// recognises rows it recorded under the old scheme.
+    var legacyKey: String {
         "\(company)|\(title)|\(location)".lowercased()
     }
 

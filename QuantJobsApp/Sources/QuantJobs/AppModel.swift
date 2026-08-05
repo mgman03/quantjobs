@@ -907,7 +907,9 @@ final class AppModel {
                         .filter { Levels.matches($0, title: job.title,
                                                  department: job.department) }
                         .map(\.rawValue))
-                    job.isNew = known[job.key] == nil
+                    // The legacy key too, so the run after the key changed
+                    // doesn't announce every posting as new.
+                    job.isNew = known[job.key] == nil && known[job.legacyKey] == nil
                     kept.append(job)
                 }
                 // Every key the board returned, before the category filter —

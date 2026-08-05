@@ -318,7 +318,28 @@ enum ConfigStore {
         guard let data = try? Data(contentsOf: trackedURL),
               let d = try? JSONDecoder().decode([String: TrackedJob].self, from: data)
         else { return [:] }
-        return d
+        return migrateKeys(d)
+    }
+
+    /// Saved and applied roles were keyed on company|title|location until the
+    /// key became the posting's URL. Every entry carries a full snapshot of its
+    /// posting, so the new key can be computed from what's already on disk —
+    /// which means the change costs nobody their tracking history.
+    ///
+    /// Rewritten in place the first time it's read, so the migration happens
+    /// once rather than on every load.
+    private static func migrateKeys(_ tracked: [String: TrackedJob]) -> [String: TrackedJob] {
+        var out: [String: TrackedJob] = [:]
+        var moved = 0
+        for (stored, entry) in tracked {
+            let current = entry.job.key
+            if current != stored { moved += 1 }
+            // Last writer wins if two old entries collapse to one posting —
+            // they were the same posting recorded twice.
+            out[current] = entry
+        }
+        if moved > 0 { saveTracked(out) }
+        return out
     }
 
     static func saveTracked(_ tracked: [String: TrackedJob]) {
