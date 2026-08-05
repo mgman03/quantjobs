@@ -1501,7 +1501,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Airtable",
       "segment": "Startups",
       "tags": [
@@ -1513,7 +1513,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Astranis",
       "segment": "Startups",
       "tags": [
@@ -1538,7 +1538,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Bracebridge",
       "segment": "Tier 3",
       "tags": [
@@ -1550,7 +1550,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Carta",
       "segment": "Startups",
       "tags": [
@@ -1562,7 +1562,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Cockroach Labs",
       "segment": "Startups",
       "tags": [
@@ -1574,7 +1574,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Da Vinci Derivatives",
       "segment": "Tier 3",
       "tags": [
@@ -1587,7 +1587,7 @@
     },
     {
       "ats": "ashby",
-      "enabled": true,
+      "enabled": false,
       "name": "Decagon",
       "segment": "Frontier AI",
       "tags": [
@@ -1599,7 +1599,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Duolingo",
       "segment": "FAANG+",
       "tags": [
@@ -1611,7 +1611,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "DV Trading",
       "segment": "Tier 3",
       "tags": [
@@ -1623,7 +1623,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Eclipse Trading",
       "segment": "Tier 3",
       "tags": [
@@ -1636,7 +1636,7 @@
     },
     {
       "ats": "ashby",
-      "enabled": true,
+      "enabled": false,
       "name": "ElevenLabs",
       "segment": "Frontier AI",
       "tags": [
@@ -1648,7 +1648,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Flexport",
       "segment": "Startups",
       "tags": [
@@ -1660,7 +1660,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Geneva Trading",
       "segment": "Tier 3",
       "tags": [
@@ -1672,7 +1672,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Grasshopper",
       "segment": "Tier 3",
       "tags": [
@@ -1685,7 +1685,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Gusto",
       "segment": "Startups",
       "tags": [
@@ -1697,7 +1697,7 @@
     },
     {
       "ats": "ashby",
-      "enabled": true,
+      "enabled": false,
       "name": "Harvey",
       "segment": "Frontier AI",
       "tags": [
@@ -1709,7 +1709,7 @@
     },
     {
       "ats": "ashby",
-      "enabled": true,
+      "enabled": false,
       "name": "Keyrock",
       "segment": "Tier 3",
       "tags": [
@@ -1722,7 +1722,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Klaviyo",
       "segment": "FAANG+",
       "tags": [
@@ -1734,7 +1734,7 @@
     },
     {
       "ats": "ashby",
-      "enabled": true,
+      "enabled": false,
       "name": "LangChain",
       "segment": "Frontier AI",
       "tags": [
@@ -1746,7 +1746,7 @@
     },
     {
       "ats": "ashby",
-      "enabled": true,
+      "enabled": false,
       "name": "Linear",
       "segment": "Startups",
       "tags": [
@@ -1758,7 +1758,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Marqeta",
       "segment": "FAANG+",
       "tags": [
@@ -1770,7 +1770,7 @@
     },
     {
       "ats": "ashby",
-      "enabled": true,
+      "enabled": false,
       "name": "Mercor",
       "segment": "Frontier AI",
       "tags": [
@@ -1782,7 +1782,7 @@
     },
     {
       "ats": "ashby",
-      "enabled": true,
+      "enabled": false,
       "name": "Modal",
       "segment": "Frontier AI",
       "tags": [
@@ -1794,7 +1794,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Nuro",
       "segment": "Frontier AI",
       "tags": [
@@ -1806,7 +1806,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Peloton",
       "segment": "FAANG+",
       "tags": [
@@ -1818,7 +1818,7 @@
     },
     {
       "ats": "ashby",
-      "enabled": true,
+      "enabled": false,
       "name": "Physical Intelligence",
       "segment": "Frontier AI",
       "tags": [
@@ -1830,7 +1830,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Postman",
       "segment": "Startups",
       "tags": [
@@ -1842,7 +1842,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Qualtrics",
       "segment": "FAANG+",
       "tags": [
@@ -1854,7 +1854,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Relativity Space",
       "segment": "Startups",
       "tags": [
@@ -1866,7 +1866,7 @@
     },
     {
       "ats": "ashby",
-      "enabled": true,
+      "enabled": false,
       "name": "Replit",
       "segment": "Frontier AI",
       "tags": [
@@ -1878,7 +1878,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Roku",
       "segment": "FAANG+",
       "tags": [
@@ -1890,7 +1890,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Simplex Trading",
       "segment": "Tier 3",
       "tags": [
@@ -1902,7 +1902,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "SoFi",
       "segment": "FAANG+",
       "tags": [
@@ -1914,7 +1914,7 @@
     },
     {
       "ats": "ashby",
-      "enabled": true,
+      "enabled": false,
       "name": "Supabase",
       "segment": "Startups",
       "tags": [
@@ -1926,7 +1926,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Toast",
       "segment": "FAANG+",
       "tags": [
@@ -1938,7 +1938,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Twitch",
       "segment": "FAANG+",
       "tags": [
@@ -1950,7 +1950,7 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": true,
+      "enabled": false,
       "name": "Verkada",
       "segment": "Startups",
       "tags": [

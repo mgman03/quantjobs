@@ -185,6 +185,35 @@ Things that are load-bearing:
 `--check --update --install` additionally runs the real download, mount, verify and
 swap against a throwaway copy of the app.
 
+## Auditing for the wrong board
+
+Three firms turned out to be pointed at a board that exists but isn't the one with
+the roles: HRT at a talent-community placeholder, Marshall Wace at a single
+Recruitment Assistant posting, Jane Street at an experienced-hires-only board with
+177 roles and no internships. None of them failed — they answered, plausibly, with
+the wrong thing.
+
+The signal that finds it: **a board returning plenty of roles and zero early-career
+ones.** Scrape everything at `-c all -l any`, group by firm, and flag any with 10+
+roles where nothing matches intern / new grad / campus / co-op / graduate.
+
+Run against all 145 firms that return anything, that flags 30. Most are genuinely
+empty — it's August, and Summer 2027 postings largely open between then and October.
+Datadog's 432-role board really does have no internships on it. So the flag is a
+prompt to look, not a verdict.
+
+What to look for once flagged, in order of how often it pays off:
+
+- **A second board on the same platform.** Arrowstreet splits its Workday tenant:
+  the site we had was experienced hires, `Campus_Careers` held the internships. Radix
+  and Walleye do the same and already have paired entries. Probing `<token>campus`,
+  `<token>university`, `<token>students` and the like across every flagged Greenhouse,
+  Ashby and Lever firm found no others.
+- **A separate students page on their own site**, which is how Arrowstreet's split
+  surfaced — `/student-careers/` linked to a Workday host the professional page never
+  mentions.
+- **A JSON feed the careers page fetches**, which is where Jane Street's are.
+
 ## Failure modes worth knowing
 
 **Boards drift.** Three adapters needed fixing once there were enough firms to notice:
