@@ -379,6 +379,22 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
     /// the other.
     var key: String { url.isEmpty ? legacyKey : url }
 
+    /// Identity for de-duplication only — never for tracking, which stays on
+    /// `key` so nothing already saved is disturbed.
+    ///
+    /// Citadel and Citadel Securities are separate firms sharing one careers
+    /// platform, and they cross-list their campus programmes: 22 of the 23
+    /// early-career roles they have in common sit at the *same path* on both
+    /// hosts. That is one job posted twice, not two jobs, so the host is
+    /// dropped and the pair collapses.
+    var dedupKey: String {
+        for host in ["//www.citadel.com/", "//www.citadelsecurities.com/"]
+        where url.contains(host) {
+            return "citadel|" + url.components(separatedBy: host)[1]
+        }
+        return key
+    }
+
     /// What `key` used to be. Kept so tracked entries written before the change
     /// can be re-keyed from their snapshots, and so the seen list still
     /// recognises rows it recorded under the old scheme.

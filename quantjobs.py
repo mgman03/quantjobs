@@ -1295,6 +1295,21 @@ def legacy_key(j: dict) -> str:
     return f"{j['company']}|{j['title']}|{j['location']}".lower()
 
 
+def dedup_key(j: dict) -> str:
+    """Identity for de-duplication only — tracking stays on job_key().
+
+    Citadel and Citadel Securities are separate firms sharing one careers
+    platform, and they cross-list their campus programmes: 22 of the 23
+    early-career roles they have in common sit at the same path on both hosts.
+    That is one job posted twice, so the host is dropped and the pair collapses.
+    """
+    url = j.get("url") or ""
+    for host in ("//www.citadel.com/", "//www.citadelsecurities.com/"):
+        if host in url:
+            return "citadel|" + url.split(host, 1)[1]
+    return job_key(j)
+
+
 def load_seen() -> dict:
     return load_json(SEEN_FILE, default={})
 
@@ -1394,9 +1409,11 @@ def cmd_scrape(args) -> int:
     # De-duplicate, then sort newest-first with undated roles last. job_key is
     # the URL where there is one, so two postings a firm makes under the same
     # title in the same city stay two rows.
+    # Sorted by company first so a cross-listed posting always collapses to the
+    # same survivor, rather than whichever board happened to answer first.
     uniq, seen_keys = [], set()
-    for r in rows:
-        k = job_key(r)
+    for r in sorted(rows, key=lambda x: x["company"]):
+        k = dedup_key(r)
         if k not in seen_keys:
             seen_keys.add(k)
             uniq.append(r)

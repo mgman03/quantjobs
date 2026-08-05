@@ -249,6 +249,15 @@ can pin a core in `NSRegularExpression`, which backtracks where Python doesn't. 
 Two Sigma pattern rescanned a 110 KB page per match and spun the app at 98% CPU; it's
 now a bounded two-step parse.
 
+**Citadel cross-lists with Citadel Securities.** They are separate firms sharing one
+careers platform, and 22 of the 23 early-career roles they have in common sit at the
+*same path* on both hosts — one job posted twice. `dedupKey` drops the host for those
+two domains so the pair collapses, and the list is sorted by company first so the
+survivor is always the same one rather than whichever board answered first. Keeping
+only one entry would be wrong: 12 early-career roles exist only on citadel.com and 18
+only on citadelsecurities.com. Tracking still uses `key`, so this changes nothing
+about saved roles.
+
 **A posting is identified by its URL.** It used to be company + title +
 location, which cannot tell apart two postings a firm makes under one title in one
 city — Jane Street's London "Software Engineer" exists as both a Summer Internship

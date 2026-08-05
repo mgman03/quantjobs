@@ -167,7 +167,11 @@ extension Array where Element == Job {
     /// back to the old key, since there's nothing better to compare.
     func deduplicated() -> [Job] {
         var seen = Set<String>()
-        return filter { seen.insert($0.url.isEmpty ? $0.key : $0.url).inserted }
+        // Sorted by company first so that when a cross-listed posting collapses
+        // the survivor is always the same one — otherwise which firm's name it
+        // kept would depend on which board answered first.
+        return sorted { $0.company < $1.company }
+            .filter { seen.insert($0.dedupKey).inserted }
     }
 
     /// Folds the same role posted at several locations into one row.
