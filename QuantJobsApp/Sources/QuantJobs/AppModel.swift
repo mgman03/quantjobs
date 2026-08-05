@@ -611,6 +611,17 @@ final class AppModel {
         guard isLoaded, !isScraping, saveTask == nil,
               let onDisk = try? ConfigStore.loadCompanies(),
               onDisk.companies != companies else { return }
+
+        // A firm whose *board* changed — a new adapter, a corrected token —
+        // has rows fetched from the old one. Enabling or disabling it doesn't
+        // matter, but re-pointing it does, and the incremental scrape would
+        // otherwise keep serving what the previous source returned.
+        let before = Dictionary(companies.map { ($0.name, $0.boardFingerprint) },
+                                uniquingKeysWith: { a, _ in a })
+        for firm in onDisk.companies where before[firm.name] != firm.boardFingerprint {
+            fetchedFirms.remove(firm.name)
+            jobs.removeAll { $0.company == firm.name }
+        }
         companies = onDisk.companies
         fileComment = onDisk.comment
         rebuildFirmIndex()

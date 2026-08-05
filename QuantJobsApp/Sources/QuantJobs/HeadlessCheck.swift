@@ -475,6 +475,26 @@ enum HeadlessCheck {
                       + "model now \(after) · adopted=\(after == 0)")
             }
 
+            // Re-pointing a firm's board must drop what the old one returned.
+            do {
+                model.flushCompanies()
+                // Any firm with rows on screen; the disk-edit check above may
+                // have left everything disabled.
+                guard let firm = model.jobs.first?.company else {
+                    print("repoint   no rows to test with"); return
+                }
+                let had = model.jobs.count { $0.company == firm }
+                var file = try! ConfigStore.loadCompanies()
+                for i in file.companies.indices where file.companies[i].name == firm {
+                    file.companies[i].token = "repointed-elsewhere"
+                }
+                try! ConfigStore.saveCompanies(file)
+                model.reloadCompaniesIfChangedOnDisk()
+                let left = model.jobs.count { $0.company == firm }
+                print("repoint   \(firm): \(had) rows before → \(left) after "
+                      + "· dropped=\(had > 0 && left == 0)")
+            }
+
             print("filters   hasExtra=\(model.hasExtraFilters) (expected false)")
 
             print("\nfirm picker layout:")

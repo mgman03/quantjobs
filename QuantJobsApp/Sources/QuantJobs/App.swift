@@ -21,7 +21,9 @@ struct QuantJobsApp: App {
     var body: some Scene {
         WindowGroup("Quant Jobs") {
             ContentView(model: model)
-                .frame(minWidth: 900, minHeight: 520)
+                // 900 plus a 224 sidebar and a 260 inspector overruns a
+                // 1440 window, which is what forced the sidebar to be clipped.
+                .frame(minWidth: 760, minHeight: 520)
         }
         .defaultSize(width: 1440, height: 820)
         .commands {

@@ -90,6 +90,16 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
         }
     }
 
+    /// Everything that decides *where* the roles come from. Compared to spot a
+    /// board being re-pointed, which invalidates anything already fetched from
+    /// it — `enabled` is deliberately absent, since switching a firm on and off
+    /// doesn't make its rows wrong.
+    var boardFingerprint: String {
+        [ats.rawValue, token ?? "", host ?? "", tenant ?? "", site ?? "",
+         query ?? "", sitemap ?? "", path ?? "", titleLoc == true ? "1" : ""]
+            .joined(separator: "|")
+    }
+
     var isConfigured: Bool {
         switch ats {
         case .eightfold: !(host ?? "").isEmpty && !(tenant ?? "").isEmpty

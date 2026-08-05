@@ -78,17 +78,23 @@ struct ContentView: View {
                 Divider()
                 statusBar(rows)
             }
-            // Purely selection-driven: pick a row and it appears, close it and
-            // the row deselects. It used to also require a stored preference,
-            // which had been saved as false — so clicking a job did nothing.
-            .inspector(isPresented: Binding(
-                get: { selectedJob != nil },
-                set: { shown in if !shown { selection.removeAll() } })) {
-                JobDetail(job: selectedJob, model: model)
-                    // Fresh note state whenever the selection changes.
-                    .id(selectedJob?.id)
-                    .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
-            }
+        }
+        // Attached to the split view, not to the detail column. Nested inside
+        // the detail, the inspector's width was added to the window rather than
+        // taken out of the table: the three columns totalled more than the
+        // window and overflowed at both ends, clipping the sidebar's icons and
+        // the inspector's own title.
+        //
+        // Purely selection-driven: pick a row and it appears, close it and the
+        // row deselects. It used to also require a stored preference, which had
+        // been saved as false — so clicking a job did nothing.
+        .inspector(isPresented: Binding(
+            get: { selectedJob != nil },
+            set: { shown in if !shown { selection.removeAll() } })) {
+            JobDetail(job: selectedJob, model: model)
+                // Fresh note state whenever the selection changes.
+                .id(selectedJob?.id)
+                .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
         }
         .toolbar { toolbarContent }
         .sheet(isPresented: $model.showBoardEditor) {
@@ -162,7 +168,12 @@ struct ContentView: View {
             }
 
         }
-        .navigationSplitViewColumnWidth(min: 200, ideal: 224, max: 280)
+        // Opening the inspector squeezes this column below its stated width,
+        // and the List keeps its own width inside it and centres — so both
+        // edges clip and "Category" renders as "gory". Pinning the content to
+        // the leading edge and letting it actually shrink is what stops it.
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .navigationSplitViewColumnWidth(min: 180, ideal: 224, max: 280)
         .safeAreaInset(edge: .bottom) {
             // Just context for the selected category now — choosing firms is
             // the tree above, and "where's this from" moved to the status bar.
