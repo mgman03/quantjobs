@@ -58,6 +58,7 @@ struct ContentView: View {
             sidebar
         } detail: {
             let rows = rows
+            HStack(spacing: 0) {
             VStack(spacing: 0) {
                 if let error = model.loadError { banner(error) }
                 updateBanner
@@ -78,23 +79,27 @@ struct ContentView: View {
                 Divider()
                 statusBar(rows)
             }
-        }
-        // Attached to the split view, not to the detail column. Nested inside
-        // the detail, the inspector's width was added to the window rather than
-        // taken out of the table: the three columns totalled more than the
-        // window and overflowed at both ends, clipping the sidebar's icons and
-        // the inspector's own title.
-        //
-        // Purely selection-driven: pick a row and it appears, close it and the
-        // row deselects. It used to also require a stored preference, which had
-        // been saved as false — so clicking a job did nothing.
-        .inspector(isPresented: Binding(
-            get: { selectedJob != nil },
-            set: { shown in if !shown { selection.removeAll() } })) {
-            JobDetail(job: selectedJob, model: model)
-                // Fresh note state whenever the selection changes.
-                .id(selectedJob?.id)
-                .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+            .frame(maxWidth: .infinity)
+
+            // A plain pane rather than .inspector. Inside the detail column,
+            // attached to the split view, fixed width, flexible width — every
+            // arrangement of .inspector inside a NavigationSplitView added its
+            // width to the window instead of taking it out of the table, so the
+            // columns totalled more than the window and overflowed at both
+            // ends: the sidebar lost its icons and the leading characters of
+            // its headings, the panel lost the end of its own title. An HStack
+            // can't do that, because the table simply gets what's left.
+            //
+            // Purely selection-driven: pick a row and it appears, close it and
+            // the row deselects.
+            if selectedJob != nil {
+                Divider()
+                JobDetail(job: selectedJob, model: model)
+                    // Fresh note state whenever the selection changes.
+                    .id(selectedJob?.id)
+                    .frame(width: 300)
+            }
+            }
         }
         .toolbar { toolbarContent }
         .sheet(isPresented: $model.showBoardEditor) {
