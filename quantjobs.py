@@ -1380,10 +1380,14 @@ def cmd_scrape(args) -> int:
         j["short_title"] = short_title(j.get("title", ""))
         rows.append(j)
 
-    # de-duplicate, then sort newest-first with undated roles last
+    # De-duplicate on the URL, then sort newest-first with undated roles last.
+    # Deliberately not job_key(), which is company + title + location and says
+    # nothing about the level: Jane Street posts a Summer Internship *and* a
+    # Full-Time New Grad "Software Engineer" in London, and keyed that way the
+    # two collapsed into one. Two postings with different URLs are two postings.
     uniq, seen_keys = [], set()
     for r in rows:
-        k = job_key(r)
+        k = r.get("url") or job_key(r)
         if k not in seen_keys:
             seen_keys.add(k)
             uniq.append(r)

@@ -156,9 +156,18 @@ struct ScrapeQuery: Sendable {
 extension Array where Element == Job {
 
     /// De-duplicate on the stable job key, keeping the first sighting.
+    /// Drops postings we've already got, keyed on the URL.
+    ///
+    /// Deliberately not `key`, which is company + title + location and so says
+    /// nothing about the level. Jane Street posts a Summer Internship *and* a
+    /// Full-Time New Grad "Software Engineer" in London; keyed that way the two
+    /// collapsed into one and the new-grad row won, so the internship appeared
+    /// while the scrape streamed in and vanished the moment it finished. Two
+    /// postings with different URLs are two postings. Rows without a URL fall
+    /// back to the old key, since there's nothing better to compare.
     func deduplicated() -> [Job] {
         var seen = Set<String>()
-        return filter { seen.insert($0.key).inserted }
+        return filter { seen.insert($0.url.isEmpty ? $0.key : $0.url).inserted }
     }
 
     /// Folds the same role posted at several locations into one row.

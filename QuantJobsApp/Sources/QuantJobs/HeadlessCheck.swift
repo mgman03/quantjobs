@@ -495,6 +495,53 @@ enum HeadlessCheck {
                       + "· dropped=\(had > 0 && left == 0)")
             }
 
+            // Where does a Jane Street SWE internship go?
+            do {
+                func js(_ list: [Job]) -> [String] {
+                    list.filter { $0.company == "Jane Street" }
+                        .map { "\($0.title) @ \($0.locationDisplay)" }
+                }
+                print("\njane street in model.jobs:      \(js(model.jobs).count)")
+                for t in js(model.jobs).prefix(6) { print("    \(t)") }
+                model.selectedCategoryID = "swe"
+                model.level = .intern
+                print("jane street in visibleJobs:     \(js(model.visibleJobs).count)")
+                for t in js(model.visibleJobs).prefix(6) { print("    \(t)") }
+                print("mergeRoles=\(model.mergeRoles) newOnly=\(model.newOnly) "
+                      + "continents=\(model.continentFilter.sorted())")
+
+                model.continentFilter = ["Europe"]
+                print("\nwith Europe selected:            \(js(model.visibleJobs).count)")
+                for t in js(model.visibleJobs) { print("    \(t)") }
+                model.mergeRoles = false
+                print("...and merging off:              \(js(model.visibleJobs).count)")
+                for t in js(model.visibleJobs) { print("    \(t)") }
+                model.mergeRoles = true
+                model.continentFilter = []
+
+                model.continentFilter = ["Europe"]
+                if let ldn = model.jobs.first(where: {
+                    $0.company == "Jane Street" && $0.title == "Software Engineer"
+                        && $0.location == "London" }) {
+                    let q = model.query
+                    print("\nLondon SWE row against each filter:")
+                    print("    category swe:  \(ldn.matchedCategories.contains("swe"))")
+                    print("    level intern:  \(ldn.matchedLevels.contains("intern")) "
+                          + "levels=\(ldn.matchedLevels.sorted())")
+                    print("    liveFilters:   \(q.matchesLiveFilters(ldn, cutoff: q.cutoffDate))")
+                    print("    cutoff:        \(q.cutoffDate ?? "none")")
+                    print("    posted:        \(ldn.posted.debugDescription)")
+                } else { print("\nLondon SWE row not found in model.jobs") }
+                model.continentFilter = []
+
+                print("\nevery Jane Street 'Software Engineer' row in model.jobs:")
+                for j in model.jobs where j.company == "Jane Street"
+                    && j.title == "Software Engineer" {
+                    print("    \(j.location): levels=\(j.matchedLevels.sorted())")
+                    print("        dept=\(j.department.debugDescription)")
+                }
+            }
+
             print("filters   hasExtra=\(model.hasExtraFilters) (expected false)")
 
             print("\nfirm picker layout:")
