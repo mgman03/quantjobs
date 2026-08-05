@@ -569,6 +569,53 @@ def fetch_sitemap(c: dict, deep: bool) -> list[dict]:
     return out
 
 
+# Jane Street's Greenhouse board carries experienced hires only — 177 roles and
+# not one internship. Students and new grads live in a JSON file its own careers
+# page fetches, which is where the ~44 internships and ~23 new-grad roles are.
+JANESTREET_CITIES = {"NYC": "New York, NY", "LDN": "London", "HKG": "Hong Kong",
+                     "SGP": "Singapore", "AMS": "Amsterdam"}
+
+# A handful of letters are swapped for Lisu lookalikes, presumably to make the
+# titles awkward to scrape: "\ua4dfachine \ua4e1earning \ua4e3esearcher".
+JANESTREET_HOMOGLYPHS = {"\ua4df": "M", "\ua4e1": "L", "\ua4e3": "R"}
+
+
+def janestreet_text(s: str) -> str:
+    for bad, good in JANESTREET_HOMOGLYPHS.items():
+        s = s.replace(bad, good)
+    return s
+
+
+def fetch_janestreet(c: dict, deep: bool) -> list[dict]:
+    """Jane Street's own careers JSON."""
+    host = c.get("host", "www.janestreet.com")
+    payload = http_json(f"https://{host}/jobs/main.json", headers=BROWSER_HEADERS)
+    if not isinstance(payload, list):
+        raise FetchError("unexpected Jane Street payload")
+    out = []
+    for j in payload:
+        title = janestreet_text(strip_html(j.get("position", "")))
+        if not title:
+            continue
+        ident = j.get("id")
+        # Availability is the level: "Summer Internship", "Full-Time: New Grad",
+        # "Full-Time: Experienced". Kept in the department so the level matcher
+        # sees it — the titles themselves say nothing about seniority.
+        availability = j.get("availability", "") or ""
+        team = " / ".join(x for x in (j.get("category"), j.get("team")) if x)
+        out.append({
+            "title": title,
+            "location": JANESTREET_CITIES.get(j.get("city", ""), j.get("city", "")),
+            "url": f"https://{host}/join-jane-street/position/{ident}/" if ident else "",
+            "posted": "",          # not published
+            "department": " / ".join(x for x in (availability, team) if x),
+            "description": strip_html(j.get("overview")) if deep else "",
+        })
+    if not out:
+        raise FetchError("no roles in the Jane Street feed")
+    return out
+
+
 def fetch_citadel(c: dict, deep: bool) -> list[dict]:
     """Citadel / Citadel Securities. Config: host."""
     host = c.get("host")
@@ -808,6 +855,7 @@ ADAPTERS = {
     "uber": fetch_uber,
     "wolverine": fetch_wolverine,
     "citadel": fetch_citadel,
+    "janestreet": fetch_janestreet,
     "sitemap": fetch_sitemap,
     "optiver": fetch_optiver,
     "twosigma": fetch_twosigma,
@@ -1266,7 +1314,7 @@ def is_configured(c: dict) -> bool:
     if ats in ("jibe", "citadel"):
         return bool(c.get("host"))
     if ats in ("amazon", "uber", "wolverine", "optiver", "twosigma",
-               "simplify"):
+               "simplify", "janestreet"):
         return True          # nothing to configure
     return bool(c.get("token"))
 

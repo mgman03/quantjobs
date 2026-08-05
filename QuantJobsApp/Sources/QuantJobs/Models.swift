@@ -5,7 +5,7 @@ import Foundation
 enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
     case greenhouse, lever, ashby, smartrecruiters, workday, amazon
     case eightfold, jibe, uber, wolverine, citadel, optiver, twosigma, simplify
-    case sitemap
+    case sitemap, janestreet
 
     var id: String { rawValue }
 
@@ -26,6 +26,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         case .twosigma: "twosigma.com"
         case .simplify: "Simplify feed"
         case .sitemap: "own site"
+        case .janestreet: "janestreet.com"
         }
     }
 
@@ -43,7 +44,8 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         // they reuse the Workday-style host fields rather than a slug.
         case .workday, .eightfold, .jibe, .citadel: .workday
         case .sitemap: .sitemap
-        case .amazon, .uber, .wolverine, .optiver, .twosigma, .simplify: .query
+        case .amazon, .uber, .wolverine, .optiver, .twosigma, .simplify,
+             .janestreet: .query
         default: .token
         }
     }

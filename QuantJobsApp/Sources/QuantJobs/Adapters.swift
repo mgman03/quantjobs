@@ -32,6 +32,7 @@ enum Adapters {
         case .wolverine:       try await wolverine(c, deep: deep)
         case .citadel:         try await citadel(c, deep: deep)
         case .sitemap:         try await sitemapJobs(c, deep: deep)
+        case .janestreet:      try await janeStreet(c, deep: deep)
         case .optiver:         try await optiver(c, deep: deep)
         case .twosigma:        try await twoSigma(c, deep: deep)
         case .simplify:        try await simplify(c, deep: deep)
@@ -717,6 +718,58 @@ enum Adapters {
                  + "\(ns.substring(with: m.range(at: 1))), \(country)"
         }
         return "\(rest), \(country)"
+    }
+
+    // MARK: - Jane Street
+
+    /// Jane Street's Greenhouse board carries experienced hires only — 177
+    /// roles and not one internship. Students and new grads live in a JSON file
+    /// its own careers page fetches, which holds the ~44 internships and ~23
+    /// new-grad roles the board omits entirely.
+    private static let janeStreetCities = [
+        "NYC": "New York, NY", "LDN": "London", "HKG": "Hong Kong",
+        "SGP": "Singapore", "AMS": "Amsterdam",
+    ]
+
+    /// A handful of letters are swapped for Lisu lookalikes, presumably to make
+    /// the titles awkward to scrape: "\u{A4DF}achine \u{A4E1}earning \u{A4E3}esearcher".
+    private static let janeStreetHomoglyphs: [Character: Character] = [
+        "\u{A4DF}": "M", "\u{A4E1}": "L", "\u{A4E3}": "R",
+    ]
+
+    static func janeStreet(_ c: Company, deep: Bool) async throws -> [RawJob] {
+        let host = c.host ?? "www.janestreet.com"
+        let raw = try await HTTP.data("https://\(host)/jobs/main.json",
+                                      headers: Self.browserHeaders)
+        guard let rows = try? JSONSerialization.jsonObject(with: raw) as? [[String: Any]]
+        else { throw FetchError.badPayload("unexpected Jane Street payload") }
+
+        var out: [RawJob] = []
+        for j in rows {
+            let title = String(Clean.html(j["position"] as? String ?? "")
+                .map { janeStreetHomoglyphs[$0] ?? $0 })
+            guard !title.isEmpty else { continue }
+            let city = j["city"] as? String ?? ""
+            // Availability is the level — "Summer Internship", "Full-Time: New
+            // Grad". Folded into the department so the level matcher sees it;
+            // the titles themselves say nothing about seniority.
+            let availability = j["availability"] as? String ?? ""
+            let team = [j["category"] as? String, j["team"] as? String]
+                .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " / ")
+            let id = j["id"].map { "\($0)" } ?? ""
+            out.append(RawJob(
+                title: title,
+                location: janeStreetCities[city] ?? city,
+                url: id.isEmpty ? "" : "https://\(host)/join-jane-street/position/\(id)/",
+                posted: "",
+                department: [availability, team].filter { !$0.isEmpty }
+                    .joined(separator: " / "),
+                description: deep ? Clean.html(j["overview"] as? String ?? "") : ""))
+        }
+        guard !out.isEmpty else {
+            throw FetchError.badPayload("no roles in the Jane Street feed")
+        }
+        return out
     }
 
     // MARK: - Sites with no board at all

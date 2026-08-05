@@ -167,6 +167,11 @@ Physical Intelligence · Replit · Scale AI · Waymo
 Run `./quantjobs.py companies` for the full list rather than trusting a README that
 drifts.
 
+**Jane Street** is read from its own careers JSON. Its Greenhouse board is experienced
+hires only — 177 roles and not one internship — while ~44 internships and ~23 new-grad
+roles sit in the feed its careers page reads. **Arrowstreet** splits its Workday tenant
+the same way, so it has a second entry for the campus site.
+
 **Hudson River Trading** and **Marshall Wace** are read from their own sites. HRT's
 public Greenhouse board is a talent-community placeholder holding three generic
 entries rather than the ~70 roles it has open; Marshall Wace's carries a single
@@ -212,7 +217,7 @@ dropping it.
 
 - **`ats`** — one of `greenhouse`, `lever`, `ashby`, `smartrecruiters`, `workday`,
   `amazon`, `eightfold`, `jibe`, `uber`, `wolverine`, `citadel`, `optiver`,
-  `twosigma`, `simplify`, `sitemap`. Most take a `token`; a few need other fields — see
+  `twosigma`, `simplify`, `sitemap`, `janestreet`. Most take a `token`; a few need other fields — see
   [INTERNALS.md](INTERNALS.md#board-adapters).
 - **`tags`** — `quant` and `bigtech` decide which half of the app's Firms picker a
   firm lands in. The rest are descriptive and usable with `--tag`.
