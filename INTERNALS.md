@@ -198,22 +198,44 @@ The signal that finds it: **a board returning plenty of roles and zero early-car
 ones.** Scrape everything at `-c all -l any`, group by firm, and flag any with 10+
 roles where nothing matches intern / new grad / campus / co-op / graduate.
 
-Run against all 145 firms that return anything, that flags 30. Most are genuinely
+Run against all 150 boards that return anything, that flags 61. Most are genuinely
 empty — it's August, and Summer 2027 postings largely open between then and October.
-Datadog's 432-role board really does have no internships on it. So the flag is a
+Datadog's 441-role board really does have no internships on it. So the flag is a
 prompt to look, not a verdict.
 
 What to look for once flagged, in order of how often it pays off:
 
 - **A second board on the same platform.** Arrowstreet splits its Workday tenant:
   the site we had was experienced hires, `Campus_Careers` held the internships. Radix
-  and Walleye do the same and already have paired entries. Probing `<token>campus`,
-  `<token>university`, `<token>students` and the like across every flagged Greenhouse,
-  Ashby and Lever firm found no others.
+  and Walleye do the same. Millennium was the worst case — its Eightfold board carries
+  244 roles and not one is early-career, while 56 2027 internships sit on
+  `campusjobs.mlp.com`, the same tenant behind a different host.
 - **A separate students page on their own site**, which is how Arrowstreet's split
   surfaced — `/student-careers/` linked to a Workday host the professional page never
   mentions.
 - **A JSON feed the careers page fetches**, which is where Jane Street's are.
+
+Two of those are cheap to sweep for rather than eyeball, and worth re-running when the
+roster grows:
+
+- For every Workday tenant, POST to `wday/cxs/<tenant>/<site>/jobs` with `site` set to
+  `Campus`, `Campus_Careers`, `University`, `Students`, `Early_Careers` and friends, and
+  keep any that reports a non-zero `total`. Across 21 tenants that found Arrowstreet
+  (already paired) and **Mastercard**, whose `Campus` site holds 24 early-career roles
+  its `CorporateCareers` site doesn't list.
+- For every Greenhouse token, try `<token>campus`, `<token>university`,
+  `<token>students`, `<token>internships`, `<token>grad` and the like. Across 94 tokens
+  that found nothing — so it's a cheap negative, not a dead end.
+
+**The sweep only covers firms that already have a token.** Four entries were sitting in
+the file with an empty token and a note saying no board could be found, which excluded
+them from every probe above — and two of them did have one. **Chicago Trading Co** has
+*two* Greenhouse boards, `chicagotrading` for experienced hires and `ctccampusboard`
+for the 2027 SWE and quant internships, neither linked from a careers page that renders
+its listings client-side. **PEAK6**'s `careers.peak6.com` is a custom front end over
+`peak6group.wd1.myworkdayjobs.com`. A web search for `"<firm> internship apply"` found
+both in one step, which no amount of fingerprinting the careers page would have. Re-run
+that for any entry whose note says there's nothing to read.
 
 ## Failure modes worth knowing
 
@@ -237,6 +259,32 @@ same-platform failures that pass when retried alone, this is the shape of it.
 
 **Cloudflare.** Citadel's two boards sit behind one tenant and throttle each other
 into 403s if hit in parallel, so those requests are serialised and paced.
+
+**A word boundary is not a plural.** The level vocabulary matched `graduate` but not
+*Graduates*, `internship` but not *Internships*, `early career` but not
+*Early Careers* — the trailing `s` fell outside the boundary. Quadrature's board has a
+posting titled exactly "Internships"; it read as senior. Both matchers now allow an
+optional `s` after any phrase ending in a letter, which recovered 172 postings across
+21 firms, including every SIG `Quantitative Researcher – Master's: 2027`, Point72's five
+`Academy … for Upcoming Graduates (2027)`, IMC's `C++ Software Engineer, Early Careers`
+and HRT's `Algorithm Developer … – 2027 PhDs`.
+
+The same audit turned up vocabulary that no plural rule reaches: Nvidia, Micron,
+Applied Materials, NXP and Astera Labs all hire a whole class as **New College Grad** or
+**NCG**, which is 82 postings' worth of new-grad roles reading as senior, and Israeli
+and German boards say intern with **Student**, **Working Student** or **Praktikant**.
+The way to find these is to scrape at `-l any`, keep the rows the level test rejected,
+and grep them for every early-career word you can think of — the ones that hit are your
+gaps.
+
+**A numeric id read as a string becomes an empty string, and empty strings collide.**
+Wolverine serves `"ID": 336`; the app read it with `as? String ?? ""`, so every posting
+got the URL `.../careers?job=` — and since a posting is identified by its URL, the whole
+19-role board deduplicated down to a single row. It had been that way since the adapter
+was written, and nothing failed: the board answered, the row was real, and the count was
+plausible enough not to look at. `Clean.scalar` now coerces either shape, and it's used
+everywhere a JSON value lands in a URL. If one implementation shows a board a tenth the
+size of the other's, look for a field one of them is silently defaulting.
 
 **One regex spanning two things swallows what's between them.** Two Sigma's cards
 were matched with a single pattern running from the job anchor to the location span

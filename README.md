@@ -1,6 +1,6 @@
 # quantjobs
 
-Finds internship and new-grad postings by reading firms' job boards directly — 150 of
+Finds internship and new-grad postings by reading firms' job boards directly — 155 of
 them, quant shops and big tech. A command-line tool and a native Mac app, sharing one
 config.
 
@@ -143,22 +143,29 @@ the two stay in sync and you can use whichever suits the moment.
 
 ## Which firms are wired up
 
-**150 of the 154 entries have a working source** and **110 ship enabled** —
-`./quantjobs.py verify` returns *110 working, 0 broken*.
+**155 of the 158 boards answer** — `./quantjobs.py verify --all` returns
+*155 working, 3 broken*. The three are named further down; they're firms kept in the
+file so you can see they were considered rather than missed.
 
-| group | segment | firms | on by default |
-|---|---|--:|--:|
-| Quant | Tier 1 | 19 | 19 |
-| Quant | Tier 2 | 30 | 26 |
-| Quant | Tier 3 | 8 | 0 |
-| Big Tech | FAANG+ | 66 | 55 |
-| Big Tech | Frontier AI | 18 | 8 |
-| Big Tech | Startups | 13 | 2 |
+| group | segment | boards |
+|---|---|--:|
+| Quant | Tier 1 | 20 |
+| Quant | Tier 2 | 32 |
+| Quant | Tier 3 | 8 |
+| Big Tech | FAANG+ | 67 |
+| Big Tech | Frontier AI | 18 |
+| Big Tech | Startups | 13 |
+
+Boards, not firms: a few firms have two — see [`board`](#configuring).
 
 **Tier 1**, all live: AQR Capital · Citadel · Citadel Securities · DRW ·
 Hudson River Trading · IMC Trading · Jane Street · Jump Trading · Millennium ·
 Optiver · Point72 · Qube RT · Radix Trading · SIG · Squarepoint Capital ·
 Tower Research · Two Sigma · Virtu Financial · XTX Markets
+
+`enabled` isn't a fixed shipped default — the app writes your Firms selection back to
+the same file, so whatever you last picked is what the file says. `./quantjobs.py
+companies` prints the current state.
 
 **Frontier AI**: Anduril · Anthropic · Aurora · Cohere · Databricks · Decagon ·
 ElevenLabs · Harvey · LangChain · Mercor · Modal · Nuro · OpenAI · Perplexity ·
@@ -169,8 +176,16 @@ drifts.
 
 **Jane Street** is read from its own careers JSON. Its Greenhouse board is experienced
 hires only — 177 roles and not one internship — while ~44 internships and ~23 new-grad
-roles sit in the feed its careers page reads. **Arrowstreet** splits its Workday tenant
-the same way, so it has a second entry for the campus site.
+roles sit in the feed its careers page reads.
+
+**A firm's campus roles are often on a different board from its main one**, and reading
+only the main one misses every internship it has. **Millennium**'s Eightfold board
+carries 244 roles and not one of them is early-career; its 56 2027 internships are on a
+separate site. **Chicago Trading Co** posts its 2027 SWE and quant internships to a
+Greenhouse board its careers page never links to. **Arrowstreet** and **Mastercard**
+each split one Workday tenant into an experienced site and a campus site. Those firms
+have one entry per board, told apart by `board` (see [Configuring](#configuring)); the
+postings still say just "Millennium".
 
 **Hudson River Trading** and **Marshall Wace** are read from their own sites. HRT's
 public Greenhouse board is a talent-community placeholder holding three generic
@@ -182,12 +197,16 @@ Recruitment Assistant posting while its internships live as pages on mwam.com. T
 ExodusPoint Jobs Page" and "Non-Investment - Referral" — rather than roles, and its
 site lists nothing. Two non-jobs in the table is worse than an absent firm.
 
-Four firms have no scriptable board at all — Chicago Trading Co, Maven Securities,
-PEAK6 and Quantlab — and sit in `companies.json` as disabled placeholders with a note
-saying what was tried. Apple, Google, Meta and Microsoft publish nothing a script can
-read either, so they come from a community internship feed instead; Apple and
-Microsoft ship on, Meta and Google ship off because their links can't be confirmed.
-See [INTERNALS.md](INTERNALS.md#apple-google-meta-and-microsoft) for the detail.
+**Maven Securities** has no scriptable board — its careers page 404s and shows no ATS
+fingerprint — and sits in `companies.json` as a disabled placeholder with a note saying
+what was tried. **Quantlab**'s board is Jobvite and was empty when last checked, so it
+has nothing to read yet rather than nowhere to read from.
+
+Apple, Google, Meta and Microsoft come from a community internship feed rather than
+their own boards, and it shows: the feed had 12 Apple roles, 10 Microsoft, 4 Meta and 3
+Google when last checked, against the hundreds each firm actually has. Treat those four
+as a hint, not as coverage — Apple and Microsoft ship on, Meta and Google off. See
+[INTERNALS.md](INTERNALS.md#apple-google-meta-and-microsoft) for the detail.
 
 ## Do the links actually work?
 
@@ -225,6 +244,20 @@ dropping it.
   call, so edit it freely.
 - **`segment`** — the sub-group the Firms picker lists. `Tier 1/2/3` for quant;
   `FAANG+`, `Frontier AI` or `Startups` for big tech.
+- **`board`** — only for a firm with more than one board. Plenty of them keep campus
+  hiring on a separate portal their main board never lists, so the firm gets one
+  entry per board and `board` says which is which. Postings still carry the plain
+  firm name; the label shows up in the Firms picker and in `companies`:
+
+  ```json
+  { "name": "Millennium", "ats": "eightfold", "host": "mlp.eightfold.ai",  "tenant": "mlp.com" }
+  { "name": "Millennium", "ats": "eightfold", "host": "campusjobs.mlp.com", "tenant": "mlp.com",
+    "board": "Campus" }
+  ```
+
+Matching is case-insensitive, word-bounded, and plural-tolerant: `"graduate"` also
+catches *Fresh Graduates*, and spaces match hyphens and slashes, so `"co-op"` catches
+*Co-Op*. That applies to the level vocabulary and to `categories.json` alike.
 
 Don't know a firm's token? Point `discover` at their careers page, then `verify`:
 
@@ -234,9 +267,8 @@ $ ./quantjobs.py discover https://www.headlandstech.com/careers/
     → {"name": "…", "ats": "greenhouse", "token": "headlandstechnologiesllc", "enabled": true}
 ```
 
-`categories.json` holds the `include` / `exclude` phrase lists per category. Matching
-is case-insensitive with word boundaries, and spaces match hyphens and slashes, so
-`"co-op"` catches `Co-Op`. Adding a category is a new key in that file.
+`categories.json` holds the `include` / `exclude` phrase lists per category, matched by
+the same rules. Adding a category is a new key in that file.
 
 **Where the config lives.** Both tools read the files sitting in the checkout.
 `$QUANTJOBS_CONFIG` overrides that for both:

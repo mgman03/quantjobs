@@ -1039,7 +1039,13 @@ def format_location(places: list[dict], raw: str = "") -> str:
 
 def phrase_re(phrases: Iterable[str]) -> re.Pattern | None:
     """Build one alternation regex. Word-bounded when the phrase ends
-    alphanumerically, so 'intern' won't fire on 'internal' but 'c++' still works."""
+    alphanumerically, so 'intern' won't fire on 'internal' but 'c++' still works.
+
+    A phrase ending in a letter also matches its plural. Without that, the word
+    boundary made "graduate" miss "Fresh Graduates", "early career" miss
+    "Software Engineer, Early Careers" and "internship" miss a page titled
+    "Internships" — real early-career postings dropped on a trailing s.
+    """
     parts = []
     for p in phrases:
         p = p.strip().lower()
@@ -1047,22 +1053,38 @@ def phrase_re(phrases: Iterable[str]) -> re.Pattern | None:
             continue
         body = re.escape(p).replace(r"\ ", r"[\s\-/]+")
         pre = r"(?<![a-z0-9])" if p[0].isalnum() else ""
-        post = r"(?![a-z0-9])" if p[-1].isalnum() else ""
+        post = r"s?(?![a-z0-9])" if p[-1].isalpha() else (
+            r"(?![a-z0-9])" if p[-1].isalnum() else "")
         parts.append(pre + body + post)
     return re.compile("|".join(parts), re.I) if parts else None
 
 
+# Plurals come free — see phrase_re. Every phrase below has been checked against
+# a full 40k-posting run, so the false positives it buys are countable: "Product
+# Manager, Workday Student Financial Aid" is the only one, and no category the
+# tool ships would show it.
 LEVELS = {
     "intern": [
-        "intern", "interns", "internship", "summer analyst", "summer associate",
+        "intern", "internship", "summer analyst", "summer associate",
         "co-op", "coop", "industrial placement", "work placement",
         "placement student", "summer programme", "summer program", "sophomore",
         "freshman", "penultimate", "student programme", "student program",
+        # Bare "student": how Israeli and German boards say intern — KLA's
+        # "Motion Control Student", NXP's "Working Student (f/m/d)".
+        "student", "praktikant", "praktikum", "undergraduate",
+        "insight programme", "insight program", "vacation scheme", "spring week",
     ],
     "newgrad": [
         "new grad", "new graduate", "graduate", "campus", "university",
         "entry level", "junior", "early career", "class of", "trainee",
         "graduate programme", "graduate program", "rotational",
+        # Semiconductor firms hire a whole class this way: "New College Grad",
+        # "NCG", "Fresh Grads Welcome". Bare "grad" covers all of them.
+        "grad", "ncg", "upcoming graduate",
+        # Banks call a new-grad seat a full-time analyst, and a plural PhD in a
+        # title is campus hiring — singular "PhD" is often a senior role, so
+        # only the plural is listed.
+        "full time analyst", "fulltime analyst", "phds",
     ],
 }
 LEVEL_RE = {k: phrase_re(v) for k, v in LEVELS.items()}
@@ -1170,6 +1192,17 @@ def detect_level(job: dict) -> str:
 
 # ───────────────────────────── scraping ──────────────────────────────
 
+def board_label(c: dict) -> str:
+    """How to name a board in progress and error output.
+
+    A firm can appear more than once, because plenty of them keep graduate
+    hiring on a separate portal their main board never lists — Millennium's
+    campus site is one. Postings still carry the plain firm name; only the
+    config lines and the messages about them need telling apart.
+    """
+    return f"{c['name']} · {c['board']}" if c.get("board") else c["name"]
+
+
 def scrape_one(c: dict, deep: bool) -> tuple[dict, list[dict], str | None]:
     adapter = ADAPTERS.get(c.get("ats", ""))
     if not adapter:
@@ -1215,12 +1248,13 @@ def scrape(companies: list[dict], deep: bool, workers: int,
             c, got, err = fut.result()
             done += 1
             if err:
-                errors.append((c["name"], err))
+                errors.append((board_label(c), err))
             else:
                 jobs.extend(got)
             if progress:
                 status = f"!{err}" if err else f"{len(got)} roles"
-                print(f"\r  [{done}/{len(companies)}] {c['name']:<28.28} {status:<28.28}",
+                print(f"\r  [{done}/{len(companies)}] "
+                      f"{board_label(c):<28.28} {status:<28.28}",
                       end="", file=sys.stderr, flush=True)
     if progress:
         print("\r" + " " * 74 + "\r", end="", file=sys.stderr)
@@ -1469,8 +1503,10 @@ def cmd_companies(args) -> int:
     for c in cfg["companies"]:
         flag = " " if c.get("enabled", True) else "×"
         tags = ",".join(c.get("tags", []))
-        ident = c.get("token") or c.get("tenant", "")
-        print(f"{flag} {c['name']:<26.26} {c['ats']:<16} {ident:<28.28} {tags}")
+        ident = c.get("token") or c.get("host") or c.get("tenant", "")
+        # A firm with more than one board gets one line per board, so say which.
+        label = f"{c['name']} · {c['board']}" if c.get("board") else c["name"]
+        print(f"{flag} {label:<26.26} {c['ats']:<16} {ident:<28.28} {tags}")
     n = sum(1 for c in cfg["companies"] if c.get("enabled", True))
     print(f"\n{n} enabled / {len(cfg['companies'])} total"
           f"   (× = disabled; edit {os.path.basename(COMPANIES_FILE)})")
@@ -1498,11 +1534,11 @@ def cmd_verify(args) -> int:
             c, jobs, err = fut.result()
             if err:
                 bad += 1
-                print(f"  FAIL  {c['name']:<26.26} {c.get('ats','')}/"
+                print(f"  FAIL  {board_label(c):<26.26} {c.get('ats','')}/"
                       f"{c.get('token', c.get('tenant',''))}  → {err}")
             else:
                 ok += 1
-                print(f"  ok    {c['name']:<26.26} {len(jobs):>4} roles")
+                print(f"  ok    {board_label(c):<26.26} {len(jobs):>4} roles")
     msg = f"\n{ok} working, {bad} broken"
     if skipped:
         msg += f", {skipped} disabled (use --all to test those too)"

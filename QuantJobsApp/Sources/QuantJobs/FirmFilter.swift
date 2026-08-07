@@ -27,12 +27,13 @@ struct FirmFilter: View {
         var out = ids.compactMap { model.company($0) }
         if !search.isEmpty {
             let needle = search.lowercased()
-            out = out.filter { $0.name.lowercased().contains(needle) }
+            out = out.filter { $0.displayName.lowercased().contains(needle) }
         }
         // Sorted across the whole list, not per segment — concatenating each
         // group's A-Z left the combined list looking unsorted.
         return out.sorted {
-            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            $0.displayName.localizedCaseInsensitiveCompare($1.displayName)
+                == .orderedAscending
         }
     }
 
@@ -154,7 +155,7 @@ struct FirmFilter: View {
                                                            : "square")
                                 .foregroundStyle(firm.enabled ? AnyShapeStyle(.tint)
                                                               : AnyShapeStyle(.tertiary))
-                            Text(firm.name)
+                            Text(firm.displayName)
                                 .foregroundStyle(firm.isConfigured ? .primary : .secondary)
                                 .lineLimit(1)
                             Spacer(minLength: 6)

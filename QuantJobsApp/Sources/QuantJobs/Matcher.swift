@@ -6,6 +6,11 @@ import Foundation
 /// won't fire on "internal" while "c++" still matches. Spaces inside a phrase
 /// also match hyphens and slashes, so "co op" catches "Co-Op" and
 /// "summer analyst" catches "Summer-Analyst".
+///
+/// A phrase ending in a letter also matches its plural. Without that, the word
+/// boundary made "graduate" miss "Fresh Graduates", "early career" miss
+/// "Software Engineer, Early Careers" and "internship" miss a page titled
+/// "Internships" — real early-career postings dropped on a trailing s.
 struct PhraseMatcher: Sendable {
 
     private let regex: NSRegularExpression
@@ -21,7 +26,8 @@ struct PhraseMatcher: Sendable {
                 .joined(separator: #"[\s\-/]+"#)
 
             let pre = p.first!.isAlphanumeric ? #"(?<![a-z0-9])"# : ""
-            let post = p.last!.isAlphanumeric ? #"(?![a-z0-9])"# : ""
+            let post = p.last!.isLetter ? #"s?(?![a-z0-9])"#
+                     : p.last!.isAlphanumeric ? #"(?![a-z0-9])"# : ""
             parts.append(pre + body + post)
         }
         guard !parts.isEmpty,
@@ -54,17 +60,32 @@ private extension Character {
 
 enum Levels {
 
+    // Plurals come free — see PhraseMatcher. Every phrase below has been
+    // checked against a full 40k-posting run, so the false positives it buys
+    // are countable: "Product Manager, Workday Student Financial Aid" is the
+    // only one, and the seniority veto already throws it out.
     static let intern = PhraseMatcher([
-        "intern", "interns", "internship", "summer analyst", "summer associate",
+        "intern", "internship", "summer analyst", "summer associate",
         "co-op", "coop", "industrial placement", "work placement",
         "placement student", "summer programme", "summer program", "sophomore",
         "freshman", "penultimate", "student programme", "student program",
+        // Bare "student": how Israeli and German boards say intern — KLA's
+        // "Motion Control Student", NXP's "Working Student (f/m/d)".
+        "student", "praktikant", "praktikum", "undergraduate",
+        "insight programme", "insight program", "vacation scheme", "spring week",
     ])!
 
     static let newgrad = PhraseMatcher([
         "new grad", "new graduate", "graduate", "campus", "university",
         "entry level", "junior", "early career", "class of", "trainee",
         "graduate programme", "graduate program", "rotational",
+        // Semiconductor firms hire a whole class this way: "New College Grad",
+        // "NCG", "Fresh Grads Welcome". Bare "grad" covers all of them.
+        "grad", "ncg", "upcoming graduate",
+        // Banks call a new-grad seat a full-time analyst, and a plural PhD in a
+        // title is campus hiring — singular "PhD" is often a senior role, so
+        // only the plural is listed.
+        "full time analyst", "fulltime analyst", "phds",
     ])!
 
     /// Some boards label a role "Graduate Trader" but mean experienced;

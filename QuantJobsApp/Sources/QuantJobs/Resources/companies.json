@@ -35,7 +35,7 @@
       "ats": "simplify",
       "enabled": false,
       "name": "Apple",
-      "note": "jobs.apple.com server-renders its search pages but exposes no usable search/sort parameters, so any scripted pull is an arbitrary slice of ~6,000 mostly-retail roles. Sourced from the Simplify/Pitt CSC community feed instead \u2014 second-hand and internships-only. Links verified 200 on 2026-08-03.",
+      "note": "jobs.apple.com server-renders its search pages but exposes no usable search/sort parameters, so any scripted pull is an arbitrary slice of ~6,000 mostly-retail roles. Sourced from the Simplify/Pitt CSC community feed instead — second-hand and internships-only. Links verified 200 on 2026-08-03.",
       "query": "Apple",
       "segment": "FAANG+",
       "tags": [
@@ -61,6 +61,7 @@
       "enabled": true,
       "host": "www.citadel.com",
       "name": "Citadel",
+      "note": "Citadel and Citadel Securities are separate firms sharing one careers platform, so each needs its own entry — 12 early-career roles are only on citadel.com, 18 only on citadelsecurities.com. They do cross-list their campus programmes at the same path on both hosts; those collapse to one row rather than appearing twice.",
       "segment": "Tier 1",
       "site": "",
       "tags": [
@@ -69,14 +70,14 @@
         "multistrat"
       ],
       "tenant": "",
-      "tier": 1,
-      "note": "Citadel and Citadel Securities are separate firms sharing one careers platform, so each needs its own entry \u2014 12 early-career roles are only on citadel.com, 18 only on citadelsecurities.com. They do cross-list their campus programmes at the same path on both hosts; those collapse to one row rather than appearing twice."
+      "tier": 1
     },
     {
       "ats": "citadel",
       "enabled": true,
       "host": "www.citadelsecurities.com",
       "name": "Citadel Securities",
+      "note": "The market-making side, a separate firm from Citadel with its own roles (FPGA, DMM trading, rates). Campus programmes cross-listed on both hosts are shown once, under Citadel.",
       "segment": "Tier 1",
       "site": "",
       "tags": [
@@ -84,8 +85,7 @@
         "market-maker"
       ],
       "tenant": "",
-      "tier": 1,
-      "note": "The market-making side, a separate firm from Citadel with its own roles (FPGA, DMM trading, rates). Campus programmes cross-listed on both hosts are shown once, under Citadel."
+      "tier": 1
     },
     {
       "ats": "greenhouse",
@@ -158,7 +158,7 @@
       "ats": "janestreet",
       "enabled": true,
       "name": "Jane Street",
-      "note": "Jane Street's Greenhouse board (janestreet) is experienced hires only \u2014 177 roles, no internships. Students and new grads come from the JSON its own careers page reads.",
+      "note": "Jane Street's Greenhouse board (janestreet) is experienced hires only — 177 roles, no internships. Students and new grads come from the JSON its own careers page reads.",
       "segment": "Tier 1",
       "tags": [
         "quant",
@@ -184,7 +184,7 @@
       "ats": "simplify",
       "enabled": false,
       "name": "Meta",
-      "note": "metacareers.com posts to a GraphQL endpoint needing an fb_dtsg session token. The Simplify feed has entries, but metacareers.com returns 400 to scripted callers so no link can be confirmed \u2014 leads only. Set enabled=true to take them anyway; they arrive flagged as unverified.",
+      "note": "metacareers.com posts to a GraphQL endpoint needing an fb_dtsg session token. The Simplify feed has entries, but metacareers.com returns 400 to scripted callers so no link can be confirmed — leads only. Set enabled=true to take them anyway; they arrive flagged as unverified.",
       "query": "Meta",
       "segment": "FAANG+",
       "tags": [
@@ -210,6 +210,22 @@
       "ats": "eightfold",
       "enabled": true,
       "host": "mlp.eightfold.ai",
+      "name": "Millennium",
+      "segment": "Tier 1",
+      "site": "",
+      "tags": [
+        "quant",
+        "hedge-fund",
+        "multistrat"
+      ],
+      "tenant": "mlp.com",
+      "tier": 1
+    },
+    {
+      "ats": "eightfold",
+      "board": "Campus",
+      "enabled": true,
+      "host": "campusjobs.mlp.com",
       "name": "Millennium",
       "segment": "Tier 1",
       "site": "",
@@ -314,6 +330,7 @@
     },
     {
       "ats": "greenhouse",
+      "board": "Campus",
       "enabled": true,
       "name": "Radix Trading",
       "segment": "Tier 1",
@@ -549,9 +566,10 @@
     },
     {
       "ats": "workday",
+      "board": "Campus",
       "enabled": true,
       "host": "arrowstreetcapital.wd5.myworkdayjobs.com",
-      "name": "Arrowstreet (Campus)",
+      "name": "Arrowstreet",
       "note": "Arrowstreet splits its Workday tenant: the Arrowstreet site is experienced hires, Campus_Careers is the internships.",
       "segment": "Tier 2",
       "site": "Campus_Careers",
@@ -651,9 +669,8 @@
     },
     {
       "ats": "greenhouse",
-      "enabled": false,
+      "enabled": true,
       "name": "Chicago Trading Co",
-      "note": "chicagotrading.com/careers renders its board client-side and shows no ATS fingerprint (checked 2026-08-03).",
       "segment": "Tier 2",
       "tags": [
         "quant",
@@ -661,7 +678,21 @@
         "market-maker"
       ],
       "tier": 2,
-      "token": ""
+      "token": "chicagotrading"
+    },
+    {
+      "ats": "greenhouse",
+      "board": "Campus",
+      "enabled": true,
+      "name": "Chicago Trading Co",
+      "segment": "Tier 2",
+      "tags": [
+        "quant",
+        "options",
+        "market-maker"
+      ],
+      "tier": 2,
+      "token": "ctccampusboard"
     },
     {
       "ats": "workday",
@@ -800,7 +831,7 @@
       "ats": "greenhouse",
       "enabled": false,
       "name": "ExodusPoint",
-      "note": "Its Greenhouse board holds two signposts \u2014 'Investment - ExodusPoint Jobs Page' and 'Non-Investment - Referral' \u2014 rather than roles, and exoduspoint.com lists nothing and gives an email address. Off, because two non-jobs in the table is worse than an absent firm.",
+      "note": "Its Greenhouse board holds two signposts — 'Investment - ExodusPoint Jobs Page' and 'Non-Investment - Referral' — rather than roles, and exoduspoint.com lists nothing and gives an email address. Off, because two non-jobs in the table is worse than an absent firm.",
       "segment": "Tier 2",
       "tags": [
         "quant",
@@ -993,10 +1024,25 @@
       "tier": 2
     },
     {
+      "ats": "workday",
+      "board": "Campus",
+      "enabled": false,
+      "host": "mastercard.wd1.myworkdayjobs.com",
+      "name": "Mastercard",
+      "segment": "FAANG+",
+      "site": "Campus",
+      "tags": [
+        "bigtech",
+        "finance"
+      ],
+      "tenant": "mastercard",
+      "tier": 2
+    },
+    {
       "ats": "greenhouse",
       "enabled": false,
       "name": "Maven Securities",
-      "note": "mavensecurities.com/careers 404s and no ATS fingerprint was found (checked 2026-08-03).",
+      "note": "mavensecurities.com/careers 404s and no ATS fingerprint was found (rechecked 2026-08-07).",
       "segment": "Tier 2",
       "tags": [
         "quant",
@@ -1124,17 +1170,18 @@
       "token": "pdtpartners"
     },
     {
-      "ats": "greenhouse",
-      "enabled": false,
+      "ats": "workday",
+      "enabled": true,
+      "host": "peak6group.wd1.myworkdayjobs.com",
       "name": "PEAK6",
-      "note": "peak6.com/careers renders its board client-side and shows no ATS fingerprint (checked 2026-08-03).",
       "segment": "Tier 2",
+      "site": "PEAK6",
       "tags": [
         "quant",
         "options"
       ],
-      "tier": 2,
-      "token": ""
+      "tenant": "peak6group",
+      "tier": 2
     },
     {
       "ats": "ashby",
@@ -1188,7 +1235,7 @@
       "ats": "greenhouse",
       "enabled": false,
       "name": "Quantlab",
-      "note": "quantlab.com/careers renders its board client-side and shows no ATS fingerprint (checked 2026-08-03).",
+      "note": "Its board is Jobvite (jobs.jobvite.com/quantlab/search?nl=1), which had no open roles when checked on 2026-08-07 — so there is nothing to read yet rather than nothing to read from.",
       "segment": "Tier 2",
       "tags": [
         "quant",
@@ -1200,8 +1247,9 @@
     },
     {
       "ats": "greenhouse",
+      "board": "Experienced",
       "enabled": true,
-      "name": "Radix Trading (Experienced)",
+      "name": "Radix Trading",
       "segment": "Tier 2",
       "tags": [
         "quant",
@@ -1403,6 +1451,7 @@
     },
     {
       "ats": "greenhouse",
+      "board": "Students",
       "enabled": true,
       "name": "Walleye Capital",
       "segment": "Tier 2",
@@ -1415,8 +1464,9 @@
     },
     {
       "ats": "greenhouse",
+      "board": "Full-Time",
       "enabled": true,
-      "name": "Walleye Capital (Full-Time)",
+      "name": "Walleye Capital",
       "segment": "Tier 2",
       "tags": [
         "quant",

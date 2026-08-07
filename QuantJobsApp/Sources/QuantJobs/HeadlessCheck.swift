@@ -77,7 +77,7 @@ enum HeadlessCheck {
         let collector = Collector()
         await Scraper.run(firms, deep: deep) { result in
             let kept = result.jobs.filter { query.keep($0, matcher: matcher) }
-            await collector.add(kept, failure: result.failure, company: result.company.name)
+            await collector.add(kept, failure: result.failure, company: result.company.displayName)
         }
 
         let jobs = await collector.jobs.deduplicated().sortedByRecency()

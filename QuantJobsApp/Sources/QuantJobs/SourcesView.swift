@@ -15,7 +15,8 @@ struct SourcesView: View {
     private var byPlatform: [(ats: ATS, firms: [Company])] {
         Dictionary(grouping: live, by: \.ats)
             .map { (ats: $0.key, firms: $0.value.sorted {
-                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }) }
+                $0.displayName.localizedCaseInsensitiveCompare($1.displayName)
+                    == .orderedAscending }) }
             .sorted { $0.firms.count == $1.firms.count
                 ? $0.ats.label < $1.ats.label
                 : $0.firms.count > $1.firms.count }
@@ -39,7 +40,7 @@ struct SourcesView: View {
                                     .font(.caption.monospacedDigit())
                                     .foregroundStyle(.secondary)
                             }
-                            Text(entry.firms.map(\.name).joined(separator: " · "))
+                            Text(entry.firms.map(\.displayName).joined(separator: " · "))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)

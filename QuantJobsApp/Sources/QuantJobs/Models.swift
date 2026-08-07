@@ -76,8 +76,23 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
     /// What kind of firm it is — "FAANG+", "Frontier AI", "Hedge Funds"… The
     /// tree groups on this, which reads better than a tier number.
     var segment: String = "Other"
+    /// Set only when a firm has more than one board, to say which one this is —
+    /// "Campus" for Millennium's separate student site. Plenty of firms keep
+    /// graduate hiring on its own portal that their main board never lists, so
+    /// one entry per firm would silently miss exactly the roles this tool is
+    /// for. Purely a label: postings still carry the plain firm name.
+    var board: String?
 
-    var id: String { name }
+    /// Two entries can share a name — see `board` — so identity has to include
+    /// where the roles come from, or SwiftUI hands them the same identity and
+    /// clicking one row toggles the other.
+    var id: String { "\(name)\u{1}\(boardFingerprint)" }
+
+    /// The firm name, with the board appended when there is more than one.
+    var displayName: String {
+        guard let board, !board.isEmpty else { return name }
+        return "\(name) · \(board)"
+    }
 
     /// What to show in the "board" column — a slug for most, a host for
     /// Workday, the search terms for a query-style board.
@@ -130,7 +145,7 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case name, ats, token, host, tenant, site, query, enabled, tags, note, tier
-        case segment, sitemap, path
+        case segment, sitemap, path, board
         case titleLoc = "title_loc"
     }
 
@@ -159,6 +174,7 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
         note = try c.decodeIfPresent(String.self, forKey: .note)
+        board = try c.decodeIfPresent(String.self, forKey: .board)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -188,6 +204,9 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
         try c.encode(enabled, forKey: .enabled)
         if !tags.isEmpty { try c.encode(tags, forKey: .tags) }
         if let note, !note.isEmpty { try c.encode(note, forKey: .note) }
+        // Dropped on a save, the second board of a firm would come back looking
+        // like a duplicate of the first.
+        if let board, !board.isEmpty { try c.encode(board, forKey: .board) }
     }
 }
 

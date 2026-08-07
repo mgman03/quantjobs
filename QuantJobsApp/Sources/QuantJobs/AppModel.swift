@@ -616,11 +616,19 @@ final class AppModel {
         // has rows fetched from the old one. Enabling or disabling it doesn't
         // matter, but re-pointing it does, and the incremental scrape would
         // otherwise keep serving what the previous source returned.
-        let before = Dictionary(companies.map { ($0.name, $0.boardFingerprint) },
-                                uniquingKeysWith: { a, _ in a })
-        for firm in onDisk.companies where before[firm.name] != firm.boardFingerprint {
-            fetchedFirms.remove(firm.name)
-            jobs.removeAll { $0.company == firm.name }
+        //
+        // Compared as a set per firm, not one fingerprint per firm: a firm can
+        // have several boards, and matching only the first would call every
+        // other one re-pointed on every reload — a full refetch each time the
+        // window came forward.
+        func boards(_ list: [Company]) -> [String: Set<String>] {
+            Dictionary(grouping: list, by: \.name)
+                .mapValues { Set($0.map(\.boardFingerprint)) }
+        }
+        let before = boards(companies), after = boards(onDisk.companies)
+        for (name, prints) in after where before[name] != prints {
+            fetchedFirms.subtract(companies.filter { $0.name == name }.map(\.id))
+            jobs.removeAll { $0.company == name }
         }
         companies = onDisk.companies
         fileComment = onDisk.comment
@@ -658,8 +666,10 @@ final class AppModel {
             CompanyFile(comment: fileComment, companies: companies))
     }
 
-    func upsert(_ company: Company, replacing original: String?) {
-        if let original, let i = companies.firstIndex(where: { $0.name == original }) {
+    /// `original` is a `Company.ID`, not a name — a firm can have more than one
+    /// board, and keying on the name would edit or delete both.
+    func upsert(_ company: Company, replacing original: Company.ID?) {
+        if let original, let i = companies.firstIndex(where: { $0.id == original }) {
             companies[i] = company
         } else {
             companies.append(company)
@@ -668,7 +678,7 @@ final class AppModel {
     }
 
     func delete(_ company: Company) {
-        companies.removeAll { $0.name == company.name }
+        companies.removeAll { $0.id == company.id }
         saveCompanies()
     }
 
@@ -761,13 +771,19 @@ final class AppModel {
     private var indexByID: [Company.ID: Int] = [:]
 
     func rebuildFirmIndex() {
-        indexByID = Dictionary(uniqueKeysWithValues:
-            companies.enumerated().map { ($0.element.id, $0.offset) })
+        // `uniqueKeysWithValues` traps on a collision, and companies.json is a
+        // file people hand-edit — two byte-identical entries shouldn't be able
+        // to kill the app on launch. First one wins.
+        indexByID = Dictionary(
+            companies.enumerated().map { ($0.element.id, $0.offset) },
+            uniquingKeysWith: { first, _ in first })
 
         firmTree = Self.groups.map { group in
             let members = companies
                 .filter { $0.tags.contains(group) }
-                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name)
+                // displayName, not name: Swift's sort isn't stable, so two
+                // boards of the same firm would swap places between rebuilds.
+                .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName)
                             == .orderedAscending }
             // A deliberate order — tiers ascending, big tech most-wanted
             // first. Sorting by size put "Tier 2" above "Tier 1".
@@ -828,9 +844,12 @@ final class AppModel {
 
     // MARK: - Scraping
 
-    /// Which firms the rows on screen came from, and whether they were fetched
-    /// with deep matching. Lets a selection change fetch only the difference.
-    private var fetchedFirms: Set<String> = []
+    /// Which *boards* the rows on screen came from, and whether they were
+    /// fetched with deep matching. Lets a selection change fetch only the
+    /// difference. Keyed by `Company.ID` rather than name, so switching on a
+    /// firm's second board doesn't count as already visited because its first
+    /// one was.
+    private var fetchedFirms: Set<Company.ID> = []
     private var fetchedDeep = false
 
     /// `full` forces every selected board to be refetched — what ⌘R means.
@@ -843,10 +862,12 @@ final class AppModel {
         // Deep matching changes what each board returns, so it invalidates
         // everything; otherwise keep what we have and fetch the difference.
         let reusable = !full && deep == fetchedDeep && !showingCache
-        let keep = reusable ? fetchedFirms.intersection(selected.map(\.name)) : []
-        let firms = selected.filter { !keep.contains($0.name) }
+        let keep = reusable ? fetchedFirms.intersection(selected.map(\.id)) : []
+        let firms = selected.filter { !keep.contains($0.id) }
 
-        // Rows from firms that just left the selection shouldn't linger.
+        // Rows from firms that just left the selection shouldn't linger. Names,
+        // not ids: a posting only knows which firm it came from, not which of
+        // that firm's boards.
         if reusable {
             let wanted = Set(selected.map(\.name))
             let before = jobs.count
@@ -939,9 +960,10 @@ final class AppModel {
         // Counted either way: a board that failed has been visited, and
         // retrying it on every filter tweak would make the app crawl. ⌘R
         // refetches everything.
-        fetchedFirms.insert(result.company.name)
+        fetchedFirms.insert(result.company.id)
         if let reason = result.failure {
-            failures.append(ScrapeFailure(company: result.company.name, reason: reason))
+            failures.append(ScrapeFailure(company: result.company.displayName,
+                                          reason: reason))
         } else {
             scrapedCompanies.insert(result.company.name)
             scrapedKeys.formUnion(allKeys)

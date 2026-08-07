@@ -151,7 +151,7 @@ enum Adapters {
                 out.append(RawJob(
                     title: j["name"] as? String ?? "",
                     location: where_.isEmpty ? (remote ? "Remote" : "") : where_,
-                    url: "https://jobs.smartrecruiters.com/\(token)/\(j["id"] as? String ?? "")",
+                    url: "https://jobs.smartrecruiters.com/\(token)/\(Clean.scalar(j["id"]))",
                     posted: Clean.isoDate(j["releasedDate"]),
                     department: (j["department"] as? [String: Any])?["label"] as? String ?? "",
                     description: ""))
@@ -421,7 +421,7 @@ enum Adapters {
                     [s["city"], s["region"], s["countryName"]]
                         .compactMap { $0 as? String }.joined(separator: ", ")
                 }.joined(separator: "; ")
-                let id = (j["id"] as? NSNumber).map { "\($0)" } ?? ""
+                let id = Clean.scalar(j["id"])
                 out.append(RawJob(
                     title: j["title"] as? String ?? "",
                     location: where_,
@@ -951,7 +951,7 @@ enum Adapters {
             let where_ = [j["City"], j["State"]]
                 .compactMap { $0 as? String }.filter { !$0.isEmpty }
                 .joined(separator: ", ")
-            let id = j["ID"] as? String ?? ""
+            let id = Clean.scalar(j["ID"])
             return RawJob(
                 title: j["Title"] as? String ?? "",
                 location: where_.isEmpty ? (j["Location"] as? String ?? "") : where_,

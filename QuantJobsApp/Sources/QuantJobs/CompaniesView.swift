@@ -30,7 +30,8 @@ struct CompaniesView: View {
         }
         return out.sorted {
             $0.tier == $1.tier
-                ? $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                ? $0.displayName.localizedCaseInsensitiveCompare($1.displayName)
+                    == .orderedAscending
                 : $0.tier < $1.tier
         }
     }
@@ -48,7 +49,8 @@ struct CompaniesView: View {
     }
 
     /// Wraps the company being edited so `.sheet(item:)` can drive the form,
-    /// with nil `original` meaning "this one is new".
+    /// with nil `original` meaning "this one is new". The id, not the name:
+    /// a firm can have more than one board and they'd otherwise collide.
     struct EditTarget: Identifiable {
         var company: Company
         var original: String?
@@ -193,7 +195,7 @@ struct CompaniesView: View {
             }
             .width(30)
 
-            TableColumn("Firm", value: \.name)
+            TableColumn("Firm", value: \.displayName)
                 .width(min: 120, ideal: 170)
 
             TableColumn("ATS") { Text($0.ats.label) }
@@ -219,7 +221,7 @@ struct CompaniesView: View {
                     for id in ids { if let c = company(id) { model.delete(c) } }
                 }
             } else if let id = ids.first, let company = company(id) {
-                Button("Edit…") { editing = EditTarget(company: company, original: company.name) }
+                Button("Edit…") { editing = EditTarget(company: company, original: company.id) }
                 Button(company.enabled ? "Turn Off" : "Turn On") {
                     model.setEnabled(!company.enabled, for: company.id)
                 }
@@ -232,7 +234,7 @@ struct CompaniesView: View {
             }
         } primaryAction: { ids in
             if let id = ids.first, let company = company(id) {
-                editing = EditTarget(company: company, original: company.name)
+                editing = EditTarget(company: company, original: company.id)
             }
         }
     }

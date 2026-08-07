@@ -89,6 +89,24 @@ enum HTTP {
 
 enum Clean {
 
+    /// A JSON scalar as text, whether the board sent a string or a number.
+    ///
+    /// Worth a helper because `as? String` on a numeric field yields nil, and
+    /// the fallback is usually "" — which is invisible until it lands in a URL.
+    /// Wolverine serves `"ID": 336`, so every posting got the same empty job
+    /// link, and since a posting is identified by its URL the whole board
+    /// deduplicated down to one row.
+    static func scalar(_ v: Any?) -> String {
+        switch v {
+        case let s as String: s
+        case let n as NSNumber:
+            // 336, not 336.0 — an integral double in a URL is a broken link.
+            n.doubleValue == n.doubleValue.rounded() && abs(n.doubleValue) < 1e15
+                ? String(n.int64Value) : n.stringValue
+        default: ""
+        }
+    }
+
     /// Strip tags and entities out of an HTML description, collapse whitespace.
     static func html(_ s: String?) -> String {
         guard let s, !s.isEmpty else { return "" }
