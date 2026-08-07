@@ -342,7 +342,35 @@ enum HeadlessCheck {
             print("  after reload: \(third.trackedEntry(for: applied)?.milestones.count ?? 0) "
                   + "step(s), at \(third.stage(of: applied)?.label ?? "—")")
 
-            third.clearApplication(for: [applied])
+            // Stage sections: one block per stage reached, in pipeline order,
+            // and folding one takes its rows out of the table.
+            print("\nstage sections:")
+            let more = [make("DRW", "Platform Engineer Intern"),
+                        make("Optiver", "Quant Trader Intern"),
+                        make("SIG", "Discovery Program")]
+            third.record(.applied, for: [more[0]])
+            third.record(.applied, for: [more[1]])
+            third.record(.interview, for: [more[1]])
+            third.record(.applied, for: [more[2]])
+            third.record(.offer, for: [more[2]])
+            third.list = .applied
+            for group in third.appliedGroups {
+                print("  \(group.stage.label): \(group.jobs.count) "
+                      + "(\(group.jobs.map(\.company).sorted().joined(separator: ", ")))")
+            }
+            let order = third.appliedGroups.map(\.stage.order)
+            print("  in pipeline order: \(order == order.sorted())")
+            print("  empty stages left out: "
+                  + "\(third.appliedGroups.allSatisfy { !$0.jobs.isEmpty })")
+            let visible = third.visibleJobs.count
+            third.toggleCollapsed(.applied)
+            let folded = third.appliedGroups
+                .filter { !third.isCollapsed($0.stage) }
+                .reduce(0) { $0 + $1.jobs.count }
+            print("  folding Applied: \(visible) rows → \(folded) shown")
+            third.toggleCollapsed(.applied)
+
+            third.clearApplication(for: more + [applied])
             print("\ncleared         applied=\(third.count(.applied)) "
                   + "saved=\(third.count(.favorite)) hidden=\(third.count(.hidden))")
 
@@ -373,6 +401,8 @@ enum HeadlessCheck {
             a.deep = true
             a.mergeRoles = false
             a.showHidden = true
+            a.hideApplied = true
+            a.collapsedStages = [.applied, .rejected]
             a.list = .applied
             a.currentSettings.save()      // the view debounces; here, straight through
 
@@ -385,6 +415,8 @@ enum HeadlessCheck {
                 && b.continentFilter == ["Europe", "Asia"]
                 && b.cityFilter == ["London"]
                 && b.newOnly && b.deep && !b.mergeRoles && b.showHidden
+                && b.hideApplied
+                && b.collapsedStages == [.applied, .rejected]
                 && b.list == .applied
 
             print("settings  category=\(b.selectedCategoryID) level=\(b.level.rawValue) "
@@ -393,7 +425,9 @@ enum HeadlessCheck {
             print("          continents=\(b.continentFilter.sorted()) "
                   + "cities=\(b.cityFilter.sorted()) list=\(b.list.rawValue)")
             print("          toggles newOnly=\(b.newOnly) deep=\(b.deep) "
-                  + "merge=\(b.mergeRoles) showHidden=\(b.showHidden)")
+                  + "merge=\(b.mergeRoles) showHidden=\(b.showHidden) "
+                  + "hideApplied=\(b.hideApplied)")
+            print("          folded=\(b.collapsedStages.map(\.rawValue).sorted())")
             print(ok ? "ALL SETTINGS SURVIVED A RESTART" : "SETTINGS LOST")
 
             // Leave the real preferences exactly as they were.
@@ -705,6 +739,31 @@ enum HeadlessCheck {
                 .compactMap { model.company($0)?.name }
                 .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
             print("  firms A-Z, first 6: \(names.prefix(6).joined(separator: ", "))")
+
+            // "Hide applied" narrows the results to what's left to do, without
+            // touching the Applied list it's hiding them into.
+            do {
+                let picks = Array(model.visibleJobs.prefix(3))
+                let before = model.visibleJobs.count
+                for job in picks { model.record(.applied, for: [job]) }
+                model.hideApplied = true
+                let after = model.visibleJobs.count
+                // Read with the filter on: the count is what it's holding back,
+                // which is zero while it's off.
+                let tracked = model.appliedInResults
+                model.list = .applied
+                let inList = model.visibleJobs.count
+                model.list = .results
+                print("hide app  results \(before) → \(after), "
+                      + "removed exactly the \(tracked) applied: "
+                      + "\(before - after == tracked && tracked == picks.count) · "
+                      + "Applied list still \(inList) · "
+                      + "counts as a filter: \(model.hasExtraFilters)")
+                model.clearFilters()
+                print("          Clear turns it off: \(model.hideApplied == false), "
+                      + "rows back to \(model.visibleJobs.count)")
+                model.clearApplication(for: picks)
+            }
 
             if let victim = model.visibleJobs.first {
                 let before = model.visibleJobs.count

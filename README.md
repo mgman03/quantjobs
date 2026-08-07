@@ -132,10 +132,16 @@ the two stay in sync and you can use whichever suits the moment.
   *Interview*, *Final round*, *Offer*, *Rejected* or *Withdrawn* from the row's
   ✓ menu, and the Progress column reads `OA · 5d` — where you are and how long it's
   been. The detail panel shows the whole sequence with dates and "2 weeks ago", and
-  lets you correct one or add a step you did out of order. The Applied list sorts by
-  what moved most recently, not by when the board posted the role. All of it survives
-  a board deleting the posting — a role that closed is struck through rather than
-  lost, because an application you're tracking shouldn't disappear with the listing.
+  lets you correct one or add a step you did out of order. All of it survives a board
+  deleting the posting — a role that closed is struck through rather than lost,
+  because an application you're tracking shouldn't disappear with the listing.
+- **The Applied list is grouped by stage**, one foldable block per stage you've
+  reached, in pipeline order and newest activity first. Fold the ones you're not
+  thinking about; a folded heading still says how many and how long the stalest has
+  been sitting there. Which blocks are folded is remembered.
+- **Hide applied** in the filter row takes anything you've applied to out of the
+  results, so the list reads as what's left to do. It's a filter like any other —
+  it shows as a chip saying how many it's holding back, and Clear turns it off.
 - **Opens populated.** The last run is cached, so the window comes up with results in
   it and refreshes behind them; it only re-scrapes if the cache is over six hours old.
 - **Titles are tidied** — `2026 - Internship, Quantitative Developer` shows as

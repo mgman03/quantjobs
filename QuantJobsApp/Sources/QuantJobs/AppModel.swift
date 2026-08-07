@@ -136,7 +136,8 @@ final class AppModel {
     /// Whether anything beyond category + level is narrowing the list.
     var hasExtraFilters: Bool {
         tagFilter != nil || sinceDays != nil
-            || newOnly || deep || !search.isEmpty || !locationFilter.isEmpty
+            || newOnly || deep || hideApplied || !search.isEmpty
+            || !locationFilter.isEmpty
             || !continentFilter.isEmpty || !cityFilter.isEmpty
     }
 
@@ -145,6 +146,7 @@ final class AppModel {
         sinceDays = nil
         newOnly = false
         deep = false
+        hideApplied = false
         search = ""
         locationFilter = ""
         continentFilter = []
@@ -210,6 +212,11 @@ final class AppModel {
 
     var list: JobList = .results
     var showHidden = false
+    /// Leave applications out of the results list, so it reads as what's left to
+    /// do. Results only — the Applied list is where they live.
+    var hideApplied = false
+    /// Stage sections folded shut in the Applied list.
+    var collapsedStages: Set<Stage> = []
     private(set) var tracked: [String: TrackedJob] = [:]
 
     func trackedEntry(for job: Job) -> TrackedJob? { tracked[job.key] }
@@ -280,7 +287,7 @@ final class AppModel {
     @ObservationIgnored private var resultsVersion = 0
 
     private var visibleKey: String {
-        "\(resultsVersion)|\(list.rawValue)|\(showHidden)|\(mergeRoles)|"
+        "\(resultsVersion)|\(list.rawValue)|\(showHidden)|\(hideApplied)|\(mergeRoles)|"
         + "\(selectedCategoryID)|\(level.rawValue)|\(search)|"
         + "\(tagFilter ?? "-")|\(sinceDays.map(String.init) ?? "-")|"
         + "\(newOnly)|\(locationFilter)|"
@@ -304,9 +311,28 @@ final class AppModel {
             // level and date filters exist to narrow a scrape, and applying
             // them here would hide applications you're trying to track.
             let q = query
+            heldBack = [:]
             return jobs(with: status).filter { q.matchesSearch($0) }
         }
 
+        let rows = resultRows(showHidden: showHidden, hideApplied: hideApplied)
+        // What each mark filter is holding back, measured the way the chip and
+        // the banner state it: rows the list would gain if it were off. Counting
+        // postings instead read "6 applied hidden" when three rows disappeared,
+        // because a merged row stands for several postings.
+        heldBack[.hidden] = showHidden ? 0
+            : resultRows(showHidden: true, hideApplied: hideApplied).count - rows.count
+        heldBack[.applied] = !hideApplied ? 0
+            : resultRows(showHidden: showHidden, hideApplied: false).count - rows.count
+        return rows
+    }
+
+    /// The results list under a given pair of mark filters.
+    ///
+    /// The marks are applied *before* the merge, deliberately: hiding one office
+    /// of a role posted in four should leave the other three, which dropping
+    /// whole merged rows wouldn't.
+    private func resultRows(showHidden: Bool, hideApplied: Bool) -> [Job] {
         let q = query
         let cutoff = q.cutoffDate
         let kept = jobs.filter { job in
@@ -316,6 +342,7 @@ final class AppModel {
             }
             guard q.matchesLiveFilters(job, cutoff: cutoff) else { return false }
             if !showHidden, tracked[job.key]?.hidden == true { return false }
+            if hideApplied, tracked[job.key]?.hasApplication == true { return false }
             return true
         }
         // Merge after filtering, so a city filter leaves a merged row holding
@@ -324,18 +351,60 @@ final class AppModel {
         return (mergeRoles ? kept.mergedByRole() : kept).sortedByRecency()
     }
 
+    /// The Applied list, split into one block per stage in pipeline order.
+    ///
+    /// Empty stages are left out — a section header for a stage you've never
+    /// reached is noise, and the sections are how you fold the list down to the
+    /// part you're actually waiting on.
+    struct StageGroup: Identifiable, Sendable {
+        let stage: Stage
+        let jobs: [Job]
+        var id: String { stage.rawValue }
+    }
+
+    var appliedGroups: [StageGroup] {
+        let rows = visibleJobs
+        var byStage: [Stage: [Job]] = [:]
+        for job in rows {
+            guard let stage = tracked[job.key]?.stage else { continue }
+            byStage[stage, default: []].append(job)
+        }
+        return Stage.allCases.compactMap { stage in
+            guard let jobs = byStage[stage] else { return nil }
+            return StageGroup(stage: stage, jobs: jobs)
+        }
+    }
+
+    func isCollapsed(_ stage: Stage) -> Bool { collapsedStages.contains(stage) }
+
+    func toggleCollapsed(_ stage: Stage) {
+        if collapsedStages.contains(stage) {
+            collapsedStages.remove(stage)
+        } else {
+            collapsedStages.insert(stage)
+        }
+    }
+
     /// How many results the hidden filter is currently holding back.
     /// Recomputed as filters change, so the badge always matches the list.
     var visibleNewCount: Int { visibleJobs.count { $0.isNew } }
 
+    /// How many rows each mark filter is currently holding back, filled in by
+    /// the same pass that builds the list so the numbers always agree with it.
+    @ObservationIgnored private var heldBack: [JobStatus: Int] = [:]
+
     var hiddenInResults: Int {
         guard list == .results else { return 0 }
-        let q = query
-        let cutoff = q.cutoffDate
-        return jobs.count { job in
-            tracked[job.key]?.hidden == true
-                && q.matchesLiveFilters(job, cutoff: cutoff)
-        }
+        _ = visibleJobs                       // makes sure the tally is current
+        return heldBack[.hidden] ?? 0
+    }
+
+    /// What "Hide applied" is keeping back, so the chip can say how many rather
+    /// than leaving you to wonder whether it did anything.
+    var appliedInResults: Int {
+        guard list == .results else { return 0 }
+        _ = visibleJobs
+        return heldBack[.applied] ?? 0
     }
 
     // MARK: - Changing status
@@ -512,7 +581,8 @@ final class AppModel {
          sinceDays.map(String.init) ?? "-",
          continentFilter.sorted().joined(separator: ","),
          cityFilter.sorted().joined(separator: ","),
-         "\(newOnly)\(deep)\(mergeRoles)\(recordState)\(showHidden)",
+         "\(newOnly)\(deep)\(mergeRoles)\(recordState)\(showHidden)\(hideApplied)",
+         collapsedStages.map(\.rawValue).sorted().joined(separator: ","),
          "\(refreshOnLaunch)\(refreshIfOlderThanHours)",
         ].joined(separator: "|")
     }
@@ -526,6 +596,8 @@ final class AppModel {
                     cities: cityFilter.sorted(),
                     newOnly: newOnly, deep: deep, mergeRoles: mergeRoles,
                     recordState: recordState, showHidden: showHidden,
+                    hideApplied: hideApplied,
+                    collapsedStages: collapsedStages.map(\.rawValue).sorted(),
                     refreshOnLaunch: refreshOnLaunch,
                     refreshIfOlderThanHours: refreshIfOlderThanHours)
     }
@@ -544,6 +616,8 @@ final class AppModel {
         mergeRoles = s.mergeRoles
         recordState = s.recordState
         showHidden = s.showHidden
+        hideApplied = s.hideApplied
+        collapsedStages = Set(s.collapsedStages.compactMap(Stage.init(rawValue:)))
         refreshOnLaunch = s.refreshOnLaunch
         refreshIfOlderThanHours = s.refreshIfOlderThanHours
     }

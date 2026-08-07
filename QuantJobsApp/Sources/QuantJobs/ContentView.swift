@@ -347,6 +347,20 @@ struct ContentView: View {
             .fixedSize()
             .help("How recently the role was posted")
 
+            Toggle(isOn: $model.hideApplied) {
+                HStack(spacing: 4) {
+                    Image(systemName: model.hideApplied
+                          ? "paperplane.slash" : "paperplane")
+                    Text("Hide applied")
+                }
+                .font(.callout)
+            }
+            .toggleStyle(.button)
+            .buttonStyle(.accessoryBar)
+            .fixedSize()
+            .help("Leave out roles you've already applied to — "
+                  + "they stay in the Applied list")
+
             Spacer(minLength: 8)
 
             searchField
@@ -466,6 +480,11 @@ struct ContentView: View {
         if model.deep {
             chip("deep match", "text.magnifyingglass") { model.deep = false }
         }
+        if model.hideApplied {
+            let n = model.appliedInResults
+            chip(n > 0 ? "\(n) applied hidden" : "applied hidden",
+                 "paperplane.slash") { model.hideApplied = false }
+        }
         if !model.search.isEmpty {
             chip("“\(model.search)”", "magnifyingglass") { model.search = "" }
         }
@@ -548,8 +567,49 @@ struct ContentView: View {
         }
     }
 
-    private func jobTable(_ rows: [Job]) -> some View {
-        Table(rows, selection: $selection, sortOrder: $sortOrder) {
+    /// A foldable heading for one stage of the Applied list. The whole row is
+    /// the hit target, since a chevron alone is a small thing to aim at.
+    private func stageHeader(_ group: AppModel.StageGroup) -> some View {
+        let collapsed = model.isCollapsed(group.stage)
+        return Button {
+            model.toggleCollapsed(group.stage)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: collapsed ? "chevron.right" : "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 10)
+                Image(systemName: group.stage.symbol)
+                    .font(.caption)
+                    .foregroundStyle(Self.tint(group.stage))
+                Text(group.stage.label)
+                    .font(.callout.weight(.medium))
+                Text("\(group.jobs.count)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(.quaternary.opacity(0.6), in: .capsule)
+                if collapsed, let oldest = group.jobs
+                    .compactMap({ model.trackedEntry(for: $0)?.lastActivity })
+                    .min(), let age = Dates.relative(oldest) {
+                    // Folded, the useful thing to still say is how long the
+                    // stalest one has been sitting there.
+                    Text("oldest \(age)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// The columns, lifted out of the Table so both the flat and the
+    /// stage-sectioned row builders can share one definition.
+    @TableColumnBuilder<Job, KeyPathComparator<Job>>
+    private var jobColumns: some TableColumnContent<Job, KeyPathComparator<Job>> {
             // One column for the row actions. Four separate icon columns left
             // four empty header cells and a row of stray dividers.
             TableColumn("") { job in
@@ -649,6 +709,27 @@ struct ContentView: View {
                     .foregroundStyle(job.posted.isEmpty ? .secondary : .primary)
             }
             .width(80)
+    }
+
+    private func jobTable(_ rows: [Job]) -> some View {
+        Table(of: Job.self, selection: $selection, sortOrder: $sortOrder) {
+            jobColumns
+        } rows: {
+            if model.list == .applied {
+                // One block per stage, foldable, so the list can be narrowed to
+                // whatever you're actually waiting on.
+                ForEach(model.appliedGroups) { group in
+                    Section {
+                        if !model.isCollapsed(group.stage) {
+                            ForEach(group.jobs) { TableRow($0) }
+                        }
+                    } header: {
+                        stageHeader(group)
+                    }
+                }
+            } else {
+                ForEach(rows) { TableRow($0) }
+            }
         }
         .contextMenu(forSelectionType: Job.ID.self) { ids in
             let picked = selected(ids, in: rows)

@@ -22,6 +22,11 @@ struct AppSettings: Codable, Sendable, Equatable {
     var mergeRoles = true
     var recordState = true
     var showHidden = false
+    /// Leave out roles you've already applied to, so the results list is what's
+    /// left to do rather than everything.
+    var hideApplied = false
+    /// Which stage sections are folded shut in the Applied list.
+    var collapsedStages: [String] = []
 
     /// Refresh on open, and how stale the cache has to be before that's worth
     /// doing. A full run is a hundred-odd boards and tens of thousands of
