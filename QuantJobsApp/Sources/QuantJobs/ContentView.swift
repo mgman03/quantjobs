@@ -8,35 +8,7 @@ struct ContentView: View {
     @State private var sortOrder = [KeyPathComparator(\Job.posted, order: .reverse)]
     @State private var selection: Set<Job.ID> = []
     @State private var showingFailures = false
-    @State private var showingPlaces = false
     @State private var showingSources = false
-    @State private var showingFirms = false
-
-    /// "All firms" / "Quant" / "62 firms" — the state at a glance.
-    private var firmsLabel: String {
-        let on = model.selectedFirms.count
-        let total = model.companies.count { $0.isConfigured }
-        if on == total { return "All firms" }
-        for node in model.firmTree where model.checkState(node.ids,
-                                                          usable: node.usable) == .on {
-            let others = model.firmTree.filter { $0.group != node.group }
-            if others.allSatisfy({ model.enabledCount($0.ids) == 0 }) {
-                return AppModel.groupLabel(node.group)
-            }
-        }
-        return "\(on) firms"
-    }
-
-    /// "Anywhere" / "Europe" / "3 places" — enough to see the state at a glance.
-    private var placesLabel: String {
-        let continents = model.continentFilter, cities = model.cityFilter
-        if continents.isEmpty && cities.isEmpty { return "Anywhere" }
-        if !cities.isEmpty {
-            return cities.count == 1 ? cities.first! : "\(cities.count) cities"
-        }
-        if continents.count == 1, let only = continents.first { return only }
-        return "\(continents.count) regions"
-    }
 
     private static let defaultSort = [KeyPathComparator(\Job.posted, order: .reverse)]
 
@@ -69,7 +41,7 @@ struct ContentView: View {
                            + "(Rebuilding the app re-signs it, so it asks again.)")
                 }
                 if model.list == .results {
-                    filterBar
+                    FilterBar(model: model)
                     if model.hiddenInResults > 0 || model.showHidden { hiddenBar }
                 } else {
                     listBar
@@ -150,8 +122,12 @@ struct ContentView: View {
 
     private var sidebar: some View {
         List(selection: sidebarSelection) {
+            // `.results` deliberately absent: it isn't a list, it's the mode
+            // you're in when a category is selected — and the Everything
+            // category already means "all roles", so a row for it read as a
+            // second, subtly different way to ask for the same thing.
             Section("Lists") {
-                ForEach(AppModel.JobList.allCases) { entry in
+                ForEach(AppModel.JobList.pickable) { entry in
                     HStack(spacing: 6) {
                         Label(entry.title, systemImage: entry.symbol)
                         Spacer()
@@ -281,136 +257,6 @@ struct ContentView: View {
 
     // MARK: - Filter bar
 
-    private var filterBar: some View {
-        VStack(alignment: .leading, spacing: 6) {
-        HStack(spacing: 12) {
-            Picker("", selection: $model.level) {
-                ForEach(Level.allCases) {
-                    Text($0.shortLabel).tag($0).help($0.hint)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .help(model.level.hint)
-
-
-            Button {
-                showingPlaces.toggle()
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "globe.americas")
-                    Text(placesLabel)
-                    Image(systemName: "chevron.down").font(.system(size: 8))
-                }
-                .font(.callout)
-            }
-            .popover(isPresented: $showingPlaces, arrowEdge: .bottom) {
-                PlaceFilter(model: model)
-            }
-            .help("Filter by continent, then drill into cities")
-
-            Button {
-                showingFirms.toggle()
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "building.2")
-                    Text(firmsLabel)
-                    Image(systemName: "chevron.down").font(.system(size: 8))
-                }
-                .font(.callout)
-            }
-            .popover(isPresented: $showingFirms, arrowEdge: .bottom) {
-                FirmFilter(model: model)
-            }
-            .help("Choose which firms to scrape")
-
-            Menu {
-                Picker("", selection: $model.sinceDays) {
-                    Text("Any time").tag(Int?.none)
-                    Text("Last 7 days").tag(Int?.some(7))
-                    Text("Last 14 days").tag(Int?.some(14))
-                    Text("Last 30 days").tag(Int?.some(30))
-                    Text("Last 90 days").tag(Int?.some(90))
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "calendar")
-                    Text(model.sinceDays.map { "Last \($0)d" } ?? "Any time")
-                    Image(systemName: "chevron.down").font(.system(size: 8))
-                }
-                .font(.callout)
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help("How recently the role was posted")
-
-            Toggle(isOn: $model.hideApplied) {
-                HStack(spacing: 4) {
-                    Image(systemName: model.hideApplied
-                          ? "paperplane.slash" : "paperplane")
-                    Text("Hide applied")
-                }
-                .font(.callout)
-            }
-            .toggleStyle(.button)
-            .buttonStyle(.accessoryBar)
-            .fixedSize()
-            .help("Leave out roles you've already applied to — "
-                  + "they stay in the Applied list")
-
-            Spacer(minLength: 8)
-
-            searchField
-        }
-
-        if model.hasExtraFilters {
-            HStack(spacing: 6) {
-                ScrollView(.horizontal) {
-                    HStack(spacing: 6) { chips }
-                        .padding(.vertical, 1)
-                }
-                .scrollIndicators(.never)
-
-                Button("Clear", action: model.clearFilters)
-                    .buttonStyle(.link)
-                    .font(.caption)
-            }
-        }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-    }
-
-    /// Lives in the filter row rather than the window toolbar. In the toolbar it
-    /// was drawn across the top of the inspector, so the field's capsule and the
-    /// panel's rounded corner overlapped whenever a role was selected.
-    private var searchField: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "magnifyingglass")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            TextField("Filter roles", text: $model.search)
-                .textFieldStyle(.plain)
-                .frame(width: 150)
-            if !model.search.isEmpty {
-                Button { model.search = "" } label: {
-                    Image(systemName: "xmark.circle.fill")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-            }
-        }
-        .font(.callout)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 6))
-        .fixedSize()
-        .help("Filter the roles already on screen")
-    }
-
     /// The strip that appears once anything is hidden, so hidden roles are
     /// never silently missing from a count.
     private var hiddenBar: some View {
@@ -446,64 +292,13 @@ struct ContentView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 8)
-            searchField
+            SearchField(model: model)
             Button("Back to Results") { model.list = .results }
                 .buttonStyle(.link)
                 .font(.caption)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-    }
-
-    @ViewBuilder
-    private var chips: some View {
-        if let tag = model.tagFilter {
-            chip(tag, "tag") { model.tagFilter = nil }
-        }
-        if !model.citiesOverrideContinents {
-            ForEach(model.continentFilter.sorted(), id: \.self) { continent in
-                chip(continent, "globe") { model.toggleContinent(continent) }
-            }
-        }
-        ForEach(model.cityFilter.sorted(), id: \.self) { city in
-            chip(city, "mappin") { model.toggleCity(city) }
-        }
-        if let days = model.sinceDays {
-            chip("last \(days)d", "calendar") { model.sinceDays = nil }
-        }
-        if !model.locationFilter.isEmpty {
-            chip(model.locationFilter, "mappin.and.ellipse") { model.locationFilter = "" }
-        }
-        if model.newOnly {
-            chip("unseen only", "sparkles") { model.newOnly = false }
-        }
-        if model.deep {
-            chip("deep match", "text.magnifyingglass") { model.deep = false }
-        }
-        if model.hideApplied {
-            let n = model.appliedInResults
-            chip(n > 0 ? "\(n) applied hidden" : "applied hidden",
-                 "paperplane.slash") { model.hideApplied = false }
-        }
-        if !model.search.isEmpty {
-            chip("“\(model.search)”", "magnifyingglass") { model.search = "" }
-        }
-    }
-
-    private func chip(_ text: String, _ symbol: String,
-                      clear: @escaping () -> Void) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: symbol).font(.system(size: 9))
-            Text(text).lineLimit(1)
-            Button(action: clear) {
-                Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
-            }
-            .buttonStyle(.plain)
-        }
-        .font(.caption)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(.quaternary, in: .capsule)
     }
 
     // MARK: - Table

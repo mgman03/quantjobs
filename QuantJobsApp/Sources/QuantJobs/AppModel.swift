@@ -208,6 +208,11 @@ final class AppModel {
             case .hidden: .hidden
             }
         }
+
+        /// The ones the sidebar offers. `.results` isn't a list you pick — it's
+        /// the mode you're in when a category is selected, and the Everything
+        /// category already means "all roles".
+        static var pickable: [JobList] { allCases.filter { $0.status != nil } }
     }
 
     var list: JobList = .results

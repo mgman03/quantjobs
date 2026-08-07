@@ -113,10 +113,11 @@ them experienced. In the app these are the **Both** and **All levels** buttons.
 `QuantJobsApp/` covers the same ground as the CLI and reads the same config files, so
 the two stay in sync and you can use whichever suits the moment.
 
-- **Filters in one row above the table** — level, location, firms, date, search.
-  Location and firms are drill-down pickers: click a group on the left to narrow the
-  list on the right, tick either to select. Active filters show as removable chips
-  underneath, so you can always see why the list is short.
+- **Filters in one row above the table** — level, location, firms, date, hide-applied,
+  search. Location and firms are drill-down pickers: click a group on the left to
+  narrow the list on the right, tick either to select. Each control states its own
+  setting, so there's no second row of chips repeating them; a **Clear** link appears
+  at the end of the row when anything is on.
 - **Changing a filter updates the list straight away.** Level, location, date,
   category and search are applied to what's already been fetched, so they're
   instant — no network at all. Changing *which firms* does need boards fetched, and
@@ -140,8 +141,7 @@ the two stay in sync and you can use whichever suits the moment.
   thinking about; a folded heading still says how many and how long the stalest has
   been sitting there. Which blocks are folded is remembered.
 - **Hide applied** in the filter row takes anything you've applied to out of the
-  results, so the list reads as what's left to do. It's a filter like any other —
-  it shows as a chip saying how many it's holding back, and Clear turns it off.
+  results, so the list reads as what's left to do. They stay in the Applied list.
 - **Opens populated.** The last run is cached, so the window comes up with results in
   it and refreshes behind them; it only re-scrapes if the cache is over six hours old.
 - **Titles are tidied** — `2026 - Internship, Quantitative Developer` shows as

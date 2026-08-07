@@ -489,26 +489,33 @@ enum HeadlessCheck {
                              Milestone(stage: .assessment, date: "2026-07-31")],
                 note: "phone screen booked for Tuesday")
 
-            for (name, scheme) in [("detail-light", ColorScheme.light),
-                                   ("detail-dark", ColorScheme.dark)] {
-                let view = JobDetailContent(job: withNew, tracking: tracking)
-                    .frame(width: 340)
+            @MainActor
+            func write(_ view: some View, _ name: String, _ scheme: ColorScheme) {
+                let framed = view
                     .background(scheme == .dark ? Color.black : Color.white)
                     .environment(\.colorScheme, scheme)
-
-                let renderer = ImageRenderer(content: view)
+                let renderer = ImageRenderer(content: framed)
                 renderer.scale = 2
                 guard let image = renderer.nsImage,
                       let tiff = image.tiffRepresentation,
                       let rep = NSBitmapImageRep(data: tiff),
                       let png = rep.representation(using: .png, properties: [:])
-                else { continue }
-
+                else { return }
                 let url = URL(fileURLWithPath: directory)
                     .appendingPathComponent("\(name).png")
                 try? png.write(to: url)
                 print("wrote \(url.path)")
             }
+
+            for (name, scheme) in [("detail-light", ColorScheme.light),
+                                   ("detail-dark", ColorScheme.dark)] {
+                write(JobDetailContent(job: withNew, tracking: tracking)
+                        .frame(width: 340), name, scheme)
+            }
+
+            // No snapshot of the filter row: it takes a `@Bindable` model, and
+            // ImageRenderer never settles on a view that observes @Observable
+            // state — the same reason JobDetailContent is handed plain values.
             exit(0)
         }
         dispatchMain()
