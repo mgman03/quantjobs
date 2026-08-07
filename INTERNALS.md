@@ -347,3 +347,25 @@ or applied posting, not just an id — a board deletes a posting the moment it c
 and an application you're tracking shouldn't disappear with it. Only firms that
 actually answered a scrape are judged, so a board being off or failing never marks its
 roles dead.
+
+**The three marks are three fields, not one.** They were one `status` enum, which meant
+hiding a role you'd applied to *overwrote the application* — the single most valuable
+thing in the file. They're independent now: `saved`, `hidden`, and `milestones`, a list
+of dated `Stage` steps. An entry with none of them set is deleted rather than kept as a
+husk, and the delisting pass only discards a vanished posting when hiding is all it
+carries — a hidden application is exactly the history worth keeping.
+
+Two things fall out of that split:
+
+- **The current stage is derived, not stored.** It's the milestone with the latest date,
+  with `Stage.order` breaking a tie — so a rejection recorded the same day as the
+  interview it followed still reads as the outcome.
+- **Upgrading has to be lossless.** A file written with one `status` is read by
+  presence: no `saved` key means the old shape, and `status: applied` becomes an
+  application dated when it was marked. `--check --migrate` writes the old format by
+  hand and reads it back, because the current encoder can't produce it and the check
+  would otherwise only compare today's format against itself.
+
+Fixing this exposed a bug in `--check --model`, which had been giving two test postings
+the same URL. The URL *is* the key, so they were one posting, and the check was quietly
+asserting that the second mark overwrote the first — the behaviour being removed.

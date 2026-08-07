@@ -212,8 +212,32 @@ final class AppModel {
     var showHidden = false
     private(set) var tracked: [String: TrackedJob] = [:]
 
-    func status(of job: Job) -> JobStatus? { tracked[job.key]?.status }
     func trackedEntry(for job: Job) -> TrackedJob? { tracked[job.key] }
+
+    func isSaved(_ job: Job) -> Bool { tracked[job.key]?.saved == true }
+    func isHidden(_ job: Job) -> Bool { tracked[job.key]?.hidden == true }
+    func stage(of job: Job) -> Stage? { tracked[job.key]?.stage }
+    func hasApplication(_ job: Job) -> Bool {
+        tracked[job.key]?.hasApplication == true
+    }
+
+    /// Whether one of the three marks is set — what the row buttons and the
+    /// context menu read.
+    func isSet(_ status: JobStatus, for job: Job) -> Bool {
+        switch status {
+        case .favorite: isSaved(job)
+        case .applied: hasApplication(job)
+        case .hidden: isHidden(job)
+        }
+    }
+
+    private static func carries(_ status: JobStatus, _ entry: TrackedJob) -> Bool {
+        switch status {
+        case .favorite: entry.saved
+        case .applied: entry.hasApplication
+        case .hidden: entry.hidden
+        }
+    }
 
     /// Counts rows as the list will show them, so a role saved across three
     /// offices reads as one saved role rather than three.
@@ -221,23 +245,31 @@ final class AppModel {
         jobs(with: status).count
     }
 
-    /// Postings carrying one status, newest first.
+    /// Postings carrying one mark, newest first — or, for applications, by when
+    /// they last moved, since that's what you came to the list to see.
     ///
     /// Built from the stored snapshots, not from the current scrape, so a role
     /// you've applied to is still here after the board takes it down.
     func jobs(with status: JobStatus) -> [Job] {
-        let stored = tracked.values
-            .filter { $0.status == status }
-            .map { entry -> Job in
-                var job = entry.job
-                job.isNew = false
-                job.variants = []      // rebuilt below, never trusted from disk
-                return job
-            }
-            .sortedByRecency()
+        let entries = tracked.values.filter { Self.carries(status, $0) }
+        let stored: [Job]
+        if status == .applied {
+            stored = entries
+                .sorted { $0.lastActivity > $1.lastActivity }
+                .map(Self.snapshot)
+        } else {
+            stored = entries.map(Self.snapshot).sortedByRecency()
+        }
         // The saved lists merge too, so a role saved once doesn't come back as
         // one row per office.
         return mergeRoles ? stored.mergedByRole() : stored
+    }
+
+    private static func snapshot(_ entry: TrackedJob) -> Job {
+        var job = entry.job
+        job.isNew = false
+        job.variants = []          // rebuilt by the merge, never trusted from disk
+        return job
     }
 
     // A scrape now keeps every category, so `jobs` runs to thousands of rows.
@@ -283,7 +315,7 @@ final class AppModel {
                 return false
             }
             guard q.matchesLiveFilters(job, cutoff: cutoff) else { return false }
-            if !showHidden, tracked[job.key]?.status == .hidden { return false }
+            if !showHidden, tracked[job.key]?.hidden == true { return false }
             return true
         }
         // Merge after filtering, so a city filter leaves a merged row holding
@@ -301,36 +333,69 @@ final class AppModel {
         let q = query
         let cutoff = q.cutoffDate
         return jobs.count { job in
-            tracked[job.key]?.status == .hidden
+            tracked[job.key]?.hidden == true
                 && q.matchesLiveFilters(job, cutoff: cutoff)
         }
     }
 
     // MARK: - Changing status
 
-    func setStatus(_ status: JobStatus?, for targets: [Job]) {
+    /// Applies an edit to every posting a row stands for.
+    ///
+    /// A merged row covers several postings; marking it has to mark all of them,
+    /// or the ones folded in come back unmarked the moment merging is turned off.
+    /// An entry with nothing left set is dropped rather than kept as a husk.
+    private func edit(_ targets: [Job], _ change: (inout TrackedJob) -> Void) {
         guard !targets.isEmpty else { return }
-        let today = Job.dateFormatter.string(from: Date())
+        let today = Dates.today
         for job in targets {
-            // A merged row stands for several postings; marking it has to mark
-            // all of them, or the ones folded in would come back unmarked the
-            // moment merging is turned off.
             for (key, posting) in postings(of: job) {
-                if let status {
-                    var entry = tracked[key]
-                        ?? TrackedJob(status: status, job: posting,
-                                      updated: today, lastSeen: today)
-                    entry.status = status
-                    entry.updated = today
-                    entry.job = posting          // keep the snapshot current
-                    tracked[key] = entry
-                } else {
+                var entry = tracked[key]
+                    ?? TrackedJob(job: posting, updated: today, lastSeen: today)
+                change(&entry)
+                entry.updated = today
+                entry.job = posting              // keep the snapshot current
+                if entry.isEmpty {
                     tracked.removeValue(forKey: key)
+                } else {
+                    tracked[key] = entry
                 }
             }
         }
         ConfigStore.saveTracked(tracked)
         resultsVersion += 1
+    }
+
+    func setSaved(_ value: Bool, for targets: [Job]) {
+        edit(targets) { $0.saved = value }
+    }
+
+    func setHidden(_ value: Bool, for targets: [Job]) {
+        edit(targets) { $0.hidden = value }
+    }
+
+    /// Records a step, dated today unless a date is given. Recording the same
+    /// step again just moves its date, so this doubles as "correct that".
+    func record(_ stage: Stage, on date: String? = nil, for targets: [Job]) {
+        let when = date ?? Dates.today
+        edit(targets) { $0.record(stage, on: when) }
+    }
+
+    func removeStage(_ stage: Stage, for targets: [Job]) {
+        edit(targets) { $0.remove(stage) }
+    }
+
+    /// Throws away the whole application history. Kept separate from the marks
+    /// because it's the one destructive edit here.
+    func clearApplication(for targets: [Job]) {
+        edit(targets) { $0.milestones = [] }
+    }
+
+    /// Drops every mark on a posting.
+    func clearAll(for targets: [Job]) {
+        edit(targets) {
+            $0.saved = false; $0.hidden = false; $0.milestones = []
+        }
     }
 
     /// Splits a row back into the individual postings it stands for.
@@ -354,10 +419,25 @@ final class AppModel {
         return out
     }
 
-    /// Flips a status off if it's already set, on otherwise.
+    /// Flips a mark off if it's already set, on otherwise.
+    ///
+    /// Turning `applied` off drops the whole history, which is the only way to
+    /// undo the button that set it — so callers that might be discarding several
+    /// steps ask first.
     func toggleStatus(_ status: JobStatus, for targets: [Job]) {
-        let allSet = targets.allSatisfy { tracked[$0.key]?.status == status }
-        setStatus(allSet ? nil : status, for: targets)
+        let allSet = targets.allSatisfy { isSet(status, for: $0) }
+        switch status {
+        case .favorite: setSaved(!allSet, for: targets)
+        case .hidden: setHidden(!allSet, for: targets)
+        case .applied:
+            if allSet { clearApplication(for: targets) }
+            else { record(.applied, for: targets) }
+        }
+    }
+
+    /// How many recorded steps toggling `applied` off would discard.
+    func stepsAtRisk(_ targets: [Job]) -> Int {
+        targets.reduce(0) { $0 + (tracked[$1.key]?.milestones.count ?? 0) }
     }
 
     func setNote(_ note: String, for job: Job) {
@@ -737,7 +817,7 @@ final class AppModel {
         setEnabled(false, for: [name])
         jobs.removeAll { $0.company == name }
         for (key, entry) in tracked where entry.job.company == name
-            && entry.status == .hidden {
+            && entry.hidden && !entry.saved && !entry.hasApplication {
             tracked.removeValue(forKey: key)
         }
         ConfigStore.saveTracked(tracked)
@@ -1016,8 +1096,10 @@ final class AppModel {
                     tracked[key]?.isDelisted = false      // it came back
                     changed = true
                 }
-            } else if entry.status == .hidden {
+            } else if entry.hidden && !entry.saved && !entry.hasApplication {
                 // Nothing to keep: a hidden posting that's gone is just noise.
+                // Only when hiding is all it carries — an application you also
+                // hid is exactly the history worth keeping.
                 tracked.removeValue(forKey: key)
                 changed = true
             } else if !entry.isDelisted {

@@ -489,6 +489,65 @@ struct ContentView: View {
 
     // MARK: - Table
 
+    /// The application control on each row: what stage it's at, and the steps
+    /// you can record next.
+    private func stageMenu(_ job: Job) -> some View {
+        let entry = model.trackedEntry(for: job)
+        let stage = entry?.stage
+        return Menu {
+            if let entry, entry.hasApplication {
+                Section("Record a step") {
+                    ForEach(entry.remainingStages) { next in
+                        Button {
+                            model.record(next, for: [job])
+                        } label: {
+                            Label(next.label, systemImage: next.symbol)
+                        }
+                    }
+                }
+                Divider()
+                Button("Clear Progress", role: .destructive) {
+                    model.clearApplication(for: [job])
+                }
+            } else {
+                Button {
+                    model.record(.applied, for: [job])
+                } label: {
+                    Label("Applied Today", systemImage: Stage.applied.symbol)
+                }
+                ForEach(Stage.allCases.dropFirst()) { later in
+                    Button {
+                        model.record(.applied, for: [job])
+                        model.record(later, for: [job])
+                    } label: {
+                        Label("Already at \(later.label)", systemImage: later.symbol)
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: stage?.symbol ?? "checkmark.seal")
+                .foregroundStyle(Self.tint(stage))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(stage.map { "\($0.label) — click to record the next step" }
+              ?? "Track an application")
+    }
+
+    /// One colour scale for the whole pipeline, used by the row icon, the pill
+    /// and the detail timeline so a glance means the same thing everywhere.
+    static func tint(_ stage: Stage?) -> AnyShapeStyle {
+        switch stage {
+        case .none: AnyShapeStyle(.tertiary)
+        case .applied: AnyShapeStyle(Color.secondary)
+        case .assessment, .interview, .final: AnyShapeStyle(Color.orange)
+        case .offer: AnyShapeStyle(Color.green)
+        case .rejected: AnyShapeStyle(Color.red)
+        case .withdrawn: AnyShapeStyle(.tertiary)
+        }
+    }
+
     private func jobTable(_ rows: [Job]) -> some View {
         Table(rows, selection: $selection, sortOrder: $sortOrder) {
             // One column for the row actions. Four separate icon columns left
@@ -500,8 +559,8 @@ struct ContentView: View {
                         .frame(width: 6, height: 6)
                         .help(job.isNew ? "Not seen on a previous run" : "")
 
-                    Button { model.toggleStatus(.favorite, for: [job]) } label: {
-                        let on = model.status(of: job) == .favorite
+                    Button { model.setSaved(!model.isSaved(job), for: [job]) } label: {
+                        let on = model.isSaved(job)
                         Image(systemName: on ? "star.fill" : "star")
                             .foregroundStyle(on ? AnyShapeStyle(.tint)
                                                 : AnyShapeStyle(.tertiary))
@@ -509,26 +568,35 @@ struct ContentView: View {
                     .buttonStyle(.plain)
                     .help("Save this role")
 
-                    Button { model.toggleStatus(.applied, for: [job]) } label: {
-                        let on = model.status(of: job) == .applied
-                        Image(systemName: on ? "checkmark.seal.fill" : "checkmark.seal")
-                            .foregroundStyle(on ? AnyShapeStyle(Color.green)
-                                                : AnyShapeStyle(.tertiary))
-                    }
-                    .buttonStyle(.plain)
-                    .help("Mark as applied")
+                    // A menu rather than a toggle: with several steps recorded
+                    // there's no single thing "off" should mean, and a stray
+                    // click shouldn't be able to throw away a history.
+                    stageMenu(job)
 
-                    Button { model.toggleStatus(.hidden, for: [job]) } label: {
-                        let on = model.status(of: job) == .hidden
+                    Button { model.setHidden(!model.isHidden(job), for: [job]) } label: {
+                        let on = model.isHidden(job)
                         Image(systemName: on ? "eye.slash.fill" : "eye.slash")
                             .foregroundStyle(on ? AnyShapeStyle(.secondary)
                                                 : AnyShapeStyle(.tertiary))
                     }
                     .buttonStyle(.plain)
-                    .help("Hide this role")
+                    .help(model.isHidden(job)
+                          ? "Unhide — an application here is kept either way"
+                          : "Hide this role")
                 }
             }
             .width(84)
+
+            // Only earns its space once something is tracked, which in the
+            // Applied list is every row.
+            TableColumn("Progress") { job in
+                if let entry = model.trackedEntry(for: job), entry.hasApplication {
+                    StagePill(entry: entry)
+                } else {
+                    Text("–").foregroundStyle(.tertiary)
+                }
+            }
+            .width(min: 96, ideal: 132)
 
             TableColumn("Company", value: \.company) { job in
                 HStack(spacing: 5) {
@@ -587,16 +655,38 @@ struct ContentView: View {
             Button("Open in Browser") { open(ids) }
             Button("Copy Link") { copyLinks(ids) }
             Divider()
-            ForEach(JobStatus.allCases) { status in
-                let allSet = !picked.isEmpty
-                    && picked.allSatisfy { model.status(of: $0) == status }
-                Button(allSet ? "Un-\(status.verb.lowercased())" : status.verb) {
-                    model.toggleStatus(status, for: picked)
+            let saved = !picked.isEmpty && picked.allSatisfy(model.isSaved)
+            Button(saved ? "Unsave" : "Save") {
+                model.setSaved(!saved, for: picked)
+            }
+            let hidden = !picked.isEmpty && picked.allSatisfy(model.isHidden)
+            Button(hidden ? "Unhide" : "Hide") {
+                model.setHidden(!hidden, for: picked)
+            }
+            Menu("Application") {
+                ForEach(Stage.allCases) { stage in
+                    Button {
+                        // Recording a later step on its own would leave a
+                        // pipeline with no start; everything implies applying.
+                        if stage != .applied { model.record(.applied, for: picked) }
+                        model.record(stage, for: picked)
+                    } label: {
+                        Label("\(stage.label) Today", systemImage: stage.symbol)
+                    }
+                }
+                if picked.contains(where: model.hasApplication) {
+                    Divider()
+                    Button("Clear Progress", role: .destructive) {
+                        model.clearApplication(for: picked)
+                    }
                 }
             }
-            if picked.contains(where: { model.status(of: $0) != nil }) {
+            .disabled(picked.isEmpty)
+            if picked.contains(where: { model.trackedEntry(for: $0) != nil }) {
                 Divider()
-                Button("Clear Mark") { model.setStatus(nil, for: picked) }
+                Button("Clear All Marks", role: .destructive) {
+                    model.clearAll(for: picked)
+                }
             }
             if let firm = picked.first?.company,
                picked.allSatisfy({ $0.company == firm }) {
@@ -803,12 +893,145 @@ struct JobDetail: View {
                     job: job,
                     tracking: model.trackedEntry(for: job),
                     onToggle: { model.toggleStatus($0, for: [job]) },
+                    onRecord: { model.record($0, on: $1, for: [job]) },
+                    onRemove: { model.removeStage($0, for: [job]) },
+                    onClear: { model.clearApplication(for: [job]) },
                     onSaveNote: { model.setNote($0, for: job) })
             }
         } else {
             ContentUnavailableView("No Role Selected",
                                    systemImage: "doc.text.magnifyingglass",
                                    description: Text("Pick a row to see the details."))
+        }
+    }
+}
+
+/// Where an application has got to and how long ago, small enough for a table
+/// cell: `OA · 5d`.
+struct StagePill: View {
+
+    let entry: TrackedJob
+
+    var body: some View {
+        if let stage = entry.stage {
+            HStack(spacing: 4) {
+                Image(systemName: stage.symbol).font(.system(size: 9))
+                Text(stage.short)
+                if let age = Dates.compact(entry.lastActivity) {
+                    Text(age)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(ContentView.tint(stage))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(.quaternary.opacity(0.5), in: .capsule)
+            .help(summary)
+        }
+    }
+
+    private var summary: String {
+        entry.milestones
+            .map { "\($0.stage.label) \($0.relative ?? $0.date)" }
+            .joined(separator: " · ")
+    }
+}
+
+/// The application timeline: one row per step, dated, with a rail down the left
+/// so the sequence reads as a sequence.
+///
+/// Vertical rather than a horizontal stepper because the panel is 300pt wide and
+/// every step needs a date next to it — a stepper would have to drop them.
+struct ApplicationTimeline: View {
+
+    let entry: TrackedJob
+    var onRecord: (Stage, String) -> Void = { _, _ in }
+    var onRemove: (Stage) -> Void = { _ in }
+    var onClear: () -> Void = {}
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(entry.milestones.enumerated()), id: \.element.id) { i, step in
+                row(step, isLast: i == entry.milestones.count - 1)
+            }
+            addRow
+        }
+    }
+
+    private func row(_ step: Milestone, isLast: Bool) -> some View {
+        HStack(alignment: .top, spacing: 9) {
+            // The rail: a dot for this step, a line down to the next one.
+            VStack(spacing: 0) {
+                Image(systemName: step.stage.symbol)
+                    .font(.system(size: 11))
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(ContentView.tint(step.stage))
+                if !isLast || !step.stage.isClosed {
+                    Rectangle()
+                        .fill(.quaternary)
+                        .frame(width: 1)
+                        .frame(minHeight: 14)
+                }
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(step.stage.label).font(.callout)
+                HStack(spacing: 5) {
+                    Text(step.relative ?? step.date)
+                    Text(step.date).foregroundStyle(.tertiary).monospacedDigit()
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 4)
+            Menu {
+                // A date picker in a 300pt panel is more chrome than this
+                // deserves; nudging is what correcting a date actually needs.
+                Button("Move a Day Earlier") { shift(step, by: -1) }
+                Button("Move a Day Later") { shift(step, by: 1) }
+                Button("Set to Today") { onRecord(step.stage, Dates.today) }
+                Divider()
+                Button("Remove", role: .destructive) { onRemove(step.stage) }
+            } label: {
+                Image(systemName: "ellipsis").font(.caption)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+        }
+        .padding(.bottom, isLast ? 0 : 2)
+    }
+
+    private func shift(_ step: Milestone, by days: Int) {
+        guard let date = Dates.date(step.date),
+              let moved = Calendar.current.date(byAdding: .day, value: days, to: date)
+        else { return }
+        onRecord(step.stage, Dates.iso.string(from: moved))
+    }
+
+    private var addRow: some View {
+        HStack(alignment: .center, spacing: 9) {
+            Image(systemName: "plus")
+                .font(.system(size: 10))
+                .frame(width: 16, height: 16)
+                .foregroundStyle(.tertiary)
+            Menu {
+                ForEach(entry.remainingStages) { stage in
+                    Button {
+                        onRecord(stage, Dates.today)
+                    } label: {
+                        Label(stage.label, systemImage: stage.symbol)
+                    }
+                }
+                Divider()
+                Button("Clear Progress", role: .destructive) { onClear() }
+            } label: {
+                Text(entry.remainingStages.isEmpty ? "Edit" : "Add a step")
+                    .font(.caption)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
         }
     }
 }
@@ -820,6 +1043,9 @@ struct JobDetailContent: View {
     let job: Job
     let tracking: TrackedJob?
     var onToggle: (JobStatus) -> Void = { _ in }
+    var onRecord: (Stage, String) -> Void = { _, _ in }
+    var onRemove: (Stage) -> Void = { _ in }
+    var onClear: () -> Void = {}
     var onSaveNote: (String) -> Void = { _ in }
 
     @State private var note: String
@@ -830,10 +1056,16 @@ struct JobDetailContent: View {
     /// reason. Being a dumb view is also just easier to reason about.
     init(job: Job, tracking: TrackedJob?,
          onToggle: @escaping (JobStatus) -> Void = { _ in },
+         onRecord: @escaping (Stage, String) -> Void = { _, _ in },
+         onRemove: @escaping (Stage) -> Void = { _ in },
+         onClear: @escaping () -> Void = {},
          onSaveNote: @escaping (String) -> Void = { _ in }) {
         self.job = job
         self.tracking = tracking
         self.onToggle = onToggle
+        self.onRecord = onRecord
+        self.onRemove = onRemove
+        self.onClear = onClear
         self.onSaveNote = onSaveNote
         _note = State(initialValue: tracking?.note ?? "")
     }
@@ -842,6 +1074,7 @@ struct JobDetailContent: View {
         VStack(alignment: .leading, spacing: 14) {
             header(job)
             statusButtons(job)
+            if let entry = tracking, entry.hasApplication { applicationBlock(entry) }
             facts(job)
             if tracking != nil { trackingBlock(job) }
             if !job.tags.isEmpty { tagRow(job) }
@@ -851,33 +1084,76 @@ struct JobDetailContent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Two independent toggles and one menu — hiding a role you've applied to
+    /// used to overwrite the application, which is why these aren't one control.
     private func statusButtons(_ job: Job) -> some View {
         HStack(spacing: 6) {
-            ForEach(JobStatus.allCases) { status in
-                let isSet = tracking?.status == status
-                Button {
-                    onToggle(status)
+            let saved = tracking?.saved == true
+            Button { onToggle(.favorite) } label: {
+                Label(saved ? "Saved" : "Save",
+                      systemImage: saved ? "star.fill" : "star").font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .tint(saved ? .accentColor : .secondary)
+
+            if tracking?.hasApplication != true {
+                Menu {
+                    ForEach(Stage.allCases) { stage in
+                        Button {
+                            if stage != .applied { onRecord(.applied, Dates.today) }
+                            onRecord(stage, Dates.today)
+                        } label: {
+                            Label(stage.label, systemImage: stage.symbol)
+                        }
+                    }
                 } label: {
-                    Label(isSet ? status.label : status.verb,
-                          systemImage: isSet ? status.symbol : status.emptySymbol)
-                        .font(.caption)
+                    Label("Track Application", systemImage: "paperplane").font(.caption)
                 }
+                .menuStyle(.button)
                 .buttonStyle(.bordered)
-                .tint(isSet ? (status == .applied ? .green : .accentColor) : .secondary)
+                .tint(.secondary)
+                .fixedSize()
+            }
+
+            let hidden = tracking?.hidden == true
+            Button { onToggle(.hidden) } label: {
+                Label(hidden ? "Hidden" : "Hide",
+                      systemImage: hidden ? "eye.slash.fill" : "eye.slash").font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .tint(hidden ? .accentColor : .secondary)
+        }
+    }
+
+    private func applicationBlock(_ entry: TrackedJob) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            HStack(spacing: 6) {
+                Text("Application").font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                StagePill(entry: entry)
+            }
+            ApplicationTimeline(entry: entry, onRecord: onRecord,
+                                onRemove: onRemove, onClear: onClear)
+            if entry.hidden {
+                Label("Hidden from results — this history is kept regardless",
+                      systemImage: "eye.slash")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
-    /// Dates and a note — the bit that makes this an application tracker
-    /// rather than just a bookmark.
+    /// Last-listed date and a note.
     private func trackingBlock(_ job: Job) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Divider()
             if let entry = tracking {
                 Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
                     GridRow {
-                        Text(entry.status == .applied ? "Applied" : "Marked")
-                            .foregroundStyle(.secondary)
+                        Text("Marked").foregroundStyle(.secondary)
                         Text(entry.updated.isEmpty ? "—" : entry.updated)
                     }
                     GridRow {

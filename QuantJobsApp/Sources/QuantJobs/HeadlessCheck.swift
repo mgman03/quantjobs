@@ -114,9 +114,31 @@ enum HeadlessCheck {
         ConfigStore.directoryOverride = scratch
     }
 
+    /// Writes tracking the way a version before this one would have: keyed on
+    /// company|title|location, and with a single `status` instead of the three
+    /// independent marks. The current encoder can't produce that shape, so the
+    /// test has to build it, or it would only ever check today's format against
+    /// itself.
+    private static func writeLegacyTracked(_ tracked: [String: TrackedJob]) {
+        let enc = JSONEncoder()
+        var out: [String: Any] = [:]
+        for (key, entry) in tracked {
+            guard let data = try? enc.encode(entry),
+                  var dict = try? JSONSerialization.jsonObject(with: data)
+                    as? [String: Any] else { continue }
+            for field in ["saved", "hidden", "milestones"] { dict[field] = nil }
+            dict["status"] = entry.hasApplication ? "applied"
+                           : entry.hidden ? "hidden" : "favorite"
+            out[key] = dict
+        }
+        try? JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted])
+            .write(to: ConfigStore.trackedURL, options: .atomic)
+    }
+
     /// Tracked roles were keyed on company|title|location; they are keyed on
-    /// the posting URL now. The migration has to carry them across, or someone
-    /// loses everything they had saved.
+    /// the posting URL now, and one `status` became three marks plus a dated
+    /// timeline. Both migrations have to carry an application across, or someone
+    /// loses everything they had recorded.
     private static func runMigrationCheck() -> Never {
         useScratchConfig("migrate")
         let job = Job(company: "Jane Street", title: "Software Engineer",
@@ -128,22 +150,27 @@ enum HeadlessCheck {
         print("old key: \(legacy)")
         print("new key: \(job.key)")
 
-        // Write the file the way the previous version would have.
-        let entry = TrackedJob(status: .applied, job: job, updated: "2026-01-01",
-                               lastSeen: "2026-01-01", note: "phone screen booked")
-        ConfigStore.saveTracked([legacy: entry])
+        // Write the file the way the previous version would have: keyed on
+        // company|title|location, and with one `status` rather than three marks.
+        let entry = TrackedJob(job: job, updated: "2026-01-01",
+                               lastSeen: "2026-01-01",
+                               milestones: [Milestone(stage: .applied,
+                                                      date: "2026-01-01")],
+                               note: "phone screen booked")
+        writeLegacyTracked([legacy: entry])
 
         let loaded = ConfigStore.loadTracked()
         let byNew = loaded[job.key]
         print("after load: \(loaded.count) entry/entries")
         print("  found under the new key: \(byNew != nil)")
-        print("  status kept:             \(byNew?.status == .applied)")
+        print("  application kept:        \(byNew?.stage == .applied)")
+        print("  applied date kept:       \(byNew?.appliedOn == "2026-01-01")")
         print("  note kept:               \(byNew?.note == "phone screen booked")")
         print("  old key gone:            \(loaded[legacy] == nil)")
 
         // And it must be written back, not re-migrated on every load.
         let again = ConfigStore.loadTracked()
-        let ok = byNew != nil && byNew?.status == .applied
+        let ok = byNew != nil && byNew?.stage == .applied
             && byNew?.note == "phone screen booked" && loaded[legacy] == nil
             && again[job.key] != nil
         print(ok ? "MIGRATION OK — tracking survived the key change"
@@ -242,9 +269,9 @@ enum HeadlessCheck {
             let applied = make("Jump Trading", "Campus SWE")
             let hidden = make("Citadel", "Not For Me")
 
-            model.setStatus(.favorite, for: [saved])
-            model.setStatus(.applied, for: [applied])
-            model.setStatus(.hidden, for: [hidden])
+            model.setSaved(true, for: [saved])
+            model.record(.applied, for: [applied])
+            model.setHidden(true, for: [hidden])
             model.setNote("phone screen booked", for: applied)
 
             print("marked    saved=\(model.count(.favorite)) "
@@ -270,8 +297,54 @@ enum HeadlessCheck {
             print("delisted still shows: "
                   + "\(reloaded.jobs.isEmpty && survivor != nil ? "yes" : "no")")
 
-            reloaded.toggleStatus(.applied, for: [applied])
-            print("un-applied      applied=\(reloaded.count(.applied))")
+            // The bug this replaced: hiding a role you'd applied to overwrote
+            // the application, because the two shared one field.
+            print("\nhiding an application:")
+            reloaded.setHidden(true, for: [applied])
+            print("  still applied:   \(reloaded.hasApplication(applied))")
+            print("  also hidden:     \(reloaded.isHidden(applied))")
+            print("  in Applied list: \(reloaded.count(.applied) == 1)")
+            print("  note kept:       "
+                  + "\"\(reloaded.trackedEntry(for: applied)?.note ?? "")\"")
+            reloaded.setHidden(false, for: [applied])
+
+            // …and the other direction: saving a hidden role, then unsaving it,
+            // must leave it hidden rather than untracked.
+            reloaded.setSaved(true, for: [hidden])
+            reloaded.setSaved(false, for: [hidden])
+            print("  hidden survives a save/unsave: \(reloaded.isHidden(hidden))")
+
+            print("\nprogress:")
+            reloaded.record(.applied, on: "2026-07-20", for: [applied])
+            reloaded.record(.assessment, on: "2026-07-27", for: [applied])
+            reloaded.record(.interview, for: [applied])
+            if let entry = reloaded.trackedEntry(for: applied) {
+                print("  stage:      \(entry.stage?.label ?? "—")")
+                print("  applied on: \(entry.appliedOn ?? "—") "
+                      + "(\(Dates.relative(entry.appliedOn ?? "") ?? "?"))")
+                print("  timeline:   " + entry.milestones
+                        .map { "\($0.stage.short) \($0.date)" }
+                        .joined(separator: " → "))
+                print("  order kept: "
+                      + "\(entry.milestones.map(\.date) == entry.milestones.map(\.date).sorted())")
+            }
+            // A rejection is where it ends, even recorded the same day.
+            reloaded.record(.rejected, on: reloaded
+                .trackedEntry(for: applied)?.date(of: .interview) ?? Dates.today,
+                            for: [applied])
+            print("  after a rejection dated with the interview: "
+                  + "\(reloaded.stage(of: applied)?.label ?? "—") "
+                  + "closed=\(reloaded.trackedEntry(for: applied)?.isClosed == true)")
+
+            // It has to survive a restart, being the whole point.
+            let third = AppModel()
+            await third.reload()
+            print("  after reload: \(third.trackedEntry(for: applied)?.milestones.count ?? 0) "
+                  + "step(s), at \(third.stage(of: applied)?.label ?? "—")")
+
+            third.clearApplication(for: [applied])
+            print("\ncleared         applied=\(third.count(.applied)) "
+                  + "saved=\(third.count(.favorite)) hidden=\(third.count(.hidden))")
 
             try? FileManager.default.removeItem(at: ConfigStore.directory)
             exit(0)
@@ -375,9 +448,12 @@ enum HeadlessCheck {
             withNew.isNew = true
 
             // A plain value, so the snapshot needs no model and touches no file.
-            let tracking = TrackedJob(status: .applied, job: withNew,
-                                      updated: "2026-08-01", lastSeen: "2026-08-02",
-                                      note: "phone screen booked for Tuesday")
+            let tracking = TrackedJob(
+                job: withNew, updated: "2026-08-01", lastSeen: "2026-08-02",
+                saved: true,
+                milestones: [Milestone(stage: .applied, date: "2026-07-24"),
+                             Milestone(stage: .assessment, date: "2026-07-31")],
+                note: "phone screen booked for Tuesday")
 
             for (name, scheme) in [("detail-light", ColorScheme.light),
                                    ("detail-dark", ColorScheme.dark)] {
@@ -425,23 +501,35 @@ enum HeadlessCheck {
             // Seed two postings that no board will return, from a firm this run
             // does reach — so the "is it still listed?" pass has something real
             // to decide about.
+            // Distinct URLs, because the URL *is* the key: sharing one made
+            // these two the same posting, and the check was quietly asserting
+            // that the second mark overwrote the first.
             func ghost(_ company: String, _ title: String) -> Job {
-                Job(company: company, title: title, location: "New York, NY",
-                    url: "https://example.com/gone", posted: "2026-01-01",
-                    department: "", description: "", ats: .greenhouse,
-                    tags: ["quant"], level: "intern")
+                let slug = title.replacingOccurrences(of: " ", with: "-").lowercased()
+                return Job(company: company, title: title, location: "New York, NY",
+                           url: "https://example.com/gone/\(slug)", posted: "2026-01-01",
+                           department: "", description: "", ats: .greenhouse,
+                           tags: ["quant"], level: "intern")
             }
             let ghostSaved = ghost("Jane Street", "Role That No Longer Exists")
             let ghostHidden = ghost("Jane Street", "Hidden Role That Vanished")
-            model.setStatus(.favorite, for: [ghostSaved])
-            model.setStatus(.hidden, for: [ghostHidden])
+            let ghostBoth = ghost("Jane Street", "Applied Then Hidden Then Closed")
+            model.setSaved(true, for: [ghostSaved])
+            model.setHidden(true, for: [ghostHidden])
+            model.record(.assessment, for: [ghostBoth])
+            model.setHidden(true, for: [ghostBoth])
 
             model.scrape()
             while model.isScraping { try? await Task.sleep(for: .milliseconds(100)) }
 
             print("delisted  saved kept=\(model.count(.favorite) == 1) "
                   + "flagged=\(model.isDelisted(ghostSaved)) · "
-                  + "hidden pruned=\(model.count(.hidden) == 0)")
+                  + "hidden pruned=\(model.count(.hidden) == 1)")
+            // The one thing that must never be thrown away: a hidden
+            // application whose posting has come down.
+            print("          hidden application kept="
+                  + "\(model.hasApplication(ghostBoth)) "
+                  + "at \(model.stage(of: ghostBoth)?.short ?? "GONE")")
 
             print("model     \(model.visibleJobs.count) roles · "
                   + "\(model.firmsRepresented) firms · \(model.failures.count) failed · "
@@ -541,12 +629,12 @@ enum HeadlessCheck {
                         && $0.location == "London" }
                 print("\nJane Street 'Software Engineer' London postings: \(ldn.count)")
                 if ldn.count >= 2 {
-                    model.setStatus(.favorite, for: [ldn[0]])
-                    let a = model.status(of: ldn[0]), b = model.status(of: ldn[1])
-                    print("    saved the first: \(a == .favorite)")
-                    print("    second untouched: \(b == nil)")
+                    model.setSaved(true, for: [ldn[0]])
+                    print("    saved the first: \(model.isSaved(ldn[0]))")
+                    print("    second untouched: "
+                          + "\(model.trackedEntry(for: ldn[1]) == nil)")
                     print("    distinct keys:    \(ldn[0].key != ldn[1].key)")
-                    model.setStatus(nil, for: [ldn[0]])
+                    model.clearAll(for: [ldn[0]])
                 }
             }
 
@@ -575,9 +663,14 @@ enum HeadlessCheck {
                 model.continentFilter = []
 
                 model.continentFilter = ["Europe"]
-                if let ldn = model.jobs.first(where: {
-                    $0.company == "Jane Street" && $0.title == "Software Engineer"
-                        && $0.location == "London" }) {
+                // Spelled out rather than one boolean chain: the type checker
+                // gives up on the inline version.
+                let isLondonSWE: (Job) -> Bool = { job in
+                    guard job.company == "Jane Street" else { return false }
+                    guard job.title == "Software Engineer" else { return false }
+                    return job.location == "London"
+                }
+                if let ldn = model.jobs.first(where: isLondonSWE) {
                     let q = model.query
                     print("\nLondon SWE row against each filter:")
                     print("    category swe:  \(ldn.matchedCategories.contains("swe"))")
@@ -615,7 +708,7 @@ enum HeadlessCheck {
 
             if let victim = model.visibleJobs.first {
                 let before = model.visibleJobs.count
-                model.setStatus(.hidden, for: [victim])
+                model.setHidden(true, for: [victim])
                 let afterHide = model.visibleJobs.count
                 model.showHidden = true
                 let shown = model.visibleJobs.count
@@ -623,7 +716,7 @@ enum HeadlessCheck {
                 print("hiding    \(before) → \(afterHide) hidden, "
                       + "banner says \(model.hiddenInResults), "
                       + "show-hidden restores \(shown)")
-                model.setStatus(nil, for: [victim])
+                model.clearAll(for: [victim])
             }
 
             // A fresh model should come up populated from the cache the scrape

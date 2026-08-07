@@ -448,18 +448,7 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
 
     /// How long the posting has been up. Boards state a date and nothing else,
     /// so working out whether 2026-07-28 is recent is left to the reader.
-    var age: String? {
-        guard let posted = postedDate else { return nil }
-        let days = Calendar.current.dateComponents([.day], from: posted, to: Date()).day ?? 0
-        switch days {
-        case ..<0: return nil            // dated in the future; don't guess
-        case 0: return "today"
-        case 1: return "yesterday"
-        case 2..<14: return "\(days) days ago"
-        case 14..<60: return "\(days / 7) weeks ago"
-        default: return "\(days / 30) months ago"
-        }
-    }
+    var age: String? { postedDate.flatMap(Dates.relative) }
 
     var isNew: Bool = false
 
@@ -480,9 +469,118 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
     }()
 }
 
+// MARK: - Dates
+
+enum Dates {
+
+    static let iso: DateFormatter = Job.dateFormatter
+
+    static var today: String { iso.string(from: Date()) }
+
+    static func date(_ s: String) -> Date? { s.isEmpty ? nil : iso.date(from: s) }
+
+    static func days(since s: String) -> Int? {
+        guard let d = date(s) else { return nil }
+        return Calendar.current.dateComponents([.day], from: d, to: Date()).day
+    }
+
+    /// "today" / "yesterday" / "12 days ago" / "3 weeks ago" / "5 months ago".
+    /// Nil for a future date rather than a guess at what it means.
+    static func relative(_ d: Date) -> String? {
+        let days = Calendar.current.dateComponents([.day], from: d, to: Date()).day ?? 0
+        switch days {
+        case ..<0: return nil
+        case 0: return "today"
+        case 1: return "yesterday"
+        case 2..<14: return "\(days) days ago"
+        case 14..<60: return "\(days / 7) weeks ago"
+        default: return "\(days / 30) months ago"
+        }
+    }
+
+    static func relative(_ s: String) -> String? { date(s).flatMap(relative) }
+
+    /// The same span in the width a table column can spare: 12d, 3w, 5mo.
+    static func compact(_ s: String) -> String? {
+        guard let days = days(since: s), days >= 0 else { return nil }
+        switch days {
+        case 0: return "today"
+        case 1..<14: return "\(days)d"
+        case 14..<60: return "\(days / 7)w"
+        default: return "\(days / 30)mo"
+        }
+    }
+}
+
 // MARK: - Tracking
 
+/// A step in an application, listed in the order they normally happen.
+///
+/// `order` is that listing, and it decides which step counts as "where you are"
+/// when two share a date — so a rejection recorded the same day as the interview
+/// it followed still reads as the outcome.
+enum Stage: String, Codable, CaseIterable, Identifiable, Sendable {
+    case applied, assessment, interview, final, offer, rejected, withdrawn
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .applied: "Applied"
+        case .assessment: "Online assessment"
+        case .interview: "Interview"
+        case .final: "Final round"
+        case .offer: "Offer"
+        case .rejected: "Rejected"
+        case .withdrawn: "Withdrawn"
+        }
+    }
+
+    /// For the table, where there's room for a word and not a phrase.
+    var short: String {
+        switch self {
+        case .assessment: "OA"
+        case .final: "Final"
+        default: label
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .applied: "paperplane.fill"
+        case .assessment: "laptopcomputer"
+        case .interview: "bubble.left.and.bubble.right.fill"
+        case .final: "person.2.fill"
+        case .offer: "checkmark.seal.fill"
+        case .rejected: "xmark.circle.fill"
+        case .withdrawn: "arrow.uturn.left.circle.fill"
+        }
+    }
+
+    /// Nothing follows these, so the timeline stops drawing a line after them.
+    var isClosed: Bool { self == .rejected || self == .withdrawn }
+
+    var order: Int { Self.allCases.firstIndex(of: self) ?? 0 }
+}
+
+/// One dated step of one application.
+struct Milestone: Codable, Hashable, Sendable, Identifiable {
+    var stage: Stage
+    var date: String              // yyyy-MM-dd
+
+    /// The stage, not the date: a step is recorded once and its date is edited
+    /// in place, so an identity that moved when you corrected the date would
+    /// make the row jump out from under the picker.
+    var id: String { stage.rawValue }
+
+    var relative: String? { Dates.relative(date) }
+}
+
 /// What the user has decided about a posting.
+///
+/// Kept as a type because the row buttons, the context menu and the sidebar all
+/// need to name the three marks. `applied` now means "there's an application
+/// here", which may be at any stage.
 enum JobStatus: String, Codable, CaseIterable, Identifiable, Sendable {
     case favorite, applied, hidden
 
@@ -525,10 +623,19 @@ enum JobStatus: String, Codable, CaseIterable, Identifiable, Sendable {
 ///
 /// The snapshot is the point: a board drops a posting the moment it closes, and
 /// an application you're tracking shouldn't vanish with it.
+/// One posting the user has marked, and how their application to it is going.
+///
+/// The three marks are independent. They used to be one `status`, which meant
+/// hiding a role you'd applied to overwrote the application — the thing you were
+/// most likely to want kept. Hiding is a view preference; an application is a
+/// history; saving is a bookmark. None of them should be able to erase another.
 struct TrackedJob: Codable, Identifiable, Sendable {
-    var status: JobStatus
+    var saved: Bool = false
+    var hidden: Bool = false
+    /// Dated steps, earliest first. Empty means there's no application here.
+    var milestones: [Milestone] = []
     var job: Job
-    var updated: String          // when the status last changed
+    var updated: String          // when any of this last changed
     var lastSeen: String         // when a scrape last returned this posting
     var note: String = ""
     /// The board stopped listing it. Set by a run that did reach that firm.
@@ -536,25 +643,117 @@ struct TrackedJob: Codable, Identifiable, Sendable {
 
     var id: String { job.key }
 
-    enum CodingKeys: String, CodingKey {
-        case status, job, updated, lastSeen, note, isDelisted
+    // MARK: What state it's in
+
+    var hasApplication: Bool { !milestones.isEmpty }
+
+    /// Nothing marked at all — the entry has no reason to be on disk.
+    var isEmpty: Bool { !saved && !hidden && milestones.isEmpty }
+
+    /// Where the application has got to: the furthest step, with the later date
+    /// winning and `Stage.order` breaking a tie.
+    var stage: Stage? {
+        milestones.max { a, b in
+            a.date == b.date ? a.stage.order < b.stage.order : a.date < b.date
+        }?.stage
     }
 
-    init(status: JobStatus, job: Job, updated: String, lastSeen: String,
-         note: String = "", isDelisted: Bool = false) {
-        self.status = status; self.job = job
-        self.updated = updated; self.lastSeen = lastSeen; self.note = note
-        self.isDelisted = isDelisted
+    var appliedOn: String? {
+        milestones.first { $0.stage == .applied }?.date
+    }
+
+    /// When the application last moved, for sorting the Applied list by what's
+    /// actually happening rather than by when the board posted the role.
+    var lastActivity: String {
+        milestones.map(\.date).max() ?? updated
+    }
+
+    var isClosed: Bool { stage?.isClosed == true }
+
+    func date(of stage: Stage) -> String? {
+        milestones.first { $0.stage == stage }?.date
+    }
+
+    /// Steps not yet recorded, in pipeline order — what "add a step" offers.
+    var remainingStages: [Stage] {
+        let have = Set(milestones.map(\.stage))
+        return Stage.allCases.filter { !have.contains($0) }
+    }
+
+    mutating func record(_ stage: Stage, on date: String) {
+        if let i = milestones.firstIndex(where: { $0.stage == stage }) {
+            milestones[i].date = date
+        } else {
+            milestones.append(Milestone(stage: stage, date: date))
+        }
+        sortMilestones()
+    }
+
+    mutating func remove(_ stage: Stage) {
+        milestones.removeAll { $0.stage == stage }
+    }
+
+    private mutating func sortMilestones() {
+        milestones.sort {
+            $0.date == $1.date ? $0.stage.order < $1.stage.order : $0.date < $1.date
+        }
+    }
+
+    // MARK: Codable
+
+    enum CodingKeys: String, CodingKey {
+        case saved, hidden, milestones, job, updated, lastSeen, note, isDelisted
+        case status      // read for migration, never written
+    }
+
+    init(job: Job, updated: String, lastSeen: String,
+         saved: Bool = false, hidden: Bool = false,
+         milestones: [Milestone] = [], note: String = "",
+         isDelisted: Bool = false) {
+        self.job = job
+        self.updated = updated; self.lastSeen = lastSeen
+        self.saved = saved; self.hidden = hidden; self.milestones = milestones
+        self.note = note; self.isDelisted = isDelisted
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        status = (try? c.decode(JobStatus.self, forKey: .status)) ?? .favorite
         job = try c.decode(Job.self, forKey: .job)
         updated = try c.decodeIfPresent(String.self, forKey: .updated) ?? ""
         lastSeen = try c.decodeIfPresent(String.self, forKey: .lastSeen) ?? ""
         note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
         isDelisted = try c.decodeIfPresent(Bool.self, forKey: .isDelisted) ?? false
+
+        if let saved = try c.decodeIfPresent(Bool.self, forKey: .saved) {
+            self.saved = saved
+            hidden = try c.decodeIfPresent(Bool.self, forKey: .hidden) ?? false
+            milestones = try c.decodeIfPresent([Milestone].self, forKey: .milestones) ?? []
+        } else {
+            // Written by a version with one `status`. An applied role becomes an
+            // application dated when it was marked, so nobody loses a history by
+            // upgrading.
+            switch try? c.decode(JobStatus.self, forKey: .status) {
+            case .applied:
+                let when = updated.isEmpty ? Dates.today : updated
+                milestones = [Milestone(stage: .applied, date: when)]
+            case .hidden:
+                hidden = true
+            default:
+                saved = true
+            }
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(job, forKey: .job)
+        try c.encode(saved, forKey: .saved)      // always written; its presence
+        try c.encode(hidden, forKey: .hidden)    // is what marks the new format
+        if !milestones.isEmpty { try c.encode(milestones, forKey: .milestones) }
+        try c.encode(updated, forKey: .updated)
+        try c.encode(lastSeen, forKey: .lastSeen)
+        if !note.isEmpty { try c.encode(note, forKey: .note) }
+        if isDelisted { try c.encode(true, forKey: .isDelisted) }
     }
 }
 

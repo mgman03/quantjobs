@@ -125,10 +125,17 @@ the two stay in sync and you can use whichever suits the moment.
   ⌘R refetches everything when you want genuinely fresh results.
 - **Click a role for the detail panel** — team, board, tags, the description when the
   board ships one, and a button straight to the posting.
-- **Save / Applied / Hidden** on every row, each with its own list in the sidebar.
-  Applied carries the date and a notes field. These survive a board deleting the
-  posting — a role that closed is struck through rather than lost, because an
-  application you're tracking shouldn't disappear with the listing.
+- **Save, track, hide** — three independent marks on every row, each with its own
+  list in the sidebar. Independent matters: hiding a role you've applied to keeps the
+  application, and none of the three can erase another.
+- **Applications have a timeline.** Record *Applied*, *Online assessment*,
+  *Interview*, *Final round*, *Offer*, *Rejected* or *Withdrawn* from the row's
+  ✓ menu, and the Progress column reads `OA · 5d` — where you are and how long it's
+  been. The detail panel shows the whole sequence with dates and "2 weeks ago", and
+  lets you correct one or add a step you did out of order. The Applied list sorts by
+  what moved most recently, not by when the board posted the role. All of it survives
+  a board deleting the posting — a role that closed is struck through rather than
+  lost, because an application you're tracking shouldn't disappear with the listing.
 - **Opens populated.** The last run is cached, so the window comes up with results in
   it and refreshes behind them; it only re-scrapes if the cache is over six hours old.
 - **Titles are tidied** — `2026 - Internship, Quantitative Developer` shows as
