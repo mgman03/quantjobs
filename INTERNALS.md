@@ -237,6 +237,29 @@ its listings client-side. **PEAK6**'s `careers.peak6.com` is a custom front end 
 both in one step, which no amount of fingerprinting the careers page would have. Re-run
 that for any entry whose note says there's nothing to read.
 
+### The category can hide a role as thoroughly as a missing board
+
+Same method, one step further in: take the early-career postings, keep the ones a
+category *rejects*, and grep those for words the category ought to have caught. For
+`swe`, grepping the rejects for `engineer|developer|software|technolog` surfaced 416
+titles. Most are correctly out — `hardware`, `fpga` and `mechanical` are excluded on
+purpose and have their own category — but four gaps were real:
+
+- The include list had `software engineer` and `software developer` but not bare
+  `software`, so a comma-inverted title didn't match: SpaceX's
+  *New Graduate Engineer, Software (Starlink)*, *Software/Firmware Engineering - Intern*,
+  *Development Tools Software Intern*. 23 postings.
+- `machine learning engineer`, `ml engineer` and `ai engineer` were only in `data`.
+  Categories aren't exclusive — a posting can match several — so listing them under
+  `swe` too costs nothing and recovers Millennium's *Applied AI Engineer Intern* and
+  Jane Street's *Machine Learning Engineer*. 11 postings.
+- `research engineer` was in no category at all, which dropped Jump's four
+  *Campus AI Research Engineer* postings and Qube's
+  *Quantitative Research Engineer – PhD Intern (Europe)*. 14 postings.
+
+`engineering intern` / `engineer intern` were tried and rejected: they pull in
+industrial, facilities and mechatronics roles that `swe` shouldn't claim.
+
 ## Failure modes worth knowing
 
 **Boards drift.** Three adapters needed fixing once there were enough firms to notice:
