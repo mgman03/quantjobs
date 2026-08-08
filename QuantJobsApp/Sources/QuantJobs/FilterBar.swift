@@ -57,13 +57,18 @@ struct FilterBar: View {
     /// each option means, which "Hide applied" never did.
     private var appliedMenu: some View {
         Menu {
-            Picker("", selection: $model.appliedFilter) {
-                ForEach(AppliedFilter.allCases) { option in
-                    Text(option.label).tag(option).help(option.help)
+            // The section header names what the three options are about. Without
+            // it the menu opened on "Show roles I've applied to" with nothing
+            // saying that's what this control governs.
+            Section("Roles you've already applied to") {
+                Picker("", selection: $model.appliedFilter) {
+                    ForEach(AppliedFilter.allCases) { option in
+                        Text(option.label).tag(option).help(option.help)
+                    }
                 }
+                .pickerStyle(.inline)
+                .labelsHidden()
             }
-            .pickerStyle(.inline)
-            .labelsHidden()
         } label: {
             filterLabel(model.appliedFilter.symbol, model.appliedFilter.short)
         }
@@ -71,6 +76,7 @@ struct FilterBar: View {
         .buttonStyle(.bordered)
         .menuIndicator(.hidden)
         .fixedSize()
+        .accessibilityLabel("Applied roles: \(model.appliedFilter.label)")
         // The state lives in the label, so the control doesn't need to change
         // shape to say it's active — but the count is worth having on hover.
         .help(model.appliedFilter.isFiltering

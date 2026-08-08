@@ -255,6 +255,9 @@ struct JobCategory: Codable, Identifiable, Hashable, Sendable {
         case "quant-dev": "cpu"
         case "hardware": "memorychip"
         case "data": "cylinder.split.1x2"
+        case "cpp": "chevron.left.forwardslash.chevron.right"
+        case "python": "text.and.command.macwindow"
+        case "frontend": "macwindow"
         case "all": "square.grid.2x2"
         default: "folder"
         }
@@ -268,6 +271,9 @@ struct JobCategory: Codable, Identifiable, Hashable, Sendable {
         case "quant-dev": "Quant Dev"
         case "hardware": "Hardware / FPGA"
         case "data": "Data / ML"
+        case "cpp": "C++ / Low Latency"
+        case "python": "Python"
+        case "frontend": "UI / Web"
         case "all": "Everything"
         default: name.capitalized
         }
@@ -601,18 +607,25 @@ enum AppliedFilter: String, Codable, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 
     /// What the filter-row button says.
+    ///
+    /// It states the *setting*, the way its neighbours do — "Anywhere",
+    /// "54 firms", "Any time" — because a control that shows its current value
+    /// can't be misread as a button that would do something else. A bare
+    /// "Applied" read as a status chip on the row rather than a filter over it,
+    /// and "Hide applied" on a control that was already hiding them read as an
+    /// offer to hide them.
     var short: String {
         switch self {
-        case .show: "Applied"
-        case .roles: "Hide applied"
-        case .firms: "Hide those firms"
+        case .show: "Applied: shown"
+        case .roles: "Applied: hidden"
+        case .firms: "Applied firms: hidden"
         }
     }
 
     /// The full sentence, for the menu.
     var label: String {
         switch self {
-        case .show: "Show everything"
+        case .show: "Show roles I've applied to"
         case .roles: "Hide roles I've applied to"
         case .firms: "Hide every role at those firms"
         }
@@ -631,7 +644,7 @@ enum AppliedFilter: String, Codable, CaseIterable, Identifiable, Sendable {
         switch self {
         case .show: "paperplane"
         case .roles: "paperplane.slash"
-        case .firms: "building.2.crop.circle.badge.questionmark"
+        case .firms: "building.2.slash"
         }
     }
 

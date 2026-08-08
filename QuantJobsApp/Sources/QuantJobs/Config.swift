@@ -243,9 +243,14 @@ enum ConfigStore {
     static func loadCategories() throws -> [JobCategory] {
         let data = try Data(contentsOf: categoriesURL)
         let raw = try JSONDecoder().decode([String: JobCategory].self, from: data)
-        // Dictionaries lose order; present them in a deliberate one.
+        // Dictionaries lose order; present them in a deliberate one — disciplines
+        // first, then the language and stack slices, then Everything. A category
+        // missing from this list sorts alphabetically after it, which is how
+        // cpp/python/frontend ended up below "Everything" when they were added
+        // to the file but not here.
         let preferred = ["swe", "quant-trading", "quant-research",
-                         "quant-dev", "hardware", "data", "all"]
+                         "quant-dev", "hardware", "data",
+                         "cpp", "python", "frontend", "all"]
         return raw.map { key, value in
             var c = value; c.name = key; return c
         }.sorted { a, b in

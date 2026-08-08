@@ -80,7 +80,8 @@ list stays empty.
 ## Scrape options
 
 ```
---category, -c   swe | quant-trading | quant-research | quant-dev | hardware | data | all
+--category, -c   swe | quant-trading | quant-research | quant-dev | hardware | data
+                 cpp | python | frontend | all
 --level, -l      intern (default) | newgrad | intern-or-newgrad | any
 --location, -L   substring match on location, repeatable:  -L london -L nyc
 --company        limit to firms matching a name, repeatable
@@ -101,6 +102,11 @@ list stays empty.
 ./quantjobs.py scrape -c swe -l intern --tag bigtech     # FAANG+ only
 ./quantjobs.py scrape -c all --tag quant --new-only      # daily driver
 ```
+
+**Language and stack categories.** `cpp`, `python` and `frontend` slice by what
+you'd actually be writing rather than by discipline. Use them with `--deep`: boards
+name the language in the description far more often than in the title, so a shallow
+run finds the handful that say "Software Engineer Intern - C++" and misses the rest.
 
 **A note on levels.** `intern-or-newgrad` means *early career only* — a posting has to
 read as an internship or a new-grad role. `any` switches the level test off entirely,

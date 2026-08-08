@@ -2,89 +2,267 @@
   "swe": {
     "description": "General software engineering — the classic SWE internship.",
     "include": [
-      "software engineer", "software engineering", "software developer",
-      "software development", "swe", "developer", "programmer",
-      "c++", "systems engineer", "platform engineer", "infrastructure engineer",
-      "backend", "back end", "frontend", "front end", "full stack", "fullstack",
-      "site reliability", "sre", "devops", "distributed systems", "compiler",
-      "kernel", "low latency", "core engineering", "production engineer",
-      "security engineer", "network engineer", "python engineer", "java engineer",
-      "software", "research engineer", "machine learning engineer", "ml engineer",
+      "software engineer",
+      "software engineering",
+      "software developer",
+      "software development",
+      "swe",
+      "developer",
+      "programmer",
+      "c++",
+      "systems engineer",
+      "platform engineer",
+      "infrastructure engineer",
+      "backend",
+      "back end",
+      "frontend",
+      "front end",
+      "full stack",
+      "fullstack",
+      "site reliability",
+      "sre",
+      "devops",
+      "distributed systems",
+      "compiler",
+      "kernel",
+      "low latency",
+      "core engineering",
+      "production engineer",
+      "security engineer",
+      "network engineer",
+      "python engineer",
+      "java engineer",
+      "software",
+      "research engineer",
+      "machine learning engineer",
+      "ml engineer",
       "ai engineer"
     ],
     "exclude": [
-      "sales", "recruiter", "recruiting", "marketing", "compliance", "legal",
-      "counsel", "accountant", "audit", "human resources", "office manager",
-      "executive assistant", "receptionist", "business development",
-      "investor relations", "trader", "fpga", "hardware", "mechanical"
+      "sales",
+      "recruiter",
+      "recruiting",
+      "marketing",
+      "compliance",
+      "legal",
+      "counsel",
+      "accountant",
+      "audit",
+      "human resources",
+      "office manager",
+      "executive assistant",
+      "receptionist",
+      "business development",
+      "investor relations",
+      "trader",
+      "fpga",
+      "hardware",
+      "mechanical"
     ]
   },
-
   "quant-trading": {
     "description": "Trading desk roles — quant trader, market maker, execution.",
     "include": [
-      "trader", "trading", "quantitative trader", "quant trader",
-      "market maker", "market making", "execution", "options trading",
-      "commodities trading", "prop trading"
+      "trader",
+      "trading",
+      "quantitative trader",
+      "quant trader",
+      "market maker",
+      "market making",
+      "execution",
+      "options trading",
+      "commodities trading",
+      "prop trading"
     ],
     "exclude": [
-      "software engineer", "software developer", "developer", "sales",
-      "recruiter", "recruiting", "compliance", "legal", "operations",
-      "middle office", "back office", "settlement", "accountant", "audit",
-      "marketing", "support engineer"
+      "software engineer",
+      "software developer",
+      "developer",
+      "sales",
+      "recruiter",
+      "recruiting",
+      "compliance",
+      "legal",
+      "operations",
+      "middle office",
+      "back office",
+      "settlement",
+      "accountant",
+      "audit",
+      "marketing",
+      "support engineer"
     ]
   },
-
   "quant-research": {
     "description": "Signal / alpha research, statistics, ML research.",
     "include": [
-      "quantitative research", "quant research", "quantitative researcher",
-      "quantitative analyst", "quant analyst", "research scientist",
-      "research analyst", "machine learning research", "alpha research",
-      "signal research", "systematic research", "quantitative strategist",
-      "statistician", "quantitative modeling", "quantitative modelling",
+      "quantitative research",
+      "quant research",
+      "quantitative researcher",
+      "quantitative analyst",
+      "quant analyst",
+      "research scientist",
+      "research analyst",
+      "machine learning research",
+      "alpha research",
+      "signal research",
+      "systematic research",
+      "quantitative strategist",
+      "statistician",
+      "quantitative modeling",
+      "quantitative modelling",
       "data science"
     ],
     "exclude": [
-      "sales", "recruiter", "recruiting", "marketing", "compliance", "legal",
-      "user research", "market research"
+      "sales",
+      "recruiter",
+      "recruiting",
+      "marketing",
+      "compliance",
+      "legal",
+      "user research",
+      "market research"
     ]
   },
-
   "quant-dev": {
     "description": "Quant developer / technologist — the SWE-quant hybrid seat.",
     "include": [
-      "quantitative developer", "quant developer", "quant dev",
-      "quantitative technologist", "quant technologist",
-      "quantitative engineer", "quant engineer", "trading systems",
-      "algorithmic trading", "algo developer", "strat", "strats",
-      "trading technology", "execution engineer"
+      "quantitative developer",
+      "quant developer",
+      "quant dev",
+      "quantitative technologist",
+      "quant technologist",
+      "quantitative engineer",
+      "quant engineer",
+      "trading systems",
+      "algorithmic trading",
+      "algo developer",
+      "strat",
+      "strats",
+      "trading technology",
+      "execution engineer"
     ],
     "exclude": [
-      "sales", "recruiter", "recruiting", "marketing", "compliance", "legal"
+      "sales",
+      "recruiter",
+      "recruiting",
+      "marketing",
+      "compliance",
+      "legal"
     ]
   },
-
   "hardware": {
     "description": "FPGA / ASIC / low-level hardware — heavily recruited by HFT firms.",
     "include": [
-      "fpga", "asic", "hardware engineer", "hardware design", "digital design",
-      "verilog", "systemverilog", "vhdl", "rtl", "hardware acceleration",
-      "embedded", "firmware", "silicon"
+      "fpga",
+      "asic",
+      "hardware engineer",
+      "hardware design",
+      "digital design",
+      "verilog",
+      "systemverilog",
+      "vhdl",
+      "rtl",
+      "hardware acceleration",
+      "embedded",
+      "firmware",
+      "silicon"
     ],
-    "exclude": ["sales", "recruiter", "recruiting", "marketing"]
+    "exclude": [
+      "sales",
+      "recruiter",
+      "recruiting",
+      "marketing"
+    ]
   },
-
   "data": {
     "description": "Data engineering, ML engineering, data platform.",
     "include": [
-      "data engineer", "data engineering", "data scientist", "data science",
-      "data platform", "data infrastructure", "analytics engineer",
-      "machine learning engineer", "ml engineer", "mlops", "ai engineer"
+      "data engineer",
+      "data engineering",
+      "data scientist",
+      "data science",
+      "data platform",
+      "data infrastructure",
+      "analytics engineer",
+      "machine learning engineer",
+      "ml engineer",
+      "mlops",
+      "ai engineer"
     ],
-    "exclude": ["sales", "recruiter", "recruiting", "marketing", "data entry"]
+    "exclude": [
+      "sales",
+      "recruiter",
+      "recruiting",
+      "marketing",
+      "data entry"
+    ]
   },
-
+  "cpp": {
+    "description": "C++ and the low-latency systems work that goes with it. Most boards only name the language in the description, so turn on deep matching for the full picture.",
+    "include": [
+      "c++",
+      "cpp",
+      "low latency",
+      "systems programming",
+      "kernel",
+      "embedded",
+      "hft",
+      "fpga engineer"
+    ],
+    "exclude": [
+      "sales",
+      "recruiter",
+      "recruiting",
+      "marketing",
+      "hardware technician",
+      "mechanical",
+      "trader"
+    ]
+  },
+  "python": {
+    "description": "Python-first engineering — tooling, research platforms, backends. Deep matching finds far more of these than titles do.",
+    "include": [
+      "python",
+      "pandas",
+      "numpy",
+      "django",
+      "fastapi",
+      "pytorch"
+    ],
+    "exclude": [
+      "sales",
+      "recruiter",
+      "recruiting",
+      "marketing",
+      "trader"
+    ]
+  },
+  "frontend": {
+    "description": "UI, web and full-stack: the roles where what you build has a screen.",
+    "include": [
+      "frontend",
+      "front end",
+      "ui engineer",
+      "ui software",
+      "web developer",
+      "web engineer",
+      "full stack",
+      "fullstack",
+      "react",
+      "typescript",
+      "javascript",
+      "ux engineer"
+    ],
+    "exclude": [
+      "sales",
+      "recruiter",
+      "recruiting",
+      "marketing",
+      "designer",
+      "graphic"
+    ]
+  },
   "all": {
     "description": "No category filter — every posting the level filter allows.",
     "include": [],
