@@ -594,7 +594,7 @@ enum HeadlessCheck {
 
             print("delisted  saved kept=\(model.count(.favorite) == 1) "
                   + "flagged=\(model.isDelisted(ghostSaved)) · "
-                  + "hidden pruned=\(model.count(.hidden) == 1)")
+                  + "hidden kept=\(model.count(.hidden) == 2)")
             // The one thing that must never be thrown away: a hidden
             // application whose posting has come down.
             print("          hidden application kept="

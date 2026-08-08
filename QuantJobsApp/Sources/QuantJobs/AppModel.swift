@@ -1249,14 +1249,17 @@ final class AppModel {
                     tracked[key]?.isDelisted = false      // it came back
                     changed = true
                 }
-            } else if entry.hidden && !entry.saved && !entry.hasApplication {
-                // Nothing to keep: a hidden posting that's gone is just noise.
-                // Only when hiding is all it carries — an application you also
-                // hid is exactly the history worth keeping.
-                tracked.removeValue(forKey: key)
-                changed = true
             } else if !entry.isDelisted {
-                // Saved and applied roles stay, flagged rather than deleted.
+                // Nothing is deleted here any more. This used to drop a hidden
+                // posting once the board stopped listing it, on the grounds that
+                // it was just noise — but hiding something is a decision, and the
+                // pass ran on every launch, so a run that didn't happen to return
+                // a posting quietly threw that decision away. 23 hidden roles went
+                // that way, and restoring them was futile until this changed: the
+                // next launch scraped and deleted them again.
+                //
+                // They're flagged instead, like saved and applied ones, and only
+                // ever surface in the Hidden list.
                 tracked[key]?.isDelisted = true
                 changed = true
             }
