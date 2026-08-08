@@ -22,9 +22,11 @@ struct AppSettings: Codable, Sendable, Equatable {
     var mergeRoles = true
     var recordState = true
     var showHidden = false
-    /// Leave out roles you've already applied to, so the results list is what's
-    /// left to do rather than everything.
-    var hideApplied = false
+    /// What to do about roles you've already applied to. Decoded from the older
+    /// `hideApplied` boolean when that's what's on disk, so upgrading keeps the
+    /// setting instead of silently resetting it.
+    var appliedFilter = AppliedFilter.show.rawValue
+    var hideApplied: Bool? = nil
     /// Which stage sections are folded shut in the Applied list.
     var collapsedStages: [String] = []
 
@@ -44,8 +46,13 @@ struct AppSettings: Codable, Sendable, Equatable {
 
     static func load() -> AppSettings {
         guard let data = UserDefaults.standard.data(forKey: defaultsKey),
-              let s = try? JSONDecoder().decode(AppSettings.self, from: data)
+              var s = try? JSONDecoder().decode(AppSettings.self, from: data)
         else { return .firstRun }
+        // The boolean became a three-way choice.
+        if s.hideApplied == true, s.appliedFilter == AppliedFilter.show.rawValue {
+            s.appliedFilter = AppliedFilter.roles.rawValue
+        }
+        s.hideApplied = nil
         return s
     }
 

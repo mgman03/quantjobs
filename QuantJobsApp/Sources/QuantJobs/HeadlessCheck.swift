@@ -401,7 +401,7 @@ enum HeadlessCheck {
             a.deep = true
             a.mergeRoles = false
             a.showHidden = true
-            a.hideApplied = true
+            a.appliedFilter = .roles
             a.collapsedStages = [.applied, .rejected]
             a.list = .applied
             a.currentSettings.save()      // the view debounces; here, straight through
@@ -415,7 +415,7 @@ enum HeadlessCheck {
                 && b.continentFilter == ["Europe", "Asia"]
                 && b.cityFilter == ["London"]
                 && b.newOnly && b.deep && !b.mergeRoles && b.showHidden
-                && b.hideApplied
+                && b.appliedFilter == .roles
                 && b.collapsedStages == [.applied, .rejected]
                 && b.list == .applied
 
@@ -426,7 +426,7 @@ enum HeadlessCheck {
                   + "cities=\(b.cityFilter.sorted()) list=\(b.list.rawValue)")
             print("          toggles newOnly=\(b.newOnly) deep=\(b.deep) "
                   + "merge=\(b.mergeRoles) showHidden=\(b.showHidden) "
-                  + "hideApplied=\(b.hideApplied)")
+                  + "applied=\(b.appliedFilter.rawValue)")
             print("          folded=\(b.collapsedStages.map(\.rawValue).sorted())")
             print(ok ? "ALL SETTINGS SURVIVED A RESTART" : "SETTINGS LOST")
 
@@ -763,7 +763,7 @@ enum HeadlessCheck {
                 let picks = Array(model.visibleJobs.prefix(3))
                 let before = model.visibleJobs.count
                 for job in picks { model.record(.applied, for: [job]) }
-                model.hideApplied = true
+                model.appliedFilter = .roles
                 let after = model.visibleJobs.count
                 // Read with the filter on: the count is what it's holding back,
                 // which is zero while it's off.
@@ -779,8 +779,17 @@ enum HeadlessCheck {
                       + "\(before - after == picks.count && tracked >= picks.count) · "
                       + "Applied list still \(inList) · "
                       + "counts as a filter: \(model.hasExtraFilters)")
+                // Hiding the *firm* has to reach postings you never marked.
+                model.appliedFilter = .firms
+                let byFirm = model.visibleJobs.count
+                let firms = Set(picks.map(\.company))
+                let leftFromThose = model.visibleJobs.count { firms.contains($0.company) }
+                print("          by firm: \(before) → \(byFirm), "
+                      + "none left from \(firms.count) firm(s): \(leftFromThose == 0), "
+                      + "stricter than by role: \(byFirm <= after)")
+
                 model.clearFilters()
-                print("          Clear turns it off: \(model.hideApplied == false), "
+                print("          Clear turns it off: \(model.appliedFilter == .show), "
                       + "rows back to \(model.visibleJobs.count)")
                 model.clearApplication(for: picks)
             }

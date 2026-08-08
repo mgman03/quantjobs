@@ -48,28 +48,35 @@ struct FilterBar: View {
         .font(.callout)
     }
 
-    /// The one filter that is on or off rather than a choice, so it has to *look*
-    /// on or off. Two button styles rather than a tint: `.bordered` with an accent
-    /// tint draws blue text in a washed-out capsule, which reads as a link sitting
-    /// between three bordered buttons — the same inconsistency the Toggle had,
-    /// reached from the other direction. Prominent when on, plain when off: same
-    /// shape family either way, unmistakable state.
-    @ViewBuilder
-    private var hideAppliedButton: some View {
-        Button { model.hideApplied.toggle() } label: {
-            HStack(spacing: 4) {
-                Image(systemName: model.hideApplied
-                      ? "paperplane.slash.fill" : "paperplane")
-                Text("Hide applied")
+    /// Roles you've applied to: shown, hidden, or the whole firm hidden.
+    ///
+    /// A menu rather than a button, for three reasons. It's a three-way choice
+    /// now, so a toggle can't express it. It reads as one of the family — the
+    /// same bordered label as place, firms and date — instead of a filled blue
+    /// pill shouting from the middle of the row. And a menu has room to say what
+    /// each option means, which "Hide applied" never did.
+    private var appliedMenu: some View {
+        Menu {
+            Picker("", selection: $model.appliedFilter) {
+                ForEach(AppliedFilter.allCases) { option in
+                    Text(option.label).tag(option).help(option.help)
+                }
             }
-            .font(.callout)
+            .pickerStyle(.inline)
+            .labelsHidden()
+        } label: {
+            filterLabel(model.appliedFilter.symbol, model.appliedFilter.short)
         }
-        .modifier(ProminentWhen(on: model.hideApplied))
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .menuIndicator(.hidden)
         .fixedSize()
-        .help(model.hideApplied
-              ? "Holding back \(model.appliedInResults) posting(s) you've applied "
-                + "to — they're still in the Applied list"
-              : "Leave out roles you've already applied to")
+        // The state lives in the label, so the control doesn't need to change
+        // shape to say it's active — but the count is worth having on hover.
+        .help(model.appliedFilter.isFiltering
+              ? model.appliedFilter.help
+                + " — currently holding back \(model.appliedInResults)"
+              : model.appliedFilter.help)
     }
 
     var body: some View {
@@ -127,7 +134,7 @@ struct FilterBar: View {
             .fixedSize()
             .help("How recently the role was posted")
 
-            hideAppliedButton
+            appliedMenu
 
             Spacer(minLength: 8)
 
@@ -179,20 +186,5 @@ struct SearchField: View {
         .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 6))
         .fixedSize()
         .help("Filter the roles already on screen")
-    }
-}
-
-/// Swaps between two button styles. A conditional `.buttonStyle` can't be written
-/// inline — the two styles are different types — and branching the whole Button
-/// duplicates its label and its action.
-private struct ProminentWhen: ViewModifier {
-    let on: Bool
-
-    func body(content: Content) -> some View {
-        if on {
-            content.buttonStyle(.borderedProminent)
-        } else {
-            content.buttonStyle(.bordered)
-        }
     }
 }

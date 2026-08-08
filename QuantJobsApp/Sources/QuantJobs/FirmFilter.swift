@@ -10,6 +10,16 @@ struct FirmFilter: View {
     @Bindable var model: AppModel
     @State private var focused: Set<String> = []
     @State private var search = ""
+    /// How far down the tiers the right-hand list reaches.
+    ///
+    /// The quant half already exposed this, because its segments *are* the tiers
+    /// — "Tier 1", "Tier 2", "Tier 3". The big-tech half never could: its
+    /// segments are themes, so "FAANG+" meant Apple and Google alongside 49
+    /// mid-tier names with no way to ask for only the first kind. One scope
+    /// control fixes both halves without relitigating either taxonomy.
+    @State private var tierScope = 3
+
+    private static let tierScopes = [(1, "Tier 1"), (2, "Tier 1+2"), (3, "All tiers")]
 
     /// Left-hand rows: every segment, under its group heading.
     private var groups: [(group: String, segments: [AppModel.FirmTierNode])] {
@@ -24,7 +34,7 @@ struct FirmFilter: View {
                 return focused.isEmpty || focused.contains(key) ? seg.ids : []
             }
         }
-        var out = ids.compactMap { model.company($0) }
+        var out = ids.compactMap { model.company($0) }.filter { $0.tier <= tierScope }
         if !search.isEmpty {
             let needle = search.lowercased()
             out = out.filter { $0.displayName.lowercased().contains(needle) }
@@ -120,14 +130,45 @@ struct FirmFilter: View {
 
     // MARK: - Firms
 
+    private var firmColumnTitle: String {
+        let shown = firms.count
+        let all = model.firmTree
+            .flatMap { node in node.tiers.flatMap(\.ids) }
+            .compactMap { model.company($0) }
+            .count { company in
+                focused.isEmpty || model.firmTree.contains { node in
+                    node.tiers.contains { seg in
+                        focused.contains("\(node.group)|\(seg.segment)")
+                            && seg.ids.contains(company.id)
+                    }
+                }
+            }
+        // A list cut down by the tier scope should say so rather than just look
+        // short — that's the difference between a filter and a missing firm.
+        if tierScope < 3 && all > shown { return "Firm — \(shown) of \(all)" }
+        return focused.isEmpty ? "Firm" : "Firm in selection"
+    }
+
     private var firmColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header(focused.isEmpty ? "Firm" : "Firm in selection", trailing: {
+            header(firmColumnTitle, trailing: {
                 Button("All") { model.setEnabled(true, for: firms.map(\.id)) }
                     .disabled(firms.isEmpty)
                 Button("None") { model.setEnabled(false, for: firms.map(\.id)) }
                     .disabled(firms.isEmpty)
             })
+
+            Picker("", selection: $tierScope) {
+                ForEach(Self.tierScopes, id: \.0) { scope in
+                    Text(scope.1).tag(scope.0)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 12)
+            .padding(.bottom, 6)
+            .help("Tier 1 is the names people target first. All On / All Off "
+                  + "below apply to whatever this leaves showing.")
 
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")

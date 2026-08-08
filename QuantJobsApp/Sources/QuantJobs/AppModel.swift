@@ -136,7 +136,7 @@ final class AppModel {
     /// Whether anything beyond category + level is narrowing the list.
     var hasExtraFilters: Bool {
         tagFilter != nil || sinceDays != nil
-            || newOnly || deep || hideApplied || !search.isEmpty
+            || newOnly || deep || appliedFilter.isFiltering || !search.isEmpty
             || !locationFilter.isEmpty
             || !continentFilter.isEmpty || !cityFilter.isEmpty
     }
@@ -146,7 +146,7 @@ final class AppModel {
         sinceDays = nil
         newOnly = false
         deep = false
-        hideApplied = false
+        appliedFilter = .show
         search = ""
         locationFilter = ""
         continentFilter = []
@@ -217,9 +217,9 @@ final class AppModel {
 
     var list: JobList = .results
     var showHidden = false
-    /// Leave applications out of the results list, so it reads as what's left to
-    /// do. Results only — the Applied list is where they live.
-    var hideApplied = false
+    /// What the results list does about roles you've already applied to.
+    /// Results only — the Applied list is where they live either way.
+    var appliedFilter: AppliedFilter = .show
     /// Stage sections folded shut in the Applied list.
     var collapsedStages: Set<Stage> = []
     private(set) var tracked: [String: TrackedJob] = [:]
@@ -281,7 +281,7 @@ final class AppModel {
     @ObservationIgnored private var resultsVersion = 0
 
     private var visibleKey: String {
-        "\(resultsVersion)|\(list.rawValue)|\(showHidden)|\(hideApplied)|\(mergeRoles)|"
+        "\(resultsVersion)|\(list.rawValue)|\(showHidden)|\(appliedFilter.rawValue)|\(mergeRoles)|"
         + "\(selectedCategoryID)|\(level.rawValue)|\(search)|"
         + "\(tagFilter ?? "-")|\(sinceDays.map(String.init) ?? "-")|"
         + "\(newOnly)|\(locationFilter)|"
@@ -315,7 +315,7 @@ final class AppModel {
         // applied before the merge — and at "All levels" across every board that
         // tripled the cost of every filter change. The tally now comes out of the
         // same pass, counting postings, which is what the banner has always said.
-        return resultRows(showHidden: showHidden, hideApplied: hideApplied)
+        return resultRows(showHidden: showHidden, applied: appliedFilter)
     }
 
     /// The results list under a given pair of mark filters.
@@ -323,9 +323,11 @@ final class AppModel {
     /// The marks are applied *before* the merge, deliberately: hiding one office
     /// of a role posted in four should leave the other three, which dropping
     /// whole merged rows wouldn't.
-    private func resultRows(showHidden: Bool, hideApplied: Bool) -> [Job] {
+    private func resultRows(showHidden: Bool, applied: AppliedFilter) -> [Job] {
         let q = query
         let cutoff = q.cutoffDate
+        // Built once, not per posting.
+        let firms = applied == .firms ? appliedFirms : []
         var hiddenHeld = 0, appliedHeld = 0
         let kept = jobs.filter { job in
             guard job.matchedCategories.contains(selectedCategoryID) else { return false }
@@ -338,9 +340,13 @@ final class AppModel {
                 hiddenHeld += 1
                 if !showHidden { return false }
             }
-            if entry?.hasApplication == true {
-                appliedHeld += 1
-                if hideApplied { return false }
+            switch applied {
+            case .show:
+                break
+            case .roles:
+                if entry?.hasApplication == true { appliedHeld += 1; return false }
+            case .firms:
+                if firms.contains(job.company) { appliedHeld += 1; return false }
             }
             return true
         }
@@ -374,6 +380,13 @@ final class AppModel {
             guard let jobs = byStage[stage] else { return nil }
             return StageGroup(stage: stage, jobs: jobs)
         }
+    }
+
+    /// Firms you have at least one application at. Cached against the tracking
+    /// dictionary's size and version rather than rebuilt per posting, since the
+    /// filter asks for it once per pass over tens of thousands of rows.
+    private var appliedFirms: Set<String> {
+        Set(tracked.values.lazy.filter(\.hasApplication).map { $0.job.company })
     }
 
     func isCollapsed(_ stage: Stage) -> Bool { collapsedStages.contains(stage) }
@@ -584,7 +597,7 @@ final class AppModel {
          sinceDays.map(String.init) ?? "-",
          continentFilter.sorted().joined(separator: ","),
          cityFilter.sorted().joined(separator: ","),
-         "\(newOnly)\(deep)\(mergeRoles)\(recordState)\(showHidden)\(hideApplied)",
+         "\(newOnly)\(deep)\(mergeRoles)\(recordState)\(showHidden)\(appliedFilter.rawValue)",
          collapsedStages.map(\.rawValue).sorted().joined(separator: ","),
          "\(refreshOnLaunch)\(refreshIfOlderThanHours)",
         ].joined(separator: "|")
@@ -599,7 +612,7 @@ final class AppModel {
                     cities: cityFilter.sorted(),
                     newOnly: newOnly, deep: deep, mergeRoles: mergeRoles,
                     recordState: recordState, showHidden: showHidden,
-                    hideApplied: hideApplied,
+                    appliedFilter: appliedFilter.rawValue,
                     collapsedStages: collapsedStages.map(\.rawValue).sorted(),
                     refreshOnLaunch: refreshOnLaunch,
                     refreshIfOlderThanHours: refreshIfOlderThanHours)
@@ -619,7 +632,7 @@ final class AppModel {
         mergeRoles = s.mergeRoles
         recordState = s.recordState
         showHidden = s.showHidden
-        hideApplied = s.hideApplied
+        appliedFilter = AppliedFilter(rawValue: s.appliedFilter) ?? .show
         collapsedStages = Set(s.collapsedStages.compactMap(Stage.init(rawValue:)))
         refreshOnLaunch = s.refreshOnLaunch
         refreshIfOlderThanHours = s.refreshIfOlderThanHours

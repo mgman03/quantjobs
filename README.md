@@ -140,8 +140,16 @@ the two stay in sync and you can use whichever suits the moment.
   reached, in pipeline order and newest activity first. Fold the ones you're not
   thinking about; a folded heading still says how many and how long the stalest has
   been sitting there. Which blocks are folded is remembered.
-- **Hide applied** in the filter row takes anything you've applied to out of the
-  results, so the list reads as what's left to do. They stay in the Applied list.
+- **The Applied filter** in the filter row has three settings: show everything,
+  hide the roles you've applied to, or hide *every* role at a firm you've applied
+  to — because one application per firm is usually the point, and a firm's other
+  twelve postings are noise once you've sent one. Either way they stay in the
+  Applied list.
+- **The Firms picker narrows by tier**, so "only the premium ones" is one click.
+  The quant half always had this because its segments *are* tiers; big tech's are
+  themes, so FAANG+ meant Apple and Google sitting alongside 49 mid-tier names
+  with no way to ask for just the first kind. `Tier 1` there is Amazon, Apple,
+  Google, Meta, Microsoft, Netflix, Nvidia, Palantir and Stripe.
 - **Opens populated.** The last run is cached, so the window comes up with results in
   it and refreshes behind them; it only re-scrapes if the cache is over six hours old.
 - **Titles are tidied** — `2026 - Internship, Quantitative Developer` shows as

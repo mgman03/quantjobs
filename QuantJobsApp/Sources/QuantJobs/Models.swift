@@ -590,6 +590,54 @@ struct Milestone: Codable, Hashable, Sendable, Identifiable {
     var relative: String? { Dates.relative(date) }
 }
 
+/// What to do in the results list about roles you've already applied to.
+///
+/// One three-way choice rather than two independent toggles, because hiding a
+/// firm already hides its roles — as separate switches, two of the four
+/// combinations mean the same thing.
+enum AppliedFilter: String, Codable, CaseIterable, Identifiable, Sendable {
+    case show, roles, firms
+
+    var id: String { rawValue }
+
+    /// What the filter-row button says.
+    var short: String {
+        switch self {
+        case .show: "Applied"
+        case .roles: "Hide applied"
+        case .firms: "Hide those firms"
+        }
+    }
+
+    /// The full sentence, for the menu.
+    var label: String {
+        switch self {
+        case .show: "Show everything"
+        case .roles: "Hide roles I've applied to"
+        case .firms: "Hide every role at those firms"
+        }
+    }
+
+    var help: String {
+        switch self {
+        case .show: "Applied roles stay in the results"
+        case .roles: "Leave out the postings you've applied to"
+        case .firms: "Leave out every posting from a firm you've applied to — "
+                   + "one application per firm is usually the point"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .show: "paperplane"
+        case .roles: "paperplane.slash"
+        case .firms: "building.2.crop.circle.badge.questionmark"
+        }
+    }
+
+    var isFiltering: Bool { self != .show }
+}
+
 /// What the user has decided about a posting.
 ///
 /// Kept as a type because the row buttons, the context menu and the sidebar all
