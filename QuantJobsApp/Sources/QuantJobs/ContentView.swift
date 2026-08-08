@@ -151,10 +151,12 @@ struct ContentView: View {
                 // Sub-categories sit indented under their parent — they're slices
                 // of it, not peers, and reading them as siblings of "Software
                 // Engineering" made "Python" look like a discipline of its own.
-                ForEach(model.categories) { category in
+                // Disciplines only. cpp/python/frontend describe a stack rather
+                // than a place to navigate to — as nav they were exclusive, so
+                // choosing one threw away the 87% of roles that name no language.
+                // They're an additive filter in the row above instead.
+                ForEach(model.navCategories) { category in
                     Label(category.displayName, systemImage: category.symbol)
-                        .padding(.leading, category.parent == nil ? 0 : 14)
-                        .font(category.parent == nil ? .body : .callout)
                         .tag("cat.\(category.name)")
                 }
             }

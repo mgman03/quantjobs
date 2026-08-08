@@ -81,7 +81,7 @@ list stays empty.
 
 ```
 --category, -c   swe | quant-trading | quant-research | quant-dev | hardware | data | all
-                 cpp | python | frontend   (slices of swe)
+--stack          cpp | python | frontend | unspecified, repeatable
 --level, -l      intern (default) | newgrad | intern-or-newgrad | any
 --location, -L   substring match on location, repeatable:  -L london -L nyc
 --company        limit to firms matching a name, repeatable
@@ -103,18 +103,27 @@ list stays empty.
 ./quantjobs.py scrape -c all --tag quant --new-only      # daily driver
 ```
 
-**`cpp`, `python` and `frontend` are sub-categories of `swe`**, not peers of it —
-they mean "the software-engineering roles that are C++", so both sets of rules
-apply. That distinction does real work: on its own, `cpp` also matched FPGA and
-hardware postings, which are C++ jobs but not software-engineering ones. In the app
-they sit indented under Software Engineering.
+**Stacks are a filter, not a category.** `--stack` keeps roles that name a given
+language or layer, and it's *additive* — each one you name adds a bucket rather
+than narrowing to one:
 
-Use them with `--deep`. Boards name the language in the description far more often
-than in the title, so a shallow run finds the handful that say "Software Engineer
-Intern - C++" outright and misses the rest.
+```bash
+./quantjobs.py scrape -c swe --stack cpp                    # only roles that say C++
+./quantjobs.py scrape -c swe --stack cpp --stack unspecified # C++, plus the ones that say nothing
+```
 
-A category becomes a sub-category by naming its `parent` in `categories.json`;
-nothing else is special-cased.
+That second form is the one you want, and the reason the filter works this way:
+**270 of 310 early-career SWE roles name no language at all.** A stack you have to
+pick one of would throw away 87% of the list to gain a handful — so "unspecified"
+is a bucket you can select like any other. In the app it's the `{} Any stack`
+menu, with tick boxes rather than a single choice.
+
+Use `--deep` with it. Boards name the language in the description far more often
+than in the title.
+
+A category in `categories.json` becomes a stack by naming its `parent`; the
+matching is deliberately *ungated* by that parent, so "does this posting mention
+C++" is answerable whichever category you're browsing.
 
 **A note on levels.** `intern-or-newgrad` means *early career only* — a posting has to
 read as an internship or a new-grad role. `any` switches the level test off entirely,

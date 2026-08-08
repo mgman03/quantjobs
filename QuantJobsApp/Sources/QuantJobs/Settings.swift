@@ -26,6 +26,8 @@ struct AppSettings: Codable, Sendable, Equatable {
     /// `hideApplied` boolean when that's what's on disk, so upgrading keeps the
     /// setting instead of silently resetting it.
     var appliedFilter = AppliedFilter.show.rawValue
+    /// Stacks kept by the filter. Empty means all.
+    var stacks: [String] = []
     var hideApplied: Bool? = nil
     /// Which stage sections are folded shut in the Applied list.
     var collapsedStages: [String] = []

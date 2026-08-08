@@ -797,6 +797,24 @@ enum HeadlessCheck {
                 model.clearApplication(for: picks)
             }
 
+            // Stacks are additive: one language alone is a handful, and adding
+            // "unspecified" gets you almost everything back. That's the whole
+            // point of the design — most roles name no language.
+            do {
+                let all = model.visibleJobs.count
+                model.stackFilter = ["cpp"]
+                let cpp = model.visibleJobs.count
+                model.stackFilter = ["cpp", Stacks.unspecified]
+                let both = model.visibleJobs.count
+                model.stackFilter = [Stacks.unspecified]
+                let bare = model.visibleJobs.count
+                model.stackFilter = []
+                print("stacks    all=\(all) cpp=\(cpp) cpp+unspec=\(both) "
+                      + "unspec=\(bare) · additive=\(both >= cpp && both >= bare) "
+                      + "· cpp+unspec == cpp ∪ unspec: \(both == cpp + bare) "
+                      + "· clear restores: \(model.visibleJobs.count == all)")
+            }
+
             if let victim = model.visibleJobs.first {
                 let before = model.visibleJobs.count
                 model.setHidden(true, for: [victim])

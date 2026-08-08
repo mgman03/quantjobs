@@ -289,6 +289,13 @@ struct JobCategory: Codable, Identifiable, Hashable, Sendable {
 
 // MARK: - Level
 
+/// The bucket for a posting that names no stack at all. It's most of them, so a
+/// stack filter that couldn't select it would throw away the bulk of the list to
+/// gain a handful.
+enum Stacks {
+    static let unspecified = "unspecified"
+}
+
 enum Level: String, CaseIterable, Identifiable, Sendable {
     case intern
     case newgrad
@@ -363,6 +370,11 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
     /// Worked out once per scrape so category and level become instant
     /// filters instead of reasons to re-fetch every board.
     var matchedCategories: Set<String> = []
+    /// Which stacks the posting names — "cpp", "python", "frontend". Empty means
+    /// it names none, which is the large majority: 270 of 310 early-career SWE
+    /// roles say nothing about the language. Recorded at scrape time so filtering
+    /// on it is a set lookup rather than another trip to the boards.
+    var matchedStacks: Set<String> = []
     var matchedLevels: Set<String> = []
 
     /// Other postings of the same role at different locations, folded into
@@ -471,7 +483,7 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
     enum CodingKeys: String, CodingKey {
         case company, title, location, url, posted, department, description
         case ats, tags, level, places, variants, linkStatus
-        case matchedCategories, matchedLevels
+        case matchedCategories, matchedLevels, matchedStacks
     }
 
     static let dateFormatter: DateFormatter = {

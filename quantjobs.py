@@ -1129,6 +1129,45 @@ def build_category_matchers(cats: dict) -> dict:
     return out
 
 
+def stack_names(cats: dict) -> list[str]:
+    """Categories that name a `parent` — they describe a stack, not a discipline."""
+    return [k for k, v in cats.items() if v.get("parent")]
+
+
+def job_stacks(job: dict, cats: dict, matchers: dict, deep: bool) -> set[str]:
+    """Which stacks this posting names. Empty means it names none.
+
+    Matched *ungated* — the question is "does this role mention C++", which is
+    worth answering whatever category you're looking at. The parent only says
+    which discipline the stack belongs to.
+    """
+    out = set()
+    for name in stack_names(cats):
+        bare = dict(matchers[name])
+        bare.pop("parent_include", None)
+        bare.pop("parent_exclude", None)
+        if classify(job, bare, "any", deep):
+            out.add(name)
+    return out
+
+
+# The bucket for a posting that names no stack at all. It is the large majority
+# — 270 of 310 early-career SWE roles — so a stack filter that dropped it would
+# throw away most of the list to gain a handful.
+UNSPECIFIED = "unspecified"
+
+
+def passes_stacks(job: dict, wanted: set[str], cats: dict,
+                  matchers: dict, deep: bool) -> bool:
+    """Additive: no choice means everything, and each choice adds a bucket."""
+    if not wanted:
+        return True
+    found = job_stacks(job, cats, matchers, deep)
+    if not found:
+        return UNSPECIFIED in wanted
+    return bool(found & wanted)
+
+
 def classify(job: dict, matcher: dict, level: str, deep: bool) -> bool:
     """Does this posting match the requested category and level?"""
     title = (job.get("title") or "").lower()
@@ -1434,9 +1473,18 @@ def cmd_scrape(args) -> int:
           f"·  level={args.level}", file=sys.stderr)
     raw, errors = scrape(firms, args.deep, args.workers)
 
+    raw_cats = load_json(CATEGORIES_FILE)
+    wanted_stacks = {t.strip().lower() for t in (args.stack or [])}
+    unknown = wanted_stacks - set(stack_names(raw_cats)) - {UNSPECIFIED}
+    if unknown:
+        sys.exit(f"unknown stack(s): {', '.join(sorted(unknown))}. available: "
+                 + ", ".join(sorted(stack_names(raw_cats) + [UNSPECIFIED])))
+
     rows = []
     for j in raw:
         if not classify(j, cats[args.category], args.level, args.deep):
+            continue
+        if not passes_stacks(j, wanted_stacks, raw_cats, cats, args.deep):
             continue
 
         places = parse_locations(j.get("location"))
@@ -1666,6 +1714,10 @@ def main() -> int:
                    help="don't record this run in .seen.json")
     s.add_argument("--deep", action="store_true",
                    help="also match against full descriptions (slower)")
+    s.add_argument("--stack", action="append",
+                   help="keep only these stacks; repeatable. "
+                        "cpp | python | frontend | unspecified "
+                        "(unspecified = names no stack, which is most roles)")
     s.add_argument("--format", "-f", default="table",
                    choices=["table", "csv", "json", "md"])
     s.add_argument("--out", "-o", help="write to file instead of stdout")

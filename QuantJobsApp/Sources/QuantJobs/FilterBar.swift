@@ -48,6 +48,36 @@ struct FilterBar: View {
         .font(.callout)
     }
 
+    /// Which stacks to keep — additive, because the useful request is "C++ or
+    /// nothing named", not "only the roles that say C++". Toggles rather than a
+    /// Picker for the same reason: it's a set, not a choice.
+    private var stackMenu: some View {
+        Menu {
+            Section("Keep roles that name") {
+                ForEach(model.stackCategories) { stack in
+                    Toggle(stack.displayName, isOn: Binding(
+                        get: { model.stackFilter.contains(stack.name) },
+                        set: { _ in model.toggleStack(stack.name) }))
+                }
+                Toggle("Nothing in particular", isOn: Binding(
+                    get: { model.stackFilter.contains(Stacks.unspecified) },
+                    set: { _ in model.toggleStack(Stacks.unspecified) }))
+            }
+            if !model.stackFilter.isEmpty {
+                Divider()
+                Button("Any stack") { model.stackFilter = [] }
+            }
+        } label: {
+            filterLabel("curlybraces", model.stackLabel)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Most roles name no language at all, so \"Nothing in particular\" is "
+              + "the bucket you usually want alongside the one you're after")
+    }
+
     /// Roles you've applied to: shown, hidden, or the whole firm hidden.
     ///
     /// A menu rather than a button, for three reasons. It's a three-way choice
@@ -139,6 +169,8 @@ struct FilterBar: View {
             .menuIndicator(.hidden)
             .fixedSize()
             .help("How recently the role was posted")
+
+            stackMenu
 
             appliedMenu
 

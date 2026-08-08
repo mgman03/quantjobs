@@ -136,7 +136,8 @@ final class AppModel {
     /// Whether anything beyond category + level is narrowing the list.
     var hasExtraFilters: Bool {
         tagFilter != nil || sinceDays != nil
-            || newOnly || deep || appliedFilter.isFiltering || !search.isEmpty
+            || newOnly || deep || appliedFilter.isFiltering || !stackFilter.isEmpty
+            || !search.isEmpty
             || !locationFilter.isEmpty
             || !continentFilter.isEmpty || !cityFilter.isEmpty
     }
@@ -147,6 +148,7 @@ final class AppModel {
         newOnly = false
         deep = false
         appliedFilter = .show
+        stackFilter = []
         search = ""
         locationFilter = ""
         continentFilter = []
@@ -220,6 +222,11 @@ final class AppModel {
     /// What the results list does about roles you've already applied to.
     /// Results only — the Applied list is where they live either way.
     var appliedFilter: AppliedFilter = .show
+    /// Stacks to keep. Empty means every posting; each choice adds a bucket
+    /// rather than narrowing to one, so "C++ and unspecified" is expressible —
+    /// which is the point, since selecting a single language discards the 87% of
+    /// roles that name none.
+    var stackFilter: Set<String> = []
     /// Stage sections folded shut in the Applied list.
     var collapsedStages: Set<Stage> = []
     private(set) var tracked: [String: TrackedJob] = [:]
@@ -282,6 +289,7 @@ final class AppModel {
 
     private var visibleKey: String {
         "\(resultsVersion)|\(list.rawValue)|\(showHidden)|\(appliedFilter.rawValue)|\(mergeRoles)|"
+        + "\(stackFilter.sorted().joined(separator: ","))|"
         + "\(selectedCategoryID)|\(level.rawValue)|\(search)|"
         + "\(tagFilter ?? "-")|\(sinceDays.map(String.init) ?? "-")|"
         + "\(newOnly)|\(locationFilter)|"
@@ -335,6 +343,13 @@ final class AppModel {
                 return false
             }
             guard q.matchesLiveFilters(job, cutoff: cutoff) else { return false }
+            if !stackFilter.isEmpty {
+                let named = job.matchedStacks
+                let ok = named.isEmpty
+                    ? stackFilter.contains(Stacks.unspecified)
+                    : !named.isDisjoint(with: stackFilter)
+                if !ok { return false }
+            }
             let entry = tracked[job.key]
             if entry?.hidden == true {
                 hiddenHeld += 1
@@ -387,6 +402,26 @@ final class AppModel {
     /// filter asks for it once per pass over tens of thousands of rows.
     private var appliedFirms: Set<String> {
         Set(tracked.values.lazy.filter(\.hasApplication).map { $0.job.company })
+    }
+
+    /// Categories that name a parent describe a stack, not a discipline: they're
+    /// offered as a filter rather than as a place to navigate to.
+    var stackCategories: [JobCategory] { categories.filter { $0.parent != nil } }
+    var navCategories: [JobCategory] { categories.filter { $0.parent == nil } }
+
+    func toggleStack(_ name: String) {
+        if stackFilter.contains(name) { stackFilter.remove(name) }
+        else { stackFilter.insert(name) }
+    }
+
+    /// "Any stack" / "C++" / "C++ +1" — the filter-row label.
+    var stackLabel: String {
+        guard !stackFilter.isEmpty else { return "Any stack" }
+        let names = stackFilter.sorted()
+        let first = names[0] == Stacks.unspecified
+            ? "Unspecified"
+            : (categories.first { $0.name == names[0] }?.displayName ?? names[0])
+        return names.count == 1 ? first : "\(first) +\(names.count - 1)"
     }
 
     func isCollapsed(_ stage: Stage) -> Bool { collapsedStages.contains(stage) }
@@ -598,6 +633,7 @@ final class AppModel {
          continentFilter.sorted().joined(separator: ","),
          cityFilter.sorted().joined(separator: ","),
          "\(newOnly)\(deep)\(mergeRoles)\(recordState)\(showHidden)\(appliedFilter.rawValue)",
+         stackFilter.sorted().joined(separator: ","),
          collapsedStages.map(\.rawValue).sorted().joined(separator: ","),
          "\(refreshOnLaunch)\(refreshIfOlderThanHours)",
         ].joined(separator: "|")
@@ -613,6 +649,7 @@ final class AppModel {
                     newOnly: newOnly, deep: deep, mergeRoles: mergeRoles,
                     recordState: recordState, showHidden: showHidden,
                     appliedFilter: appliedFilter.rawValue,
+                    stacks: stackFilter.sorted(),
                     collapsedStages: collapsedStages.map(\.rawValue).sorted(),
                     refreshOnLaunch: refreshOnLaunch,
                     refreshIfOlderThanHours: refreshIfOlderThanHours)
@@ -633,6 +670,7 @@ final class AppModel {
         recordState = s.recordState
         showHidden = s.showHidden
         appliedFilter = AppliedFilter(rawValue: s.appliedFilter) ?? .show
+        stackFilter = Set(s.stacks)
         collapsedStages = Set(s.collapsedStages.compactMap(Stage.init(rawValue:)))
         refreshOnLaunch = s.refreshOnLaunch
         refreshIfOlderThanHours = s.refreshIfOlderThanHours
@@ -735,15 +773,21 @@ final class AppModel {
         seen = loaded.seen
         tracked = loaded.tracked
         loadError = loaded.error
-        if !categories.contains(where: { $0.name == selectedCategoryID }) {
-            selectedCategoryID = categories.first?.name ?? "swe"
+        // navCategories, not categories: a stack persisted as the selected
+        // category from before they became a filter would otherwise stick, and
+        // its rows can no longer be reached from the sidebar.
+        if !navCategories.contains(where: { $0.name == selectedCategoryID }) {
+            selectedCategoryID = navCategories.first?.name ?? "swe"
         }
 
         // The user's own choices win over whatever the cache happened to hold.
         let saved = AppSettings.load()
         apply(saved)
-        if !categories.contains(where: { $0.name == selectedCategoryID }) {
-            selectedCategoryID = categories.first?.name ?? "swe"
+        // navCategories, not categories: a stack persisted as the selected
+        // category from before they became a filter would otherwise stick, and
+        // its rows can no longer be reached from the sidebar.
+        if !navCategories.contains(where: { $0.name == selectedCategoryID }) {
+            selectedCategoryID = navCategories.first?.name ?? "swe"
         }
 
         // Show last run's results straight away, then refresh behind them —
@@ -1063,9 +1107,13 @@ final class AppModel {
         // that are C++ rather than anything C++.
         let byName = Dictionary(categories.map { ($0.name, $0) },
                                 uniquingKeysWith: { a, _ in a })
-        let matchers = categories.map {
+        let matchers = navCategories.map {
             CategoryMatcher($0, parent: $0.parent.flatMap { byName[$0] })
         }
+        // Stack matchers are ungated on purpose: "does this posting mention C++"
+        // is worth answering in any category, and the parent only records which
+        // discipline the stack belongs to.
+        let stackMatchers = stackCategories.map { CategoryMatcher($0) }
         let q = query
         let known = seen
 
@@ -1100,6 +1148,9 @@ final class AppModel {
                     let cats = matchers.filter { $0.acceptsCategory(raw, deep: q.deep) }
                     guard !cats.isEmpty else { continue }
                     job.matchedCategories = Set(cats.map(\.name))
+                    job.matchedStacks = Set(stackMatchers
+                        .filter { $0.acceptsCategory(raw, deep: q.deep) }
+                        .map(\.name))
                     job.matchedLevels = Set(Level.allCases
                         .filter { Levels.matches($0, title: job.title,
                                                  department: job.department) }
