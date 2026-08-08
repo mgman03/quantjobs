@@ -254,6 +254,16 @@ struct JobCategory: Codable, Identifiable, Hashable, Sendable {
         parent = try c.decodeIfPresent(String.self, forKey: .parent)
     }
 
+    /// Short enough for "No C++ +1" in a filter-row button.
+    var shortName: String {
+        switch name {
+        case "cpp": "C++"
+        case "python": "Python"
+        case "frontend": "UI/Web"
+        default: displayName
+        }
+    }
+
     var symbol: String {
         switch name {
         case "swe": "chevron.left.forwardslash.chevron.right"

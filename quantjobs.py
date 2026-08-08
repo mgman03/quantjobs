@@ -1151,21 +1151,17 @@ def job_stacks(job: dict, cats: dict, matchers: dict, deep: bool) -> set[str]:
     return out
 
 
-# The bucket for a posting that names no stack at all. It is the large majority
-# — 270 of 310 early-career SWE roles — so a stack filter that dropped it would
-# throw away most of the list to gain a handful.
-UNSPECIFIED = "unspecified"
-
-
-def passes_stacks(job: dict, wanted: set[str], cats: dict,
+def passes_stacks(job: dict, unwanted: set[str], cats: dict,
                   matchers: dict, deep: bool) -> bool:
-    """Additive: no choice means everything, and each choice adds a bucket."""
-    if not wanted:
+    """Exclusion: a posting goes only if it names a stack you ruled out.
+
+    Naming nothing can never rule a posting out, which is what makes this usable
+    — 270 of 310 early-career SWE roles name no stack, so a keep-list would have
+    to name every stack you'd accept and would empty the list if you missed one.
+    """
+    if not unwanted:
         return True
-    found = job_stacks(job, cats, matchers, deep)
-    if not found:
-        return UNSPECIFIED in wanted
-    return bool(found & wanted)
+    return not (job_stacks(job, cats, matchers, deep) & unwanted)
 
 
 def classify(job: dict, matcher: dict, level: str, deep: bool) -> bool:
@@ -1474,17 +1470,17 @@ def cmd_scrape(args) -> int:
     raw, errors = scrape(firms, args.deep, args.workers)
 
     raw_cats = load_json(CATEGORIES_FILE)
-    wanted_stacks = {t.strip().lower() for t in (args.stack or [])}
-    unknown = wanted_stacks - set(stack_names(raw_cats)) - {UNSPECIFIED}
+    unwanted_stacks = {t.strip().lower() for t in (args.no_stack or [])}
+    unknown = unwanted_stacks - set(stack_names(raw_cats))
     if unknown:
         sys.exit(f"unknown stack(s): {', '.join(sorted(unknown))}. available: "
-                 + ", ".join(sorted(stack_names(raw_cats) + [UNSPECIFIED])))
+                 + ", ".join(sorted(stack_names(raw_cats))))
 
     rows = []
     for j in raw:
         if not classify(j, cats[args.category], args.level, args.deep):
             continue
-        if not passes_stacks(j, wanted_stacks, raw_cats, cats, args.deep):
+        if not passes_stacks(j, unwanted_stacks, raw_cats, cats, args.deep):
             continue
 
         places = parse_locations(j.get("location"))
@@ -1714,10 +1710,10 @@ def main() -> int:
                    help="don't record this run in .seen.json")
     s.add_argument("--deep", action="store_true",
                    help="also match against full descriptions (slower)")
-    s.add_argument("--stack", action="append",
-                   help="keep only these stacks; repeatable. "
-                        "cpp | python | frontend | unspecified "
-                        "(unspecified = names no stack, which is most roles)")
+    s.add_argument("--no-stack", action="append", metavar="STACK",
+                   help="leave out roles using this stack; repeatable. "
+                        "cpp | python | frontend. Roles that name no stack are "
+                        "always kept — that's most of them")
     s.add_argument("--format", "-f", default="table",
                    choices=["table", "csv", "json", "md"])
     s.add_argument("--out", "-o", help="write to file instead of stdout")

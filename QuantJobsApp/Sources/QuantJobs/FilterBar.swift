@@ -48,24 +48,27 @@ struct FilterBar: View {
         .font(.callout)
     }
 
-    /// Which stacks to keep — additive, because the useful request is "C++ or
-    /// nothing named", not "only the roles that say C++". Toggles rather than a
-    /// Picker for the same reason: it's a set, not a choice.
+    /// Which stacks to leave out. Tick boxes, not a Picker: it's a set of things
+    /// you don't want, and every label says so — an include list needed a tick on
+    /// everything you'd accept plus one on "unspecified", which is three ticks to
+    /// express one exclusion and silently empty if you missed the last.
     private var stackMenu: some View {
         Menu {
-            Section("Keep roles that name") {
+            Section("Leave out roles that use") {
                 ForEach(model.stackCategories) { stack in
-                    Toggle(stack.displayName, isOn: Binding(
-                        get: { model.stackFilter.contains(stack.name) },
-                        set: { _ in model.toggleStack(stack.name) }))
+                    Toggle(isOn: Binding(
+                        get: { model.excludedStacks.contains(stack.name) },
+                        set: { _ in model.toggleStack(stack.name) })) {
+                        // Spelled out per row, because a tick box next to a
+                        // language reads as "I want this one" unless the row says
+                        // otherwise.
+                        Text("\(stack.shortName) — hide these")
+                    }
                 }
-                Toggle("Nothing in particular", isOn: Binding(
-                    get: { model.stackFilter.contains(Stacks.unspecified) },
-                    set: { _ in model.toggleStack(Stacks.unspecified) }))
             }
-            if !model.stackFilter.isEmpty {
+            if !model.excludedStacks.isEmpty {
                 Divider()
-                Button("Any stack") { model.stackFilter = [] }
+                Button("Show every stack") { model.excludedStacks = [] }
             }
         } label: {
             filterLabel("curlybraces", model.stackLabel)
@@ -74,8 +77,8 @@ struct FilterBar: View {
         .buttonStyle(.bordered)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("Most roles name no language at all, so \"Nothing in particular\" is "
-              + "the bucket you usually want alongside the one you're after")
+        .help("Tick a stack to remove those roles. Anything that names no stack "
+              + "stays — that's most of them, so this narrows rather than empties.")
     }
 
     /// Roles you've applied to: shown, hidden, or the whole firm hidden.

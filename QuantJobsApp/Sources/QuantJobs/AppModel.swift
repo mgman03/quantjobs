@@ -136,7 +136,7 @@ final class AppModel {
     /// Whether anything beyond category + level is narrowing the list.
     var hasExtraFilters: Bool {
         tagFilter != nil || sinceDays != nil
-            || newOnly || deep || appliedFilter.isFiltering || !stackFilter.isEmpty
+            || newOnly || deep || appliedFilter.isFiltering || !excludedStacks.isEmpty
             || !search.isEmpty
             || !locationFilter.isEmpty
             || !continentFilter.isEmpty || !cityFilter.isEmpty
@@ -148,7 +148,7 @@ final class AppModel {
         newOnly = false
         deep = false
         appliedFilter = .show
-        stackFilter = []
+        excludedStacks = []
         search = ""
         locationFilter = ""
         continentFilter = []
@@ -222,11 +222,16 @@ final class AppModel {
     /// What the results list does about roles you've already applied to.
     /// Results only — the Applied list is where they live either way.
     var appliedFilter: AppliedFilter = .show
-    /// Stacks to keep. Empty means every posting; each choice adds a bucket
-    /// rather than narrowing to one, so "C++ and unspecified" is expressible —
-    /// which is the point, since selecting a single language discards the 87% of
-    /// roles that name none.
-    var stackFilter: Set<String> = []
+    /// Stacks to leave out. Ticking one removes those roles; empty means keep
+    /// everything.
+    ///
+    /// Exclusion rather than inclusion because that's the shape of the request:
+    /// "not Python, not UI, anything else is fine" is one tick per unwanted
+    /// stack. As an include list the same thing needed a tick on every stack you
+    /// would accept *plus* one on "unspecified" — three ticks to express one
+    /// exclusion, and unusable if you forgot the last one, since 87% of roles
+    /// name no stack at all.
+    var excludedStacks: Set<String> = []
     /// Stage sections folded shut in the Applied list.
     var collapsedStages: Set<Stage> = []
     private(set) var tracked: [String: TrackedJob] = [:]
@@ -289,7 +294,7 @@ final class AppModel {
 
     private var visibleKey: String {
         "\(resultsVersion)|\(list.rawValue)|\(showHidden)|\(appliedFilter.rawValue)|\(mergeRoles)|"
-        + "\(stackFilter.sorted().joined(separator: ","))|"
+        + "\(excludedStacks.sorted().joined(separator: ","))|"
         + "\(selectedCategoryID)|\(level.rawValue)|\(search)|"
         + "\(tagFilter ?? "-")|\(sinceDays.map(String.init) ?? "-")|"
         + "\(newOnly)|\(locationFilter)|"
@@ -343,12 +348,11 @@ final class AppModel {
                 return false
             }
             guard q.matchesLiveFilters(job, cutoff: cutoff) else { return false }
-            if !stackFilter.isEmpty {
-                let named = job.matchedStacks
-                let ok = named.isEmpty
-                    ? stackFilter.contains(Stacks.unspecified)
-                    : !named.isDisjoint(with: stackFilter)
-                if !ok { return false }
+            // A posting goes only if it names something you excluded. Naming
+            // nothing can never exclude it, which is what keeps the majority.
+            if !excludedStacks.isEmpty,
+               !job.matchedStacks.isDisjoint(with: excludedStacks) {
+                return false
             }
             let entry = tracked[job.key]
             if entry?.hidden == true {
@@ -410,18 +414,20 @@ final class AppModel {
     var navCategories: [JobCategory] { categories.filter { $0.parent == nil } }
 
     func toggleStack(_ name: String) {
-        if stackFilter.contains(name) { stackFilter.remove(name) }
-        else { stackFilter.insert(name) }
+        if excludedStacks.contains(name) { excludedStacks.remove(name) }
+        else { excludedStacks.insert(name) }
     }
 
-    /// "Any stack" / "C++" / "C++ +1" — the filter-row label.
+    /// "All stacks" / "No Python" / "No Python +1" — the filter-row label, which
+    /// states what's being left out rather than what's being kept.
     var stackLabel: String {
-        guard !stackFilter.isEmpty else { return "Any stack" }
-        let names = stackFilter.sorted()
-        let first = names[0] == Stacks.unspecified
-            ? "Unspecified"
-            : (categories.first { $0.name == names[0] }?.displayName ?? names[0])
-        return names.count == 1 ? first : "\(first) +\(names.count - 1)"
+        guard !excludedStacks.isEmpty else { return "All stacks" }
+        let names = excludedStacks.sorted()
+        let short = { (n: String) -> String in
+            self.categories.first { $0.name == n }?.shortName ?? n.capitalized
+        }
+        return names.count == 1 ? "No \(short(names[0]))"
+                                : "No \(short(names[0])) +\(names.count - 1)"
     }
 
     func isCollapsed(_ stage: Stage) -> Bool { collapsedStages.contains(stage) }
@@ -633,7 +639,7 @@ final class AppModel {
          continentFilter.sorted().joined(separator: ","),
          cityFilter.sorted().joined(separator: ","),
          "\(newOnly)\(deep)\(mergeRoles)\(recordState)\(showHidden)\(appliedFilter.rawValue)",
-         stackFilter.sorted().joined(separator: ","),
+         excludedStacks.sorted().joined(separator: ","),
          collapsedStages.map(\.rawValue).sorted().joined(separator: ","),
          "\(refreshOnLaunch)\(refreshIfOlderThanHours)",
         ].joined(separator: "|")
@@ -649,7 +655,7 @@ final class AppModel {
                     newOnly: newOnly, deep: deep, mergeRoles: mergeRoles,
                     recordState: recordState, showHidden: showHidden,
                     appliedFilter: appliedFilter.rawValue,
-                    stacks: stackFilter.sorted(),
+                    stacks: excludedStacks.sorted(),
                     collapsedStages: collapsedStages.map(\.rawValue).sorted(),
                     refreshOnLaunch: refreshOnLaunch,
                     refreshIfOlderThanHours: refreshIfOlderThanHours)
@@ -670,7 +676,7 @@ final class AppModel {
         recordState = s.recordState
         showHidden = s.showHidden
         appliedFilter = AppliedFilter(rawValue: s.appliedFilter) ?? .show
-        stackFilter = Set(s.stacks)
+        excludedStacks = Set(s.stacks)
         collapsedStages = Set(s.collapsedStages.compactMap(Stage.init(rawValue:)))
         refreshOnLaunch = s.refreshOnLaunch
         refreshIfOlderThanHours = s.refreshIfOlderThanHours

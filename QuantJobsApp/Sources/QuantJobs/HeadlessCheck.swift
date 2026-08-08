@@ -31,6 +31,9 @@ enum HeadlessCheck {
         let categoryName = flag(["--category", "-c"], default: "swe")
         let levelName = flag(["--level", "-l"], default: "intern")
         let deep = args.contains("--deep")
+        // Repeatable, matching the CLI's --no-stack, so the two can be diffed.
+        let stacks = Set(args.indices.filter { args[$0] == "--no-stack" && $0 + 1 < args.count }
+                             .map { args[$0 + 1] })
 
         let level: Level = switch levelName {
         case "newgrad": .newgrad
@@ -40,12 +43,14 @@ enum HeadlessCheck {
         }
 
         Task {
-            exit(await scrape(categoryName: categoryName, level: level, deep: deep))
+            exit(await scrape(categoryName: categoryName, level: level, deep: deep,
+                              stacks: stacks))
         }
         dispatchMain()   // park the main thread; the task above exits the process
     }
 
-    private static func scrape(categoryName: String, level: Level, deep: Bool) async -> Int32 {
+    private static func scrape(categoryName: String, level: Level, deep: Bool,
+                               stacks: Set<String> = []) async -> Int32 {
         ConfigStore.seedIfNeeded()
         LocationParser.gazetteer = ConfigStore.loadGazetteer()
 
@@ -77,9 +82,20 @@ enum HeadlessCheck {
         print("scraping \(firms.count) firms  ·  category=\(categoryName)  "
               + "·  level=\(level.rawValue)")
 
+        let stackMatchers = categories.filter { $0.parent != nil }.map { CategoryMatcher($0) }
         let collector = Collector()
         await Scraper.run(firms, deep: deep) { result in
-            let kept = result.jobs.filter { query.keep($0, matcher: matcher) }
+            let kept = result.jobs.filter { job in
+                guard query.keep(job, matcher: matcher) else { return false }
+                guard !stacks.isEmpty else { return true }
+                let raw = RawJob(title: job.title, location: job.location, url: job.url,
+                                 posted: job.posted, department: job.department,
+                                 description: job.description)
+                let named = Set(stackMatchers
+                    .filter { $0.acceptsCategory(raw, deep: deep) }
+                    .map { (m: CategoryMatcher) in m.name })
+                return named.isDisjoint(with: stacks)
+            }
             await collector.add(kept, failure: result.failure, company: result.company.displayName)
         }
 
@@ -802,17 +818,20 @@ enum HeadlessCheck {
             // point of the design — most roles name no language.
             do {
                 let all = model.visibleJobs.count
-                model.stackFilter = ["cpp"]
-                let cpp = model.visibleJobs.count
-                model.stackFilter = ["cpp", Stacks.unspecified]
-                let both = model.visibleJobs.count
-                model.stackFilter = [Stacks.unspecified]
-                let bare = model.visibleJobs.count
-                model.stackFilter = []
-                print("stacks    all=\(all) cpp=\(cpp) cpp+unspec=\(both) "
-                      + "unspec=\(bare) · additive=\(both >= cpp && both >= bare) "
-                      + "· cpp+unspec == cpp ∪ unspec: \(both == cpp + bare) "
-                      + "· clear restores: \(model.visibleJobs.count == all)")
+                model.excludedStacks = ["python"]
+                let noPy = model.visibleJobs.count
+                model.excludedStacks = ["python", "frontend"]
+                let noPyUI = model.visibleJobs.count
+                model.excludedStacks = ["cpp", "python", "frontend"]
+                let noneNamed = model.visibleJobs.count
+                model.excludedStacks = []
+                print("stacks    all=\(all) no-python=\(noPy) no-python-ui=\(noPyUI) "
+                      + "nothing-named-only=\(noneNamed)")
+                print("          removes rather than narrows: "
+                      + "\(noPy < all && noPyUI <= noPy) · "
+                      + "excluding every stack still keeps the unnamed majority: "
+                      + "\(noneNamed > all / 2) · clear restores: "
+                      + "\(model.visibleJobs.count == all)")
             }
 
             if let victim = model.visibleJobs.first {
