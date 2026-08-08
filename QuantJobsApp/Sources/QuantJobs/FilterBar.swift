@@ -121,7 +121,7 @@ struct FilterBar: View {
             .tint(model.hideApplied ? .accentColor : .secondary)
             .fixedSize()
             .help(model.hideApplied
-                  ? "Holding back \(model.appliedInResults) role(s) you've applied "
+                  ? "Holding back \(model.appliedInResults) posting(s) you've applied "
                     + "to — they're still in the Applied list"
                   : "Leave out roles you've already applied to")
 

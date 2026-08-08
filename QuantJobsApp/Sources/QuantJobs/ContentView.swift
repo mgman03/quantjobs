@@ -303,52 +303,6 @@ struct ContentView: View {
 
     // MARK: - Table
 
-    /// The application control on each row: what stage it's at, and the steps
-    /// you can record next.
-    private func stageMenu(_ job: Job) -> some View {
-        let entry = model.trackedEntry(for: job)
-        let stage = entry?.stage
-        return Menu {
-            if let entry, entry.hasApplication {
-                Section("Record a step") {
-                    ForEach(entry.remainingStages) { next in
-                        Button {
-                            model.record(next, for: [job])
-                        } label: {
-                            Label(next.label, systemImage: next.symbol)
-                        }
-                    }
-                }
-                Divider()
-                Button("Clear Progress", role: .destructive) {
-                    model.clearApplication(for: [job])
-                }
-            } else {
-                Button {
-                    model.record(.applied, for: [job])
-                } label: {
-                    Label("Applied Today", systemImage: Stage.applied.symbol)
-                }
-                ForEach(Stage.allCases.dropFirst()) { later in
-                    Button {
-                        model.record(.applied, for: [job])
-                        model.record(later, for: [job])
-                    } label: {
-                        Label("Already at \(later.label)", systemImage: later.symbol)
-                    }
-                }
-            }
-        } label: {
-            Image(systemName: stage?.symbol ?? "checkmark.seal")
-                .foregroundStyle(Self.tint(stage))
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .help(stage.map { "\($0.label) — click to record the next step" }
-              ?? "Track an application")
-    }
-
     /// One colour scale for the whole pipeline, used by the row icon, the pill
     /// and the detail timeline so a glance means the same thing everywhere.
     static func tint(_ stage: Stage?) -> AnyShapeStyle {
@@ -421,12 +375,29 @@ struct ContentView: View {
                                                 : AnyShapeStyle(.tertiary))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(model.isSaved(job) ? "Saved" : "Save")
                     .help("Save this role")
 
-                    // A menu rather than a toggle: with several steps recorded
-                    // there's no single thing "off" should mean, and a stray
-                    // click shouldn't be able to throw away a history.
-                    stageMenu(job)
+                    // A plain Button, not a Menu. A Menu builds its content per
+                    // row, and at "All levels" across 54 boards that is tens of
+                    // thousands of menus — a `sample` of the spinning app was
+                    // entirely inside this column's cells. Choosing a *stage*
+                    // lives in the detail panel and the right-click menu; the
+                    // row only starts an application, and once one exists the
+                    // button goes inert so a stray click can't discard it.
+                    let tracked = model.hasApplication(job)
+                    Button {
+                        if !tracked { model.record(.applied, for: [job]) }
+                    } label: {
+                        Image(systemName: tracked ? "paperplane.fill" : "paperplane")
+                            .foregroundStyle(tracked ? AnyShapeStyle(Color.accentColor)
+                                                     : AnyShapeStyle(.tertiary))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(tracked)
+                    .accessibilityLabel(tracked ? "Application tracked" : "Mark applied")
+                    .help(tracked ? "Applied — the detail panel records the stages"
+                                  : "Mark as applied today")
 
                     Button { model.setHidden(!model.isHidden(job), for: [job]) } label: {
                         let on = model.isHidden(job)
@@ -435,6 +406,7 @@ struct ContentView: View {
                                                 : AnyShapeStyle(.tertiary))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(model.isHidden(job) ? "Unhide" : "Hide")
                     .help(model.isHidden(job)
                           ? "Unhide — an application here is kept either way"
                           : "Hide this role")
@@ -1030,6 +1002,7 @@ struct JobDetailContent: View {
         }
         .buttonStyle(.bordered)
         .tint(on ? .accentColor : .secondary)
+        .accessibilityLabel(help)
         .help(help)
     }
 

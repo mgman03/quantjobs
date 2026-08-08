@@ -771,9 +771,12 @@ enum HeadlessCheck {
                 model.list = .applied
                 let inList = model.visibleJobs.count
                 model.list = .results
-                print("hide app  results \(before) → \(after), "
-                      + "removed exactly the \(tracked) applied: "
-                      + "\(before - after == tracked && tracked == picks.count) · "
+                // Rows removed vs postings held back: a merged row stands for
+                // several postings, and the tally counts postings.
+                print("hide app  results \(before) → \(after) "
+                      + "(\(tracked) postings held), "
+                      + "dropped exactly the \(picks.count) marked row(s): "
+                      + "\(before - after == picks.count && tracked >= picks.count) · "
                       + "Applied list still \(inList) · "
                       + "counts as a filter: \(model.hasExtraFilters)")
                 model.clearFilters()

@@ -318,18 +318,15 @@ final class AppModel {
             let q = query
             heldBack = [:]
             return jobs(with: status).filter { q.matchesSearch($0) }
+
         }
 
-        let rows = resultRows(showHidden: showHidden, hideApplied: hideApplied)
-        // What each mark filter is holding back, measured the way the chip and
-        // the banner state it: rows the list would gain if it were off. Counting
-        // postings instead read "6 applied hidden" when three rows disappeared,
-        // because a merged row stands for several postings.
-        heldBack[.hidden] = showHidden ? 0
-            : resultRows(showHidden: true, hideApplied: hideApplied).count - rows.count
-        heldBack[.applied] = !hideApplied ? 0
-            : resultRows(showHidden: showHidden, hideApplied: false).count - rows.count
-        return rows
+        // One pass. Measuring "rows the list would gain if this filter were off"
+        // needed a second and third full filter+merge+sort, because the marks are
+        // applied before the merge — and at "All levels" across every board that
+        // tripled the cost of every filter change. The tally now comes out of the
+        // same pass, counting postings, which is what the banner has always said.
+        return resultRows(showHidden: showHidden, hideApplied: hideApplied)
     }
 
     /// The results list under a given pair of mark filters.
@@ -340,16 +337,26 @@ final class AppModel {
     private func resultRows(showHidden: Bool, hideApplied: Bool) -> [Job] {
         let q = query
         let cutoff = q.cutoffDate
+        var hiddenHeld = 0, appliedHeld = 0
         let kept = jobs.filter { job in
             guard job.matchedCategories.contains(selectedCategoryID) else { return false }
             guard level == .any || job.matchedLevels.contains(level.rawValue) else {
                 return false
             }
             guard q.matchesLiveFilters(job, cutoff: cutoff) else { return false }
-            if !showHidden, tracked[job.key]?.hidden == true { return false }
-            if hideApplied, tracked[job.key]?.hasApplication == true { return false }
+            let entry = tracked[job.key]
+            if entry?.hidden == true {
+                hiddenHeld += 1
+                if !showHidden { return false }
+            }
+            if entry?.hasApplication == true {
+                appliedHeld += 1
+                if hideApplied { return false }
+            }
             return true
         }
+        heldBack[.hidden] = hiddenHeld
+        heldBack[.applied] = appliedHeld
         // Merge after filtering, so a city filter leaves a merged row holding
         // only the locations you asked for — then sort, because merging picks a
         // new primary row and would otherwise scramble the order.
