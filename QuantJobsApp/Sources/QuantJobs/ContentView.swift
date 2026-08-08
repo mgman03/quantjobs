@@ -132,9 +132,15 @@ struct ContentView: View {
                         Label(entry.title, systemImage: entry.symbol)
                         Spacer()
                         if let status = entry.status, model.count(status) > 0 {
+                            // Same capsule as the stage-section counts and the
+                            // Level tag: one treatment for "a small number that
+                            // labels a thing", used everywhere.
                             Text("\(model.count(status))")
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(.quaternary.opacity(0.6), in: .capsule)
                         }
                     }
                     .tag("list.\(entry.rawValue)")
@@ -431,13 +437,16 @@ struct ContentView: View {
                         .help(job.tags.contains("bigtech") ? "Big Tech" : "Quant")
                     Text(job.company)
                 }
-                .foregroundStyle(model.isDelisted(job) ? .secondary : .primary)
+                .foregroundStyle(model.isDelisted(job) ? .tertiary : .secondary)
             }
             .width(min: 90, ideal: 116)
 
             TableColumn("Role", value: \.shortTitle) { job in
                 HStack(spacing: 5) {
                     Text(job.shortTitle)
+                        // The one thing at full weight and full contrast: this
+                        // is the column people actually read down.
+                        .fontWeight(.medium)
                         .foregroundStyle(model.isDelisted(job) ? .secondary : .primary)
                         .strikethrough(model.isDelisted(job), color: .secondary)
                     if model.isDelisted(job) {
@@ -453,6 +462,7 @@ struct ContentView: View {
 
             TableColumn("Location", value: \.locationDisplay) { job in
                 Text(job.locationDisplay)
+                    .foregroundStyle(.secondary)
                     .help(job.places.count > 1
                           ? job.places.map(\.label).joined(separator: " · ")
                           : job.location)
@@ -460,19 +470,41 @@ struct ContentView: View {
             .width(min: 100, ideal: 128)
 
             TableColumn("Level", value: \.level) { job in
-                Text(job.levelShort.isEmpty ? "–" : job.levelShort)
-                    .foregroundStyle(job.levelShort.isEmpty ? .secondary : .primary)
+                if job.levelShort.isEmpty {
+                    Text("–").foregroundStyle(.tertiary)
+                } else {
+                    // A tag, not a word. The table already speaks in capsules —
+                    // the Progress pill, the stage-section counts — so this joins
+                    // that language instead of being a third treatment for a
+                    // short fixed value.
+                    Text(job.levelShort)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.quaternary.opacity(0.5), in: .capsule)
+                }
             }
-            .width(54)
+            .width(66)
 
             // Fixed, not a range: a squeezed table was shrinking this below a
             // full date and showing "2026-07".
             TableColumn("Posted", value: \.posted) { job in
-                Text(job.posted.isEmpty ? "–" : job.posted)
-                    .monospacedDigit()
-                    .foregroundStyle(job.posted.isEmpty ? .secondary : .primary)
+                if let age = Dates.compact(job.posted) {
+                    // Fresh postings earn the accent. What you scan this column
+                    // for is what turned up recently, and an ISO date makes you
+                    // do that arithmetic yourself — it's on hover instead.
+                    let days = Dates.days(since: job.posted) ?? 99
+                    Text(age)
+                        .monospacedDigit()
+                        .foregroundStyle(days <= 3 ? AnyShapeStyle(.tint)
+                                                   : AnyShapeStyle(.secondary))
+                        .help(job.posted)
+                } else {
+                    Text("–").foregroundStyle(.tertiary)
+                }
             }
-            .width(80)
+            .width(66)
     }
 
     private func jobTable(_ rows: [Job]) -> some View {
@@ -577,7 +609,14 @@ struct ContentView: View {
                     .frame(width: 130)
                 Text("\(model.scanned)/\(model.total) boards")
             } else {
-                Text("\(rows.count) roles · \(Set(rows.map(\.company)).count) firms")
+                HStack(spacing: 4) {
+                    Text("\(rows.count)").fontWeight(.medium)
+                    Text("roles").foregroundStyle(.secondary)
+                    Text("·").foregroundStyle(.quaternary)
+                    Text("\(Set(rows.map(\.company)).count)").fontWeight(.medium)
+                    Text("firms").foregroundStyle(.secondary)
+                }
+                .monospacedDigit()
                 if model.showingCache, let when = model.cacheDate {
                     Label {
                         Text("from \(when, format: .relative(presentation: .numeric))")

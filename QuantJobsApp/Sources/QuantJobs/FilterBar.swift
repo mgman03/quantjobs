@@ -48,6 +48,30 @@ struct FilterBar: View {
         .font(.callout)
     }
 
+    /// The one filter that is on or off rather than a choice, so it has to *look*
+    /// on or off. Two button styles rather than a tint: `.bordered` with an accent
+    /// tint draws blue text in a washed-out capsule, which reads as a link sitting
+    /// between three bordered buttons — the same inconsistency the Toggle had,
+    /// reached from the other direction. Prominent when on, plain when off: same
+    /// shape family either way, unmistakable state.
+    @ViewBuilder
+    private var hideAppliedButton: some View {
+        Button { model.hideApplied.toggle() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: model.hideApplied
+                      ? "paperplane.slash.fill" : "paperplane")
+                Text("Hide applied")
+            }
+            .font(.callout)
+        }
+        .modifier(ProminentWhen(on: model.hideApplied))
+        .fixedSize()
+        .help(model.hideApplied
+              ? "Holding back \(model.appliedInResults) posting(s) you've applied "
+                + "to — they're still in the Applied list"
+              : "Leave out roles you've already applied to")
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             Picker("", selection: $model.level) {
@@ -103,27 +127,7 @@ struct FilterBar: View {
             .fixedSize()
             .help("How recently the role was posted")
 
-            // A Button rather than a Toggle: `.toggleStyle(.button)` draws its own
-            // chrome and filled-on state, which read as a different kind of
-            // control sitting next to three bordered Buttons. Same control, same
-            // style, state carried by the icon and the tint.
-            Button {
-                model.hideApplied.toggle()
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: model.hideApplied
-                          ? "paperplane.slash.fill" : "paperplane")
-                    Text("Hide applied")
-                }
-                .font(.callout)
-            }
-            .buttonStyle(.bordered)
-            .tint(model.hideApplied ? .accentColor : .secondary)
-            .fixedSize()
-            .help(model.hideApplied
-                  ? "Holding back \(model.appliedInResults) posting(s) you've applied "
-                    + "to — they're still in the Applied list"
-                  : "Leave out roles you've already applied to")
+            hideAppliedButton
 
             Spacer(minLength: 8)
 
@@ -175,5 +179,20 @@ struct SearchField: View {
         .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 6))
         .fixedSize()
         .help("Filter the roles already on screen")
+    }
+}
+
+/// Swaps between two button styles. A conditional `.buttonStyle` can't be written
+/// inline — the two styles are different types — and branching the whole Button
+/// duplicates its label and its action.
+private struct ProminentWhen: ViewModifier {
+    let on: Bool
+
+    func body(content: Content) -> some View {
+        if on {
+            content.buttonStyle(.borderedProminent)
+        } else {
+            content.buttonStyle(.bordered)
+        }
     }
 }
