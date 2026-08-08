@@ -451,7 +451,10 @@ struct ContentView: View {
                     Text("–").foregroundStyle(.tertiary)
                 }
             }
-            .width(min: 96, ideal: 132)
+            // Capped: without a max the table hands it the slack, and in the
+            // results list — where most rows are untracked — that was 200pt of
+            // "–" sitting between the icons and the company name.
+            .width(min: 76, ideal: 104, max: 132)
 
             TableColumn("Company", value: \.company) { job in
                 HStack(spacing: 5) {
