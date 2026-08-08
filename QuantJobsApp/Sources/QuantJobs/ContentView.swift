@@ -960,19 +960,38 @@ struct JobDetailContent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Two independent toggles and one menu — hiding a role you've applied to
-    /// used to overwrite the application, which is why these aren't one control.
+    /// The primary action and the three marks, on one row.
+    ///
+    /// The marks are icon-only. With labels — "Save", "Track Application",
+    /// "Hide" — the row wanted about 330pt inside a 268pt panel, so macOS
+    /// truncated each one to an ellipsis and the middle button swallowed the
+    /// row. Three independent controls, because hiding a role you've applied to
+    /// must not overwrite the application.
     private func statusButtons(_ job: Job) -> some View {
         HStack(spacing: 6) {
-            let saved = tracking?.saved == true
-            Button { onToggle(.favorite) } label: {
-                Label(saved ? "Saved" : "Save",
-                      systemImage: saved ? "star.fill" : "star").font(.caption)
+            if !job.isMerged, let url = URL(string: job.url) {
+                Button {
+                    NSWorkspace.shared.open(url)
+                } label: {
+                    Label("Open Posting", systemImage: "arrow.up.right.square")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.bordered)
-            .tint(saved ? .accentColor : .secondary)
 
-            if tracking?.hasApplication != true {
+            Spacer(minLength: 0)
+
+            let saved = tracking?.saved == true
+            mark(saved ? "star.fill" : "star", on: saved,
+                 help: saved ? "Saved — click to unsave" : "Save this role") {
+                onToggle(.favorite)
+            }
+
+            if tracking?.hasApplication == true {
+                mark("paperplane.fill", on: true,
+                     help: "Application tracked below") {}
+                    .disabled(true)
+            } else {
                 Menu {
                     ForEach(Stage.allCases) { stage in
                         Button {
@@ -983,22 +1002,32 @@ struct JobDetailContent: View {
                         }
                     }
                 } label: {
-                    Label("Track Application", systemImage: "paperplane").font(.caption)
+                    Image(systemName: "paperplane")
                 }
                 .menuStyle(.button)
                 .buttonStyle(.bordered)
-                .tint(.secondary)
+                .menuIndicator(.hidden)
                 .fixedSize()
+                .help("Track an application to this role")
             }
 
             let hidden = tracking?.hidden == true
-            Button { onToggle(.hidden) } label: {
-                Label(hidden ? "Hidden" : "Hide",
-                      systemImage: hidden ? "eye.slash.fill" : "eye.slash").font(.caption)
+            mark(hidden ? "eye.slash.fill" : "eye.slash", on: hidden,
+                 help: hidden ? "Hidden from results — any application is kept"
+                              : "Hide this role") {
+                onToggle(.hidden)
             }
-            .buttonStyle(.bordered)
-            .tint(hidden ? .accentColor : .secondary)
         }
+    }
+
+    private func mark(_ symbol: String, on: Bool, help: String,
+                      action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+        }
+        .buttonStyle(.bordered)
+        .tint(on ? .accentColor : .secondary)
+        .help(help)
     }
 
     private func applicationBlock(_ entry: TrackedJob) -> some View {
@@ -1022,23 +1051,11 @@ struct JobDetailContent: View {
         }
     }
 
-    /// Last-listed date and a note.
+    /// Just the note now — "Marked" said little the timeline doesn't say better,
+    /// and "Last listed" moved up into the facts grid.
     private func trackingBlock(_ job: Job) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Divider()
-            if let entry = tracking {
-                Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
-                    GridRow {
-                        Text("Marked").foregroundStyle(.secondary)
-                        Text(entry.updated.isEmpty ? "—" : entry.updated)
-                    }
-                    GridRow {
-                        Text("Last listed").foregroundStyle(.secondary)
-                        Text(entry.lastSeen.isEmpty ? "not since saving" : entry.lastSeen)
-                    }
-                }
-                .font(.caption)
-            }
             TextField("Notes", text: $note, axis: .vertical)
                 .lineLimit(2...6)
                 .font(.callout)
@@ -1075,9 +1092,17 @@ struct JobDetailContent: View {
             Text(job.title)
                 .font(.title3.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
-            Text(job.company)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            // Level rides here rather than in the facts grid: it's one word, and
+            // a whole labelled row for it pushed everything else down.
+            HStack(spacing: 5) {
+                Text(job.company)
+                if !job.levelLabel.isEmpty {
+                    Text("·")
+                    Text(job.levelLabel)
+                }
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
 
             if job.isMerged {
                 // Postings, not places: one posting can already name several
@@ -1093,14 +1118,6 @@ struct JobDetailContent: View {
                                    variant.url, primary: false)
                     }
                 }
-                .padding(.top, 2)
-            } else if let url = URL(string: job.url) {
-                Button {
-                    NSWorkspace.shared.open(url)
-                } label: {
-                    Label("Open Posting", systemImage: "arrow.up.right.square")
-                }
-                .buttonStyle(.bordered)
                 .padding(.top, 2)
             }
         }
@@ -1141,23 +1158,32 @@ struct JobDetailContent: View {
                     row("As posted", job.location)
                 }
             }
-            row("Level", job.levelLabel.isEmpty ? "—" : job.levelLabel)
-            row("Posted", job.posted.isEmpty
-                ? "not stated"
-                : job.age.map { "\(job.posted)  ·  \($0)" } ?? job.posted)
+            // Relative age only, with the date on hover: "2026-07-28 · 11 days
+            // ago" is wider than the value column and wrapped every time.
+            row("Posted", job.posted.isEmpty ? "not stated"
+                                             : (job.age ?? job.posted),
+                help: job.posted)
             if !job.department.isEmpty { row("Team", job.department) }
             row("Board", job.ats.label)
+            // Only meaningful once a posting is tracked, and it belongs with the
+            // other facts rather than in a second grid under its own divider.
+            if let entry = tracking, !entry.lastSeen.isEmpty {
+                row("Last listed", Dates.relative(entry.lastSeen) ?? entry.lastSeen,
+                    help: entry.lastSeen)
+            }
         }
         .font(.callout)
     }
 
-    private func row(_ label: String, _ value: String) -> some View {
+    private func row(_ label: String, _ value: String,
+                     help: String = "") -> some View {
         GridRow {
             Text(label)
                 .foregroundStyle(.secondary)
                 .gridColumnAlignment(.leading)
             Text(value)
                 .fixedSize(horizontal: false, vertical: true)
+                .help(help)
         }
     }
 

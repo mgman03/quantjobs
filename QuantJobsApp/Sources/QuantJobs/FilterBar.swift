@@ -103,16 +103,22 @@ struct FilterBar: View {
             .fixedSize()
             .help("How recently the role was posted")
 
-            Toggle(isOn: $model.hideApplied) {
+            // A Button rather than a Toggle: `.toggleStyle(.button)` draws its own
+            // chrome and filled-on state, which read as a different kind of
+            // control sitting next to three bordered Buttons. Same control, same
+            // style, state carried by the icon and the tint.
+            Button {
+                model.hideApplied.toggle()
+            } label: {
                 HStack(spacing: 4) {
                     Image(systemName: model.hideApplied
-                          ? "paperplane.slash" : "paperplane")
+                          ? "paperplane.slash.fill" : "paperplane")
                     Text("Hide applied")
                 }
                 .font(.callout)
             }
-            .toggleStyle(.button)
             .buttonStyle(.bordered)
+            .tint(model.hideApplied ? .accentColor : .secondary)
             .fixedSize()
             .help(model.hideApplied
                   ? "Holding back \(model.appliedInResults) role(s) you've applied "

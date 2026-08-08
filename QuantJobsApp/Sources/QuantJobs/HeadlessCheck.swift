@@ -507,10 +507,20 @@ enum HeadlessCheck {
                 print("wrote \(url.path)")
             }
 
+            // Untracked as well as tracked: the row of action buttons is widest
+            // before anything is marked, which is the state that clipped.
+            for (name, scheme) in [("detail-untracked-dark", ColorScheme.dark)] {
+                write(JobDetailContent(job: sample, tracking: nil)
+                        .frame(width: 300), name, scheme)
+            }
+
             for (name, scheme) in [("detail-light", ColorScheme.light),
                                    ("detail-dark", ColorScheme.dark)] {
+                // 300, matching ContentView's `.frame(width: 300)`. It was 340,
+                // which is why the snapshot looked fine while the real panel
+                // clipped its buttons.
                 write(JobDetailContent(job: withNew, tracking: tracking)
-                        .frame(width: 340), name, scheme)
+                        .frame(width: 300), name, scheme)
             }
 
             // No snapshot of the filter row: it takes a `@Bindable` model, and
