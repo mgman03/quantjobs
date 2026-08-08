@@ -653,47 +653,89 @@ def fetch_citadel(c: dict, deep: bool) -> list[dict]:
     return out
 
 
-OPTIVER_JOB = re.compile(
-    r'<a\s+href="(/join-us/jobs/([a-z0-9-]+)/([a-z0-9-]+)/[^"#]+)"[^>]*>([^<]+)</a>\s*</h3>'
-    r'\s*<p[^>]*>([^<]*)</p>', re.I)
-
-
 def fetch_optiver(c: dict, deep: bool) -> list[dict]:
-    """Optiver's own jobs pages.
+    """Optiver's own jobs pages, read from the payload their React app hydrates.
 
-    Deliberately partial: the listing renders 16 roles and then loads the rest
-    with JavaScript, and there's no API, sitemap or page parameter behind it
-    (every ?page/?offset/?limit variant returns the same 16). So this walks the
-    per-category pages, which gets the newest 16 of each rather than all of them.
+    The listing renders 16 cards and loads the rest with JavaScript, and every
+    ?page/?offset/?limit variant returns the same 16 — which is why this used to
+    walk the per-category pages and settle for the newest 16 of each. That missed
+    real roles: Software Engineer Intern (Summer 2027) in both Austin and Chicago
+    were absent while the FPGA one, on the same page, was present.
+
+    Two things fix it. The full list for a page sits in the page as JSON, inside
+    the `React.createElement(Components.JobsFiltered, {...})` call their SSR emits
+    — no card parsing, and it carries the seniority and discipline as fields
+    rather than as CSS classes. And the server *does* honour `?level=`, so asking
+    for one level at a time keeps each response under the 16 it will render.
+
+    `level` is the parameter, not `experience`, which the markup calls it and
+    which the server ignores.
+
+    Early-career coverage is now complete — internship returns 12 and graduate 9,
+    both under the 16 the server will render. Experienced is still the newest 16
+    of many, which this tool doesn't care about.
     """
     base = "https://www.optiver.com"
-    root = http(base + "/join-us/jobs/", headers=BROWSER_HEADERS).decode("utf-8", "replace")
-
-    # Take the category list from the page rather than hard-coding it.
-    cats = []
-    for m in re.finditer(r'href="/join-us/jobs/([a-z0-9-]+)/[a-z0-9-]+/', root):
-        if m.group(1) not in cats:
-            cats.append(m.group(1))
-
     out, seen = [], set()
-    for html in [root] + [
-        http(f"{base}/join-us/jobs/{cat}/",
-             headers=BROWSER_HEADERS).decode("utf-8", "replace")
-        for cat in cats[:8]
-    ]:
-        for path, cat, city, title, loc in OPTIVER_JOB.findall(html):
-            if path in seen:
+
+    for level in ("internship", "graduate", "experienced"):
+        url = f"{base}/join-us/jobs/?level={level}"
+        html = http(url, headers=BROWSER_HEADERS).decode("utf-8", "replace")
+        for job in optiver_items(html):
+            path = job.get("href") or ""
+            if not path or path in seen:
                 continue
             seen.add(path)
             out.append({
-                "title": strip_html(title),
-                "location": strip_html(loc) or city.replace("-", " ").title(),
+                "title": strip_html(job.get("title", "")),
+                "location": strip_html(job.get("location", "")),
                 "url": base + path,
-                "posted": "",          # not shown in the listing
-                "department": cat.replace("-", " ").title(),
+                "posted": "",          # not stated anywhere in the listing
+                # Their own words for the discipline and the seniority. The level
+                # detector reads department too, so "Internship" here rescues a
+                # title that never says it.
+                "department": " / ".join(x for x in (job.get("domain"),
+                                                     job.get("experience")) if x),
                 "description": "",
             })
     return out
+
+
+OPTIVER_PROPS = "React.createElement(Components.JobsFiltered,"
+
+
+def optiver_items(html: str) -> list[dict]:
+    """The `items` array out of the hydration call, or nothing if it moved."""
+    at = html.find(OPTIVER_PROPS)
+    if at < 0:
+        return []
+    start = html.find("{", at + len(OPTIVER_PROPS) - 1)
+    if start < 0:
+        return []
+    # Brace matching that ignores braces inside strings — a title containing one
+    # would otherwise cut the object short.
+    depth, in_string, escaped = 0, False, False
+    for i in range(start, len(html)):
+        ch = html[i]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+        elif ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    return json.loads(html[start:i + 1]).get("items", [])
+                except json.JSONDecodeError:
+                    return []
+    return []
 
 
 # Anchor first, then the location span in a short window after it. One regex

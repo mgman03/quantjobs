@@ -493,7 +493,13 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
     enum CodingKeys: String, CodingKey {
         case company, title, location, url, posted, department, description
         case ats, tags, level, places, variants, linkStatus
-        case matchedCategories, matchedLevels, matchedStacks
+        // matchedStacks is deliberately absent: Swift's synthesized decoder
+        // throws on a missing key rather than using the property's default, so
+        // adding it here made every tracked entry written by an earlier build
+        // fail to decode — and because the whole dictionary is decoded in one
+        // `try?`, one missing key silently emptied the Saved, Applied and Hidden
+        // lists. It's recomputed on every scrape, like `isNew`.
+        case matchedCategories, matchedLevels
     }
 
     static let dateFormatter: DateFormatter = {

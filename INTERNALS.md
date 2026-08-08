@@ -214,6 +214,21 @@ What to look for once flagged, in order of how often it pays off:
   surfaced — `/student-careers/` linked to a Workday host the professional page never
   mentions.
 - **A JSON feed the careers page fetches**, which is where Jane Street's are.
+- **The payload the page already carries.** Optiver's listing renders 16 cards and
+  loads the rest with JavaScript, so the adapter walked the per-category pages and
+  took the newest 16 of each — which silently missed Software Engineer Intern
+  (Summer 2027) in Austin *and* Chicago while keeping the FPGA one from the same
+  page. But the full list for a page is right there in the HTML, inside the
+  `React.createElement(Components.JobsFiltered, {…})` call their Optimizely SSR
+  emits: no card parsing, and discipline and seniority arrive as fields instead of
+  CSS classes. Look for a hydration payload before concluding a React page needs a
+  browser.
+- **A filter parameter the server honours even though the markup implies otherwise.**
+  Optiver's is `level`, not the `experience` its own filter UI is built around —
+  `?level=internship` returns 12 and `?level=graduate` 9, both under the 16 the
+  server will render, so asking one level at a time is complete rather than
+  truncated. Worth trying the obvious names: an empty `main.js` and a 404 on
+  `wp-json` had me assuming there was no server-side filtering at all.
 
 Two of those are cheap to sweep for rather than eyeball, and worth re-running when the
 roster grows:

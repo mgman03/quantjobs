@@ -880,62 +880,92 @@ enum Adapters {
     /// with JavaScript, and there's no API, sitemap or page parameter behind it
     /// (every ?page/?offset/?limit variant returns the same 16). So this walks
     /// the per-category pages, getting the newest 16 of each.
+    /// Optiver's own jobs pages, read from the payload their React app hydrates.
+    ///
+    /// The listing renders 16 cards and loads the rest with JavaScript, and every
+    /// ?page/?offset/?limit variant returns the same 16 — which is why this used
+    /// to walk the per-category pages and settle for the newest 16 of each. That
+    /// missed real roles: Software Engineer Intern (Summer 2027) in both Austin
+    /// and Chicago were absent while the FPGA one, on the same page, was present.
+    ///
+    /// Two things fix it. The full list for a page sits in the page as JSON,
+    /// inside the `React.createElement(Components.JobsFiltered, {…})` call their
+    /// SSR emits — no card parsing, and it carries the discipline and seniority as
+    /// fields rather than as CSS classes. And the server does honour `?level=`, so
+    /// asking one level at a time keeps each response under the 16 it renders.
+    ///
+    /// `level` is the parameter, not `experience`, which is what the markup calls
+    /// it and what the server ignores.
+    ///
+    /// Early-career coverage is complete this way — internship returns 12 and
+    /// graduate 9, both under the cap. Experienced is still the newest 16 of many.
     static func optiver(_ c: Company, deep: Bool) async throws -> [RawJob] {
         let base = "https://www.optiver.com"
-        let rootRaw = try await HTTP.data(base + "/join-us/jobs/",
-                                          headers: Self.browserHeaders)
-        let root = String(decoding: rootRaw, as: UTF8.self)
-
-        // Take the category list from the page rather than hard-coding it.
-        var cats: [String] = []
-        let catRx = optiverCategory
-        let rootNS = root as NSString
-        for m in catRx.matches(in: root,
-                               range: NSRange(location: 0, length: rootNS.length)) {
-            let cat = rootNS.substring(with: m.range(at: 1))
-            if !cats.contains(cat) { cats.append(cat) }
-        }
-
-        var pages = [root]
-        for cat in cats.prefix(8) {
-            if let raw = try? await HTTP.data("\(base)/join-us/jobs/\(cat)/",
-                                              headers: Self.browserHeaders) {
-                pages.append(String(decoding: raw, as: UTF8.self))
-            }
-        }
-
         var out: [RawJob] = []
         var seen = Set<String>()
-        for html in pages {
-            let ns = html as NSString
-            for m in Self.optiverJob.matches(
-                in: html, range: NSRange(location: 0, length: ns.length)) {
-                let path = ns.substring(with: m.range(at: 1))
-                guard seen.insert(path).inserted else { continue }
-                let cat = ns.substring(with: m.range(at: 2))
-                let city = ns.substring(with: m.range(at: 3))
-                let title = Clean.html(ns.substring(with: m.range(at: 4)))
-                let loc = Clean.html(ns.substring(with: m.range(at: 5)))
+
+        for level in ["internship", "graduate", "experienced"] {
+            guard let raw = try? await HTTP.data(
+                    "\(base)/join-us/jobs/?level=\(level)",
+                    headers: Self.browserHeaders) else { continue }
+            let html = String(decoding: raw, as: UTF8.self)
+
+            for job in optiverItems(html) {
+                let path = job["href"] as? String ?? ""
+                guard !path.isEmpty, seen.insert(path).inserted else { continue }
+                let domain = job["domain"] as? String ?? ""
+                let experience = job["experience"] as? String ?? ""
                 out.append(RawJob(
-                    title: title,
-                    location: loc.isEmpty
-                        ? city.replacingOccurrences(of: "-", with: " ").capitalized
-                        : loc,
+                    title: Clean.html(job["title"] as? String ?? ""),
+                    location: Clean.html(job["location"] as? String ?? ""),
                     url: base + path,
-                    posted: "",       // not shown in the listing
-                    department: cat.replacingOccurrences(of: "-", with: " ").capitalized,
+                    posted: "",       // not stated anywhere in the listing
+                    // Their own words for discipline and seniority. The level
+                    // detector reads department too, so "Internship" here rescues
+                    // a title that never says so itself.
+                    department: [domain, experience]
+                        .filter { !$0.isEmpty }.joined(separator: " / "),
                     description: ""))
             }
         }
         return out
     }
 
-    private static let optiverCategory = try! NSRegularExpression(
-        pattern: #"href="/join-us/jobs/([a-z0-9-]+)/[a-z0-9-]+/"#)
+    private static let optiverProps = "React.createElement(Components.JobsFiltered,"
 
-    private static let optiverJob = try! NSRegularExpression(
-        pattern: "<a\\s+href=\"(/join-us/jobs/([a-z0-9-]+)/([a-z0-9-]+)/[^\"#]+)\"[^>]*>([^<]+)</a>\\s*</h3>\\s*<p[^>]*>([^<]*)</p>",
-        options: [.caseInsensitive])
+    /// The `items` array out of the hydration call, or nothing if it moves.
+    private static func optiverItems(_ html: String) -> [[String: Any]] {
+        guard let at = html.range(of: optiverProps),
+              let open = html.range(of: "{", range: at.upperBound..<html.endIndex)
+        else { return [] }
+
+        // Brace matching that ignores braces inside strings — a title holding one
+        // would otherwise cut the object short.
+        var depth = 0, inString = false, escaped = false
+        var i = open.lowerBound
+        while i < html.endIndex {
+            let ch = html[i]
+            if inString {
+                if escaped { escaped = false }
+                else if ch == "\\" { escaped = true }
+                else if ch == "\"" { inString = false }
+            } else if ch == "\"" {
+                inString = true
+            } else if ch == "{" {
+                depth += 1
+            } else if ch == "}" {
+                depth -= 1
+                if depth == 0 {
+                    let object = try? JSONSerialization.jsonObject(
+                        with: Data(String(html[open.lowerBound...i]).utf8))
+                    return ((object as? [String: Any])?["items"]
+                            as? [[String: Any]]) ?? []
+                }
+            }
+            i = html.index(after: i)
+        }
+        return []
+    }
 
     // MARK: - Wolverine Trading
 
