@@ -234,21 +234,10 @@ final class AppModel {
     }
 
     /// Whether one of the three marks is set — what the row buttons and the
-    /// context menu read.
+    /// context menu read. The switch lives on TrackedJob, so this and the list
+    /// filter can't drift apart.
     func isSet(_ status: JobStatus, for job: Job) -> Bool {
-        switch status {
-        case .favorite: isSaved(job)
-        case .applied: hasApplication(job)
-        case .hidden: isHidden(job)
-        }
-    }
-
-    private static func carries(_ status: JobStatus, _ entry: TrackedJob) -> Bool {
-        switch status {
-        case .favorite: entry.saved
-        case .applied: entry.hasApplication
-        case .hidden: entry.hidden
-        }
+        tracked[job.key]?.carries(status) ?? false
     }
 
     /// Counts rows as the list will show them, so a role saved across three
@@ -263,7 +252,7 @@ final class AppModel {
     /// Built from the stored snapshots, not from the current scrape, so a role
     /// you've applied to is still here after the board takes it down.
     func jobs(with status: JobStatus) -> [Job] {
-        let entries = tracked.values.filter { Self.carries(status, $0) }
+        let entries = tracked.values.filter { $0.carries(status) }
         let stored: [Job]
         if status == .applied {
             stored = entries
@@ -316,7 +305,7 @@ final class AppModel {
             // level and date filters exist to narrow a scrape, and applying
             // them here would hide applications you're trying to track.
             let q = query
-            heldBack = [:]
+            heldHidden = 0; heldApplied = 0
             return jobs(with: status).filter { q.matchesSearch($0) }
 
         }
@@ -355,8 +344,8 @@ final class AppModel {
             }
             return true
         }
-        heldBack[.hidden] = hiddenHeld
-        heldBack[.applied] = appliedHeld
+        heldHidden = hiddenHeld
+        heldApplied = appliedHeld
         // Merge after filtering, so a city filter leaves a merged row holding
         // only the locations you asked for — then sort, because merging picks a
         // new primary row and would otherwise scramble the order.
@@ -401,14 +390,16 @@ final class AppModel {
     /// Recomputed as filters change, so the badge always matches the list.
     var visibleNewCount: Int { visibleJobs.count { $0.isNew } }
 
-    /// How many rows each mark filter is currently holding back, filled in by
-    /// the same pass that builds the list so the numbers always agree with it.
-    @ObservationIgnored private var heldBack: [JobStatus: Int] = [:]
+    /// How many postings each mark filter is currently holding back, filled in
+    /// by the same pass that builds the list so the numbers always agree with
+    /// it. Two Ints rather than a dictionary: it's written on the filter path.
+    @ObservationIgnored private var heldHidden = 0
+    @ObservationIgnored private var heldApplied = 0
 
     var hiddenInResults: Int {
         guard list == .results else { return 0 }
         _ = visibleJobs                       // makes sure the tally is current
-        return heldBack[.hidden] ?? 0
+        return heldHidden
     }
 
     /// What "Hide applied" is keeping back, so the chip can say how many rather
@@ -416,7 +407,7 @@ final class AppModel {
     var appliedInResults: Int {
         guard list == .results else { return 0 }
         _ = visibleJobs
-        return heldBack[.applied] ?? 0
+        return heldApplied
     }
 
     // MARK: - Changing status

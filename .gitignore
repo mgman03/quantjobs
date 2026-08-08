@@ -1,28 +1,27 @@
-# Your own state — saved/applied roles, seen history, cached results.
-# Personal, and nothing anyone else should get a copy of.
-.tracked.json
-.seen.json
-.cache.json
 
-# Generated output
-internships.md
-*.csv
-new.md
-roles.md
-
-# Build artifacts
-.build/
 __pycache__/
-*.pyc
-QuantJobsApp/Icon/QuantJobs.iconset/
-QuantJobsApp/Icon/QuantJobs.icns
-# make-app.sh drops these in the checkout; both are rebuildable
-# and the DMG is a couple of megabytes, so neither belongs in the history.
-*.dmg
-QuantJobs.app/
-
-# macOS
+.build/
+.cache.json
 .DS_Store
-
-# Written by the app to know which bundled roster it last merged.
 .seed-version
+.seen.json
+.tracked.json
+*.csv
+*.dmg
+*.pyc
+# and the DMG is a couple of megabytes, so neither belongs in the history.
+# Build artifacts
+# Generated output
+# macOS
+# make-app.sh drops these in the checkout; both are rebuildable
+# Personal, and nothing anyone else should get a copy of.
+# Written by the app to know which bundled roster it last merged.
+# Your own state — saved/applied roles, seen history, cached results.
+internships.md
+new.md
+QuantJobs.app/
+QuantJobsApp/Icon/QuantJobs.icns
+QuantJobsApp/Icon/QuantJobs.iconset/
+roles.md
+Tools/.ax
+Tools/.window-id

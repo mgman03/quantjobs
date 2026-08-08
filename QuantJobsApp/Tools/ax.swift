@@ -95,6 +95,12 @@ func walk(_ element: AXUIElement, depth: Int, into out: inout [String]) {
     }
 }
 
+/// Whether this element or anything under it shows the given text.
+func describes(_ element: AXUIElement, _ needle: String) -> Bool {
+    if label(element).lowercased().contains(needle) { return true }
+    return children(element).contains { describes($0, needle) }
+}
+
 /// Every pressable control, flattened, for matching by label.
 func pressables(_ element: AXUIElement, into out: inout [(AXUIElement, String, String)]) {
     let role = string(element, kAXRoleAttribute as String) ?? "?"
@@ -153,7 +159,26 @@ case "select":
                                  kCFBooleanTrue)
     print("selected row \(n) of \(rows.count)")
 
+case "pick":
+    // Sidebar list rows carry their label in a nested AXStaticText and expose no
+    // press action, so match on the text and select the row that contains it.
+    guard args.count > 1 else { exit(2) }
+    let needle = args[1].lowercased()
+    func rowContaining(_ element: AXUIElement) -> AXUIElement? {
+        let isRow = string(element, kAXRoleAttribute as String) == kAXRowRole as String
+        if isRow, describes(element, needle) { return element }
+        for child in children(element) {
+            if let hit = rowContaining(child) { return hit }
+        }
+        return nil
+    }
+    guard let row = rowContaining(window) else {
+        print("no row containing \"\(args[1])\""); exit(3)
+    }
+    AXUIElementSetAttributeValue(row, kAXSelectedAttribute as CFString, kCFBooleanTrue)
+    print("picked row containing \"\(args[1])\"")
+
 default:
-    print("verbs: list | controls | click <text> | select <n>")
+    print("verbs: list | controls | click <text> | select <n> | pick <text>")
     exit(2)
 }

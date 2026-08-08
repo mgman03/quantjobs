@@ -264,10 +264,15 @@ struct ContentView: View {
             Image(systemName: "eye.slash")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            // "postings", not "roles": this counts what the filter holds back,
+            // which is postings, while the sidebar badge counts the rows the
+            // Hidden list will show. A role posted in four cities is four of the
+            // first and one of the second, and two different numbers labelled
+            // the same way on one screen reads as a bug.
             Text(model.showHidden
-                 ? "Showing hidden roles"
+                 ? "Showing hidden postings"
                  : "\(model.hiddenInResults) hidden "
-                   + (model.hiddenInResults == 1 ? "role" : "roles"))
+                   + (model.hiddenInResults == 1 ? "posting" : "postings"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -303,19 +308,6 @@ struct ContentView: View {
 
     // MARK: - Table
 
-    /// One colour scale for the whole pipeline, used by the row icon, the pill
-    /// and the detail timeline so a glance means the same thing everywhere.
-    static func tint(_ stage: Stage?) -> AnyShapeStyle {
-        switch stage {
-        case .none: AnyShapeStyle(.tertiary)
-        case .applied: AnyShapeStyle(Color.secondary)
-        case .assessment, .interview, .final: AnyShapeStyle(Color.orange)
-        case .offer: AnyShapeStyle(Color.green)
-        case .rejected: AnyShapeStyle(Color.red)
-        case .withdrawn: AnyShapeStyle(.tertiary)
-        }
-    }
-
     /// A foldable heading for one stage of the Applied list. The whole row is
     /// the hit target, since a chevron alone is a small thing to aim at.
     private func stageHeader(_ group: AppModel.StageGroup) -> some View {
@@ -330,7 +322,7 @@ struct ContentView: View {
                     .frame(width: 10)
                 Image(systemName: group.stage.symbol)
                     .font(.caption)
-                    .foregroundStyle(Self.tint(group.stage))
+                    .foregroundStyle(group.stage.tint)
                 Text(group.stage.label)
                     .font(.callout.weight(.medium))
                 Text("\(group.jobs.count)")
@@ -423,10 +415,12 @@ struct ContentView: View {
                     Text("–").foregroundStyle(.tertiary)
                 }
             }
-            // Capped: without a max the table hands it the slack, and in the
-            // results list — where most rows are untracked — that was 200pt of
-            // "–" sitting between the icons and the company name.
-            .width(min: 76, ideal: 104, max: 132)
+            // Capped so the table can't hand it all the slack — in the results
+            // list, where most rows are untracked, that was 200pt of "–" sitting
+            // between the icons and the company name. But wide enough for the
+            // widest pill it has to hold, "✈ Applied today": at 104 the Applied
+            // list rendered "App... to...", truncated twice over.
+            .width(min: 104, ideal: 136, max: 168)
 
             TableColumn("Company", value: \.company) { job in
                 HStack(spacing: 5) {
@@ -775,7 +769,7 @@ struct StagePill: View {
                 }
             }
             .font(.caption)
-            .foregroundStyle(ContentView.tint(stage))
+            .foregroundStyle(stage.tint)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(.quaternary.opacity(0.5), in: .capsule)
@@ -818,7 +812,7 @@ struct ApplicationTimeline: View {
                 Image(systemName: step.stage.symbol)
                     .font(.system(size: 11))
                     .frame(width: 16, height: 16)
-                    .foregroundStyle(ContentView.tint(step.stage))
+                    .foregroundStyle(step.stage.tint)
                 if !isLast || !step.stage.isClosed {
                     Rectangle()
                         .fill(.quaternary)

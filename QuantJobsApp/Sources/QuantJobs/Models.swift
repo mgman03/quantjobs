@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - ATS
 
@@ -560,6 +561,19 @@ enum Stage: String, Codable, CaseIterable, Identifiable, Sendable {
     /// Nothing follows these, so the timeline stops drawing a line after them.
     var isClosed: Bool { self == .rejected || self == .withdrawn }
 
+    /// One colour scale for the whole pipeline. It lives on the stage rather
+    /// than on a view because it's what the stage *means* — three views were
+    /// reaching into `ContentView` for a static to get at it.
+    var tint: Color {
+        switch self {
+        case .applied: .secondary
+        case .assessment, .interview, .final: .orange
+        case .offer: .green
+        case .rejected: .red
+        case .withdrawn: .secondary
+        }
+    }
+
     var order: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 }
 
@@ -669,6 +683,15 @@ struct TrackedJob: Codable, Identifiable, Sendable {
     }
 
     var isClosed: Bool { stage?.isClosed == true }
+
+    /// Whether this entry carries one of the three marks.
+    func carries(_ status: JobStatus) -> Bool {
+        switch status {
+        case .favorite: saved
+        case .applied: hasApplication
+        case .hidden: hidden
+        }
+    }
 
     func date(of stage: Stage) -> String? {
         milestones.first { $0.stage == stage }?.date
