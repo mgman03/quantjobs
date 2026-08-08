@@ -148,8 +148,13 @@ struct ContentView: View {
             }
 
             Section("Category") {
+                // Sub-categories sit indented under their parent — they're slices
+                // of it, not peers, and reading them as siblings of "Software
+                // Engineering" made "Python" look like a discipline of its own.
                 ForEach(model.categories) { category in
                     Label(category.displayName, systemImage: category.symbol)
+                        .padding(.leading, category.parent == nil ? 0 : 14)
+                        .font(category.parent == nil ? .body : .callout)
                         .tag("cat.\(category.name)")
                 }
             }

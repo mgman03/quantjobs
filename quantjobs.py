@@ -1106,13 +1106,26 @@ def load_json(path: str, default: Any = None) -> Any:
 
 
 def build_category_matchers(cats: dict) -> dict:
+    """Compile each category, and hand a sub-category its parent's rules too.
+
+    A category with a `parent` is a slice of it, not a peer: `cpp` means "the
+    SWE roles that are C++", so both sets of rules have to pass. Without the
+    parent gate it also matched FPGA and hardware postings, which are C++ jobs
+    but not software-engineering ones.
+    """
     out = {}
     for name, spec in cats.items():
         out[name] = {
             "include": phrase_re(spec.get("include", [])),
             "exclude": phrase_re(spec.get("exclude", [])),
             "description": spec.get("description", ""),
+            "parent": spec.get("parent"),
         }
+    for name, spec in cats.items():
+        parent = spec.get("parent")
+        if parent and parent in out:
+            out[name]["parent_include"] = out[parent]["include"]
+            out[name]["parent_exclude"] = out[parent]["exclude"]
     return out
 
 
@@ -1121,25 +1134,35 @@ def classify(job: dict, matcher: dict, level: str, deep: bool) -> bool:
     title = (job.get("title") or "").lower()
     label = f"{title} {(job.get('department') or '').lower()}"
     body = (job.get("description") or "").lower() if deep else ""
-    haystack = f"{label} {body}"
 
-    inc, exc = matcher["include"], matcher["exclude"]
-    if inc and not inc.search(label):
-        # No signal in the title/department. Fall back to the description, but
-        # only if the topic runs through the whole posting. Most firms open every
-        # JD with the same blurb ("...low-latency programming, FPGA technology,
-        # hardware acceleration and machine learning..."), which trivially
-        # satisfies any "mentions it twice" test — so also require the mentions
-        # to be spread out rather than clustered in one sentence.
+    def included(inc) -> bool:
+        """Include test: the title/department, or a topic running through the body.
+
+        No signal in the title/department falls back to the description, but only
+        if the topic runs through the whole posting. Most firms open every JD with
+        the same blurb ("...low-latency programming, FPGA technology, hardware
+        acceleration and machine learning..."), which trivially satisfies any
+        "mentions it twice" test — so the mentions also have to be spread out
+        rather than clustered in one sentence.
+        """
+        if not inc or inc.search(label):
+            return True
         if not body:
             return False
         pos = [m.start() for m in inc.finditer(body)]
-        if len(pos) < 3 or (pos[-1] - pos[0]) < 400:
-            return False
+        return len(pos) >= 3 and (pos[-1] - pos[0]) >= 400
+
+    if not included(matcher["include"]):
+        return False
+    # A sub-category has to satisfy its parent as well — see
+    # build_category_matchers.
+    if not included(matcher.get("parent_include")):
+        return False
     # Exclusions are judged on the title only: a C++ role whose description
     # happens to mention "sales" shouldn't be thrown away.
-    if exc and exc.search(title):
-        return False
+    for exc in (matcher["exclude"], matcher.get("parent_exclude")):
+        if exc and exc.search(title):
+            return False
 
     if level != "any":
         # Judge seniority on the title/department only. Almost every JD body

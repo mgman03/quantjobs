@@ -130,11 +130,19 @@ struct CategoryMatcher: Sendable {
     let name: String
     let include: PhraseMatcher?
     let exclude: PhraseMatcher?
+    /// A sub-category's parent rules. `cpp` means "the SWE roles that are C++",
+    /// not "anything C++", so both sets have to pass — without this it also
+    /// matched FPGA and hardware postings, which are C++ work but not software
+    /// engineering.
+    let parentInclude: PhraseMatcher?
+    let parentExclude: PhraseMatcher?
 
-    init(_ category: JobCategory) {
+    init(_ category: JobCategory, parent: JobCategory? = nil) {
         name = category.name
         include = PhraseMatcher(category.include)
         exclude = PhraseMatcher(category.exclude)
+        parentInclude = parent.flatMap { PhraseMatcher($0.include) }
+        parentExclude = parent.flatMap { PhraseMatcher($0.exclude) }
     }
 
     /// Category only — no level test. Split out so a scrape can record which
@@ -150,21 +158,27 @@ struct CategoryMatcher: Sendable {
         let label = "\(title) \(job.department.lowercased())"
         let body = deep ? job.description.lowercased() : ""
 
-        if let include, !include.matches(label) {
-            // No signal in the title/department. Fall back to the description, but
-            // only if the topic runs through the whole posting. Most firms open
-            // every JD with the same blurb ("…low-latency programming, FPGA
-            // technology, hardware acceleration and machine learning…"), which
-            // trivially satisfies any "mentions it twice" test — so also require
-            // the mentions to be spread out rather than clustered in one sentence.
-            if body.isEmpty { return false }
-            let hits = include.positions(in: body)
-            if hits.count < 3 || (hits.last! - hits.first!) < 400 { return false }
+        // No signal in the title/department falls back to the description, but
+        // only if the topic runs through the whole posting. Most firms open every
+        // JD with the same blurb ("…low-latency programming, FPGA technology,
+        // hardware acceleration and machine learning…"), which trivially
+        // satisfies any "mentions it twice" test — so the mentions also have to
+        // be spread out rather than clustered in one sentence.
+        func included(_ matcher: PhraseMatcher?) -> Bool {
+            guard let matcher else { return true }
+            if matcher.matches(label) { return true }
+            guard !body.isEmpty else { return false }
+            let hits = matcher.positions(in: body)
+            return hits.count >= 3 && (hits.last! - hits.first!) >= 400
         }
+
+        if !included(include) { return false }
+        if !included(parentInclude) { return false }
 
         // Exclusions are judged on the title only: a C++ role whose description
         // happens to mention "sales" shouldn't be thrown away.
         if let exclude, exclude.matches(title) { return false }
+        if let parentExclude, parentExclude.matches(title) { return false }
 
         let wanted = level.matchKeys
         if !wanted.isEmpty {

@@ -68,7 +68,10 @@ enum HeadlessCheck {
         }
 
         let firms = companies.filter { $0.enabled && $0.isConfigured }
-        let matcher = CategoryMatcher(category)
+        let matcher = CategoryMatcher(
+            category, parent: category.parent.flatMap { name in
+                categories.first { $0.name == name }
+            })
         let query = ScrapeQuery(category: category, level: level, deep: deep)
 
         print("scraping \(firms.count) firms  ·  category=\(categoryName)  "

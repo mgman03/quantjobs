@@ -226,16 +226,22 @@ struct CompanyFile: Codable, Sendable {
 
 struct JobCategory: Codable, Identifiable, Hashable, Sendable {
     var name: String
+    /// Set when this category is a slice of another rather than a peer of it —
+    /// "the SWE roles that are C++". The sidebar nests it and the matcher applies
+    /// both sets of rules.
+    var parent: String?
     var description: String
     var include: [String]
     var exclude: [String]
 
     var id: String { name }
 
-    enum CodingKeys: String, CodingKey { case description, include, exclude }
+    // `name` is the dictionary key, filled in by the loader.
+    enum CodingKeys: String, CodingKey { case description, include, exclude, parent }
 
-    init(name: String, description: String, include: [String], exclude: [String]) {
-        self.name = name; self.description = description
+    init(name: String, description: String, include: [String], exclude: [String],
+         parent: String? = nil) {
+        self.name = name; self.description = description; self.parent = parent
         self.include = include; self.exclude = exclude
     }
 
@@ -245,6 +251,7 @@ struct JobCategory: Codable, Identifiable, Hashable, Sendable {
         description = try c.decodeIfPresent(String.self, forKey: .description) ?? ""
         include = try c.decodeIfPresent([String].self, forKey: .include) ?? []
         exclude = try c.decodeIfPresent([String].self, forKey: .exclude) ?? []
+        parent = try c.decodeIfPresent(String.self, forKey: .parent)
     }
 
     var symbol: String {
@@ -273,7 +280,7 @@ struct JobCategory: Codable, Identifiable, Hashable, Sendable {
         case "data": "Data / ML"
         case "cpp": "C++ / Low Latency"
         case "python": "Python"
-        case "frontend": "UI / Web"
+        case "frontend": "UI / Web / Full Stack"
         case "all": "Everything"
         default: name.capitalized
         }

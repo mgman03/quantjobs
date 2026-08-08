@@ -1059,7 +1059,13 @@ final class AppModel {
         if isScraping { task?.cancel() }
 
         flushCompanies()
-        let matchers = categories.map(CategoryMatcher.init)
+        // Each sub-category is handed its parent, so "cpp" means the SWE roles
+        // that are C++ rather than anything C++.
+        let byName = Dictionary(categories.map { ($0.name, $0) },
+                                uniquingKeysWith: { a, _ in a })
+        let matchers = categories.map {
+            CategoryMatcher($0, parent: $0.parent.flatMap { byName[$0] })
+        }
         let q = query
         let known = seen
 

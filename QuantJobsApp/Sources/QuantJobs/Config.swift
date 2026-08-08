@@ -248,9 +248,10 @@ enum ConfigStore {
         // missing from this list sorts alphabetically after it, which is how
         // cpp/python/frontend ended up below "Everything" when they were added
         // to the file but not here.
-        let preferred = ["swe", "quant-trading", "quant-research",
-                         "quant-dev", "hardware", "data",
-                         "cpp", "python", "frontend", "all"]
+        let preferred = ["swe",
+                         "cpp", "python", "frontend",        // slices of swe
+                         "quant-trading", "quant-research",
+                         "quant-dev", "hardware", "data", "all"]
         return raw.map { key, value in
             var c = value; c.name = key; return c
         }.sorted { a, b in

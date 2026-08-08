@@ -199,7 +199,7 @@
     ]
   },
   "cpp": {
-    "description": "C++ and the low-latency systems work that goes with it. Most boards only name the language in the description, so turn on deep matching for the full picture.",
+    "description": "Software engineering where the language is C++ and the constraint is latency. Most boards only name the language in the description — turn on deep matching for the rest.",
     "include": [
       "c++",
       "cpp",
@@ -207,8 +207,8 @@
       "systems programming",
       "kernel",
       "embedded",
-      "hft",
-      "fpga engineer"
+      "compiler",
+      "hft"
     ],
     "exclude": [
       "sales",
@@ -218,7 +218,8 @@
       "hardware technician",
       "mechanical",
       "trader"
-    ]
+    ],
+    "parent": "swe"
   },
   "python": {
     "description": "Python-first engineering — tooling, research platforms, backends. Deep matching finds far more of these than titles do.",
@@ -236,7 +237,8 @@
       "recruiting",
       "marketing",
       "trader"
-    ]
+    ],
+    "parent": "swe"
   },
   "frontend": {
     "description": "UI, web and full-stack: the roles where what you build has a screen.",
@@ -261,7 +263,8 @@
       "marketing",
       "designer",
       "graphic"
-    ]
+    ],
+    "parent": "swe"
   },
   "all": {
     "description": "No category filter — every posting the level filter allows.",
