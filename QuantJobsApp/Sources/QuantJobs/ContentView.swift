@@ -996,7 +996,11 @@ struct JobDetailContent: View {
     /// row. Three independent controls, because hiding a role you've applied to
     /// must not overwrite the application.
     private func statusButtons(_ job: Job) -> some View {
-        HStack(spacing: 6) {
+        // Stacked, not side by side. Sharing one row with Open Posting left the
+        // marks fighting it for width, and in a narrow window the panel gets as
+        // little as 250pt — the row that fits at 320 clips at 250. The primary
+        // action gets the full width it deserves; the marks get their own line.
+        VStack(alignment: .leading, spacing: 6) {
             if !job.isMerged, let url = URL(string: job.url) {
                 Button {
                     NSWorkspace.shared.open(url)
@@ -1007,8 +1011,7 @@ struct JobDetailContent: View {
                 .buttonStyle(.borderedProminent)
             }
 
-            Spacer(minLength: 0)
-
+            HStack(spacing: 6) {
             let saved = tracking?.saved == true
             mark(saved ? "star.fill" : "star", on: saved,
                  help: saved ? "Saved — click to unsave" : "Save this role") {
@@ -1016,9 +1019,25 @@ struct JobDetailContent: View {
             }
 
             if tracking?.hasApplication == true {
-                mark("paperplane.fill", on: true,
-                     help: "Application tracked below") {}
-                    .disabled(true)
+                // Not disabled: a greyed-out button reads as broken. It records
+                // the next step, which is the same thing the timeline below does.
+                Menu {
+                    ForEach(tracking?.remainingStages ?? []) { stage in
+                        Button {
+                            onRecord(stage, Dates.today)
+                        } label: {
+                            Label(stage.label, systemImage: stage.symbol)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "paperplane.fill")
+                }
+                .menuStyle(.button)
+                .buttonStyle(.bordered)
+                .tint(.accentColor)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("Applied — pick the next step, or use the timeline below")
             } else {
                 Menu {
                     ForEach(Stage.allCases) { stage in
@@ -1044,6 +1063,9 @@ struct JobDetailContent: View {
                  help: hidden ? "Hidden from results — any application is kept"
                               : "Hide this role") {
                 onToggle(.hidden)
+            }
+
+            Spacer(minLength: 0)
             }
         }
     }

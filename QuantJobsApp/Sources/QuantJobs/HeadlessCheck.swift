@@ -540,6 +540,11 @@ enum HeadlessCheck {
                 // clipped its buttons.
                 write(JobDetailContent(job: withNew, tracking: tracking)
                         .frame(width: 300), name, scheme)
+                // 250 as well: that's the panel's minimum in a narrow window, and
+                // the layout that fits at 300 is not automatically the one that
+                // fits there.
+                write(JobDetailContent(job: withNew, tracking: tracking)
+                        .frame(width: 250), name + "-250", scheme)
             }
 
             // No snapshot of the filter row: it takes a `@Bindable` model, and
