@@ -184,7 +184,7 @@ extension Array where Element == Job {
         var groups: [String: [Job]] = [:]
 
         for job in self {
-            let key = "\(job.company.lowercased())|\(job.title.lowercased())"
+            let key = job.roleKey
             if groups[key] == nil { order.append(key) }
             groups[key, default: []].append(job)
         }

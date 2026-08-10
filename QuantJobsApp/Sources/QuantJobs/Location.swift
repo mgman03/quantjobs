@@ -82,6 +82,27 @@ enum LocationParser {
         return ""
     }
 
+    /// Whether this text is nothing but a place — a city, country, region or one
+    /// of the broad areas boards use in a title. Strict on purpose: `parse` treats
+    /// unrecognised words as a city, which would call any trailing phrase a place.
+    static func isOnlyAPlace(_ text: String) -> Bool {
+        let key = text.lowercased().trimmingCharacters(
+            in: CharacterSet.alphanumerics.union(.whitespaces).inverted)
+            .trimmingCharacters(in: .whitespaces)
+        guard !key.isEmpty else { return false }
+        if broadAreas.contains(key) { return true }
+        if gazetteer.cities[key] != nil || gazetteer.regions[key] != nil { return true }
+        if gazetteer.countryAliases[key] != nil { return true }
+        return gazetteer.countries.values.contains { $0.name.lowercased() == key }
+    }
+
+    /// Not places in the gazetteer, but what a job title means by one.
+    private static let broadAreas: Set<String> = [
+        "us", "usa", "u.s.", "united states", "americas", "north america",
+        "emea", "europe", "apac", "asia", "asia pacific", "australia", "anz",
+        "uk", "global", "worldwide", "remote",
+    ]
+
     // Commas are absent on purpose: inside one group they separate city from
     // region from country.
     private static let placeSplit = try! NSRegularExpression(

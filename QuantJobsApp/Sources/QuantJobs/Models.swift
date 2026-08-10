@@ -486,6 +486,70 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
     /// so working out whether 2026-07-28 is recent is left to the reader.
     var age: String? { postedDate.flatMap(Dates.relative) }
 
+    /// What counts as "the same role" for merging.
+    ///
+    /// The raw title, minus the parts the Location column already shows. Firms
+    /// put the office in the title in two shapes: IMC as a trailing segment —
+    /// `Machine Learning Research Intern - Summer 2027 - Amsterdam` — and Citadel
+    /// as a parenthetical, `Software Engineer – Intern (US)`. Merging on the raw
+    /// title left those as separate rows that looked identical, because the table
+    /// shows the tidied title and the tidier drops exactly this.
+    ///
+    /// Only trailing segments, and only ones that are *nothing but* a place or a
+    /// season, so a role that names a city or a year mid-title keeps it.
+    ///
+    /// A trailing season goes because firms aren't consistent about it: IMC posts
+    /// `Software Engineer Intern` in Amsterdam and `Software Engineer Intern -
+    /// Summer 2027` in Chicago, the same programme named two ways. The trade is
+    /// that a 2026 and a 2027 posting of one role now fold into a single row — but
+    /// the tidied title the table shows already dropped the year, so the display
+    /// was claiming they were the same role either way, and a merged row keeps
+    /// every posting with its own link and date.
+    var roleKey: String {
+        var text = title
+        // Strip repeatedly: IMC's is "- Summer 2027 - Amsterdam", so the place
+        // sits behind the season.
+        var changed = true
+        while changed {
+            changed = false
+            if let open = text.lastIndex(of: "("), text.hasSuffix(")") {
+                let inside = String(text[text.index(after: open)..<text.index(before: text.endIndex)])
+                if LocationParser.isOnlyAPlace(inside) {
+                    text = String(text[text.startIndex..<open])
+                    changed = true
+                }
+            }
+            for separator in [" - ", " – ", " — ", ", "] {
+                guard let at = text.range(of: separator, options: .backwards) else { continue }
+                let tail = String(text[at.upperBound...])
+                if LocationParser.isOnlyAPlace(tail) || Job.isOnlyASeason(tail) {
+                    text = String(text[text.startIndex..<at.lowerBound])
+                    changed = true
+                    break
+                }
+            }
+            text = text.trimmingCharacters(in: .whitespaces)
+        }
+        return "\(company.lowercased())|\(text.lowercased())"
+    }
+
+    /// A trailing "Summer 2027", "2027", "Fall 2026 Start" and friends — nothing
+    /// but a season and/or a year.
+    static func isOnlyASeason(_ text: String) -> Bool {
+        let words = text.lowercased()
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+        guard !words.isEmpty, words.count <= 3 else { return false }
+        let seasons: Set<String> = ["summer", "fall", "autumn", "winter", "spring",
+                                    "start", "intake", "cohort"]
+        var sawYear = false
+        for word in words {
+            if let year = Int(word), (2000...2100).contains(year) { sawYear = true }
+            else if !seasons.contains(word) { return false }
+        }
+        return sawYear
+    }
+
     var isNew: Bool = false
 
     /// `isNew` is a property of the run, not of the job, so it stays out of
