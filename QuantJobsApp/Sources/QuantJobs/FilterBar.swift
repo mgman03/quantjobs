@@ -39,20 +39,25 @@ struct FilterBar: View {
     /// Every filter control wears the same label and the same button style.
     /// The date filter used to be a borderless Menu next to bordered Buttons,
     /// which made one of four look like a different kind of control.
-    private func filterLabel(_ symbol: String, _ text: String) -> some View {
+    private func filterLabel(_ symbol: String, _ text: String,
+                             compact: Bool = false) -> some View {
         HStack(spacing: 4) {
             Image(systemName: symbol)
-            Text(text)
-            Image(systemName: "chevron.down").font(.system(size: 8))
+            if !compact {
+                Text(text)
+                Image(systemName: "chevron.down").font(.system(size: 8))
+            }
         }
         .font(.callout)
+        // The text is gone in compact form, so the tooltip has to carry it.
+        .help(compact ? text : "")
     }
 
     /// Which stacks to leave out. Tick boxes, not a Picker: it's a set of things
     /// you don't want, and every label says so — an include list needed a tick on
     /// everything you'd accept plus one on "unspecified", which is three ticks to
     /// express one exclusion and silently empty if you missed the last.
-    private var stackMenu: some View {
+    private func stackMenu(compact: Bool) -> some View {
         Menu {
             Section("Leave out roles that use") {
                 ForEach(model.stackCategories) { stack in
@@ -71,12 +76,17 @@ struct FilterBar: View {
                 Button("Show every stack") { model.excludedStacks = [] }
             }
         } label: {
-            filterLabel("curlybraces", model.stackLabel)
+            filterLabel("curlybraces", model.stackLabel, compact: compact)
         }
         .menuStyle(.button)
         .buttonStyle(.bordered)
         .menuIndicator(.hidden)
-        .fixedSize()
+        // No .fixedSize(): the filter row can't wrap, so a control that refuses
+        // to shrink pushes the detail column past the window width and the
+        // sidebar gets squeezed below its stated minimum — which clips its
+        // labels rather than narrowing the row. Truncating a label here is the
+        // cheaper failure.
+        .layoutPriority(-1)
         .help("Tick a stack to remove those roles. Anything that names no stack "
               + "stays — that's most of them, so this narrows rather than empties.")
     }
@@ -88,7 +98,7 @@ struct FilterBar: View {
     /// same bordered label as place, firms and date — instead of a filled blue
     /// pill shouting from the middle of the row. And a menu has room to say what
     /// each option means, which "Hide applied" never did.
-    private var appliedMenu: some View {
+    private func appliedMenu(compact: Bool) -> some View {
         Menu {
             // The section header names what the three options are about. Without
             // it the menu opened on "Show roles I've applied to" with nothing
@@ -103,12 +113,18 @@ struct FilterBar: View {
                 .labelsHidden()
             }
         } label: {
-            filterLabel(model.appliedFilter.symbol, model.appliedFilter.short)
+            filterLabel(model.appliedFilter.symbol, model.appliedFilter.short,
+                        compact: compact)
         }
         .menuStyle(.button)
         .buttonStyle(.bordered)
         .menuIndicator(.hidden)
-        .fixedSize()
+        // No .fixedSize(): the filter row can't wrap, so a control that refuses
+        // to shrink pushes the detail column past the window width and the
+        // sidebar gets squeezed below its stated minimum — which clips its
+        // labels rather than narrowing the row. Truncating a label here is the
+        // cheaper failure.
+        .layoutPriority(-1)
         .accessibilityLabel("Applied roles: \(model.appliedFilter.label)")
         // The state lives in the label, so the control doesn't need to change
         // shape to say it's active — but the count is worth having on hover.
@@ -118,8 +134,44 @@ struct FilterBar: View {
               : model.appliedFilter.help)
     }
 
+    /// Three layouts, widest first: full labels; icon-only filter buttons with the
+    /// level picker intact; and icons with the level picker collapsed to a menu.
+    ///
+    /// ViewThatFits rather than letting the row compress. Compression made every
+    /// control degrade at once — the date, stack and applied menus all rendered as
+    /// "…" while the level picker kept its width — and worse, a row that still
+    /// wanted more than the window took it out of the sidebar, which clips its
+    /// labels instead of narrowing. Choosing a layout that *fits* means nothing is
+    /// truncated and the sidebar is never squeezed.
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            row(compact: false, levelAsMenu: false)
+            row(compact: true, levelAsMenu: false)
+            row(compact: true, levelAsMenu: true)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+    }
+
+    private func row(compact: Bool, levelAsMenu: Bool) -> some View {
         HStack(spacing: 8) {
+            if levelAsMenu {
+                Menu {
+                    Picker("", selection: $model.level) {
+                        ForEach(Level.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                } label: {
+                    filterLabel("person.crop.rectangle.stack", model.level.shortLabel,
+                                compact: false)
+                }
+                .menuStyle(.button)
+                .buttonStyle(.bordered)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help(model.level.hint)
+            } else {
             Picker("", selection: $model.level) {
                 ForEach(Level.allCases) {
                     Text($0.shortLabel).tag($0).help($0.hint)
@@ -127,14 +179,17 @@ struct FilterBar: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            // The one control that keeps its intrinsic width. Four segments
+            // squeezed to "Int…" would be worse than a narrower search box, and
+            // this is the most-used control in the row.
             .fixedSize()
             .help(model.level.hint)
-
+            }
 
             Button {
                 showingPlaces.toggle()
             } label: {
-                filterLabel("globe.americas", placesLabel)
+                filterLabel("globe.americas", placesLabel, compact: compact)
             }
             .buttonStyle(.bordered)
             .popover(isPresented: $showingPlaces, arrowEdge: .bottom) {
@@ -145,7 +200,7 @@ struct FilterBar: View {
             Button {
                 showingFirms.toggle()
             } label: {
-                filterLabel("building.2", firmsLabel)
+                filterLabel("building.2", firmsLabel, compact: compact)
             }
             .buttonStyle(.bordered)
             .popover(isPresented: $showingFirms, arrowEdge: .bottom) {
@@ -165,17 +220,18 @@ struct FilterBar: View {
                 .labelsHidden()
             } label: {
                 filterLabel("calendar",
-                            model.sinceDays.map { "Last \($0)d" } ?? "Any time")
+                            model.sinceDays.map { "Last \($0)d" } ?? "Any time",
+                            compact: compact)
             }
             .menuStyle(.button)
             .buttonStyle(.bordered)
             .menuIndicator(.hidden)
-            .fixedSize()
+            .layoutPriority(-1)
             .help("How recently the role was posted")
 
-            stackMenu
+            stackMenu(compact: compact)
 
-            appliedMenu
+            appliedMenu(compact: compact)
 
             Spacer(minLength: 8)
 
@@ -192,8 +248,6 @@ struct FilterBar: View {
                     .help("Turn every filter off")
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
     }
 }
 
@@ -212,7 +266,7 @@ struct SearchField: View {
                 .foregroundStyle(.secondary)
             TextField("Filter roles", text: $model.search)
                 .textFieldStyle(.plain)
-                .frame(width: 150)
+                .frame(minWidth: 70, idealWidth: 150)
             if !model.search.isEmpty {
                 Button { model.search = "" } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -225,7 +279,8 @@ struct SearchField: View {
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
         .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 6))
-        .fixedSize()
+        .fixedSize(horizontal: false, vertical: true)
+        .layoutPriority(-1)
         .help("Filter the roles already on screen")
     }
 }

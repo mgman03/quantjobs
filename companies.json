@@ -21,7 +21,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Anthropic",
       "segment" : "Frontier AI",
       "tags" : [
@@ -89,7 +89,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Databricks",
       "segment" : "Frontier AI",
       "tags" : [
@@ -268,7 +268,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "OpenAI",
       "segment" : "Frontier AI",
       "tags" : [

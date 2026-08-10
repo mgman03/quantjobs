@@ -675,11 +675,16 @@ enum AppliedFilter: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// Every one of these is checked to exist. `paperplane.slash` and
+    /// `building.2.slash` read like real SF Symbols and are not — an unknown name
+    /// renders as nothing at all, so the filter button sat there blank in both of
+    /// its active states and only a screenshot at a width that hid the label made
+    /// it obvious.
     var symbol: String {
         switch self {
         case .show: "paperplane"
-        case .roles: "paperplane.slash"
-        case .firms: "building.2.slash"
+        case .roles: "paperplane.circle.fill"
+        case .firms: "building.2.crop.circle.fill"
         }
     }
 

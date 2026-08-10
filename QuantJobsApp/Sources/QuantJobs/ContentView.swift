@@ -7,6 +7,9 @@ struct ContentView: View {
 
     @State private var sortOrder = [KeyPathComparator(\Job.posted, order: .reverse)]
     @State private var selection: Set<Job.ID> = []
+    /// Which columns are showing. Only Progress is driven from here, and only
+    /// because it's meaningless outside the Applied list.
+    @State private var columns = TableColumnCustomization<Job>()
     @State private var showingFailures = false
     @State private var showingSources = false
 
@@ -69,7 +72,9 @@ struct ContentView: View {
                 JobDetail(job: selectedJob, model: model)
                     // Fresh note state whenever the selection changes.
                     .id(selectedJob?.id)
-                    .frame(width: 300)
+                    // Flexible, not fixed: at 300 exactly, a narrow window had
+                    // nowhere left to take space from and clipped the sidebar.
+                    .frame(minWidth: 250, idealWidth: 300, maxWidth: 320)
             }
             }
         }
@@ -84,6 +89,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(
             for: NSApplication.didBecomeActiveNotification)) { _ in
             model.reloadCompaniesIfChangedOnDisk()
+        }
+        .onChange(of: model.list, initial: true) {
+            columns[visibility: "progress"] = model.list == .applied ? .visible : .hidden
         }
         .onChange(of: model.settingsFingerprint) { model.persistSettings() }
         .onChange(of: model.refreshFingerprint) { model.scheduleRefresh() }
@@ -419,8 +427,11 @@ struct ContentView: View {
             }
             .width(84)
 
-            // Only earns its space once something is tracked, which in the
-            // Applied list is every row.
+            // Hidden outside the Applied list, where every row has one —
+            // elsewhere it was a column of "–" taking width from Role, which is
+            // the column people read. Done through column customization rather
+            // than an `if` in the builder: conditional TableColumns need macOS
+            // 14.4 and this ships for 14.0.
             TableColumn("Progress") { job in
                 if let entry = model.trackedEntry(for: job), entry.hasApplication {
                     StagePill(entry: entry)
@@ -433,7 +444,8 @@ struct ContentView: View {
             // between the icons and the company name. But wide enough for the
             // widest pill it has to hold, "✈ Applied today": at 104 the Applied
             // list rendered "App... to...", truncated twice over.
-            .width(min: 104, ideal: 136, max: 168)
+            .width(min: 84, ideal: 136, max: 168)
+            .customizationID("progress")
 
             TableColumn("Company", value: \.company) { job in
                 HStack(spacing: 5) {
@@ -446,7 +458,7 @@ struct ContentView: View {
                 }
                 .foregroundStyle(model.isDelisted(job) ? .tertiary : .secondary)
             }
-            .width(min: 90, ideal: 116)
+            .width(min: 74, ideal: 116)
 
             TableColumn("Role", value: \.shortTitle) { job in
                 HStack(spacing: 5) {
@@ -465,7 +477,7 @@ struct ContentView: View {
                 }
                 .help(job.title)      // the full posted title on hover
             }
-            .width(min: 140, ideal: 230)
+            .width(min: 120, ideal: 230)
 
             TableColumn("Location", value: \.locationDisplay) { job in
                 Text(job.locationDisplay)
@@ -474,7 +486,7 @@ struct ContentView: View {
                           ? job.places.map(\.label).joined(separator: " · ")
                           : job.location)
             }
-            .width(min: 100, ideal: 128)
+            .width(min: 84, ideal: 128)
 
             TableColumn("Level", value: \.level) { job in
                 if job.levelShort.isEmpty {
@@ -515,7 +527,8 @@ struct ContentView: View {
     }
 
     private func jobTable(_ rows: [Job]) -> some View {
-        Table(of: Job.self, selection: $selection, sortOrder: $sortOrder) {
+        Table(of: Job.self, selection: $selection, sortOrder: $sortOrder,
+              columnCustomization: $columns) {
             jobColumns
         } rows: {
             if model.list == .applied {
