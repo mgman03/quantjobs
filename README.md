@@ -80,7 +80,7 @@ list stays empty.
 ## Scrape options
 
 ```
---category, -c   swe | quant-trading | quant-research | quant-dev | hardware | data | all
+--category, -c   swe | quant-trading | quant-research | hardware | data | all
 --stack          cpp | python | frontend | unspecified, repeatable
 --level, -l      intern (default) | newgrad | intern-or-newgrad | any
 --location, -L   substring match on location, repeatable:  -L london -L nyc

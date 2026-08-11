@@ -251,7 +251,7 @@ enum ConfigStore {
         let preferred = ["swe",
                          "cpp", "python", "frontend",        // slices of swe
                          "quant-trading", "quant-research",
-                         "quant-dev", "hardware", "data", "all"]
+                         "hardware", "data", "all"]
         return raw.map { key, value in
             var c = value; c.name = key; return c
         }.sorted { a, b in

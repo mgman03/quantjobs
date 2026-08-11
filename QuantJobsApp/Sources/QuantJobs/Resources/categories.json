@@ -1,6 +1,6 @@
 {
   "swe": {
-    "description": "General software engineering — the classic SWE internship.",
+    "description": "General software engineering, including the quant developer / technologist seats — the classic SWE internship.",
     "include": [
       "software engineer",
       "software engineering",
@@ -36,7 +36,21 @@
       "research engineer",
       "machine learning engineer",
       "ml engineer",
-      "ai engineer"
+      "ai engineer",
+      "quantitative developer",
+      "quant developer",
+      "quant dev",
+      "quantitative technologist",
+      "quant technologist",
+      "quantitative engineer",
+      "quant engineer",
+      "trading systems",
+      "algorithmic trading",
+      "algo developer",
+      "strat",
+      "strats",
+      "trading technology",
+      "execution engineer"
     ],
     "exclude": [
       "sales",
@@ -122,33 +136,6 @@
       "legal",
       "user research",
       "market research"
-    ]
-  },
-  "quant-dev": {
-    "description": "Quant developer / technologist — the SWE-quant hybrid seat.",
-    "include": [
-      "quantitative developer",
-      "quant developer",
-      "quant dev",
-      "quantitative technologist",
-      "quant technologist",
-      "quantitative engineer",
-      "quant engineer",
-      "trading systems",
-      "algorithmic trading",
-      "algo developer",
-      "strat",
-      "strats",
-      "trading technology",
-      "execution engineer"
-    ],
-    "exclude": [
-      "sales",
-      "recruiter",
-      "recruiting",
-      "marketing",
-      "compliance",
-      "legal"
     ]
   },
   "hardware": {
