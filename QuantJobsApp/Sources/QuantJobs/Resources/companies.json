@@ -2014,7 +2014,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "AlphaGrep",
       "segment" : "Tier 2",
       "tags" : [
@@ -2115,7 +2115,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Confluent",
       "segment" : "FAANG+",
       "tags" : [
@@ -2127,7 +2127,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : true,
+      "enabled" : false,
       "host" : "crowdstrike.wd5.myworkdayjobs.com",
       "name" : "CrowdStrike",
       "segment" : "FAANG+",
@@ -2141,7 +2141,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Cursor",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2179,7 +2179,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Figure AI",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2204,7 +2204,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Glean",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2229,7 +2229,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Graviton Research Capital",
       "segment" : "Tier 2",
       "tags" : [
@@ -2255,7 +2255,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Mako Trading",
       "segment" : "Tier 2",
       "tags" : [
@@ -2282,7 +2282,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Notion",
       "segment" : "Startups",
       "tags" : [
@@ -2306,7 +2306,7 @@
     },
     {
       "ats" : "smartrecruiters",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "ServiceNow",
       "segment" : "FAANG+",
       "tags" : [
@@ -2317,7 +2317,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Sierra",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2329,7 +2329,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Snowflake",
       "segment" : "FAANG+",
       "tags" : [
@@ -2341,7 +2341,7 @@
     },
     {
       "ats" : "lever",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Spotify",
       "segment" : "FAANG+",
       "tags" : [
@@ -2364,7 +2364,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Together AI",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2389,7 +2389,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Vercel",
       "segment" : "Startups",
       "tags" : [
@@ -2400,7 +2400,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Voloridge",
       "segment" : "Tier 2",
       "tags" : [
@@ -2413,7 +2413,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Wayve",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2426,7 +2426,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "xAI",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2438,7 +2438,7 @@
     },
     {
       "ats" : "lever",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Zoox",
       "segment" : "Frontier AI",
       "tags" : [
