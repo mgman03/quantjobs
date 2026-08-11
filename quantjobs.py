@@ -616,6 +616,109 @@ def fetch_janestreet(c: dict, deep: bool) -> list[dict]:
     return out
 
 
+# D. E. Shaw's careers site is a Next.js app, which means the listing it renders
+# client-side is also embedded in the page it serves — every job, in one document,
+# no API to find. `__NEXT_DATA__` is a framework convention rather than a private
+# endpoint, so this is the same read a browser does.
+DESHAW_NEXT = re.compile(
+    r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.S)
+
+
+def fetch_deshaw(c: dict, deep: bool) -> list[dict]:
+    """The D. E. Shaw group, read from the payload its careers page hydrates.
+
+    Config: host (default www.deshaw.com). No token — there is one careers page.
+
+    The payload splits roles into `internships`, `regularJobs` and `internalJobs`.
+    The first two are what a candidate can apply to; `internalJobs` are transfers
+    for people already there, so they're left out rather than filtered later.
+    """
+    host = c.get("host", "www.deshaw.com")
+    raw = http(f"https://{host}/careers", headers=BROWSER_HEADERS)
+    m = DESHAW_NEXT.search(raw.decode("utf-8", "replace"))
+    if not m:
+        raise FetchError("no __NEXT_DATA__ on the D. E. Shaw careers page")
+    try:
+        props = json.loads(m.group(1))["props"]["pageProps"]
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        raise FetchError(f"unreadable D. E. Shaw payload ({e})") from e
+
+    out = []
+    for bucket in ("internships", "regularJobs"):
+        for entry in props.get(bucket) or []:
+            data = entry.get("data") or {}
+            title = strip_html(data.get("displayName"))
+            slug = data.get("jobUrl") or ""
+            if not title or not slug:
+                continue
+            if data.get("activeOnJobsListing") is False:
+                continue
+            meta = data.get("jobMetadata") or {}
+            places = [l.get("name") for l in (meta.get("jobLocations") or [])
+                      if l.get("name")]
+            if not places:
+                places = [o.get("name") for o in (entry.get("office") or [])
+                          if o.get("name")]
+            dept = (data.get("department") or {}).get("name") or ""
+            cats = " / ".join(x.get("name") for x in (data.get("jobCategory") or [])
+                              if x.get("name"))
+            body = (data.get("jobDescription") or {}).get("websiteDescription")
+            out.append({
+                "title": title,
+                "location": ", ".join(places),
+                # The slug is title-cased in the payload and lowercase on the
+                # site; the title-cased form answers 308 rather than 200.
+                "url": f"https://{host}/careers/{slug.lower()}",
+                # Nothing in the payload carries one, so the caller's first-seen
+                # date is the only date these will ever have.
+                "posted": "",
+                "department": " / ".join(x for x in (dept, cats) if x),
+                "description": strip_html(body) if deep else "",
+            })
+    if not out:
+        raise FetchError("no roles in the D. E. Shaw payload")
+    return out
+
+
+# One anchor per role, title and location in known spans. Server-rendered, so no
+# hydration payload to dig out.
+GRESEARCH_CARD = re.compile(
+    r'<a href="([^"]+)" class="c-vacancy-result">\s*'
+    r'<span class="c-vacancy-result__title">([^<]*)</span>\s*'
+    r'(?:<span class="c-vacancy-result__location">([^<]*)</span>)?', re.S)
+
+
+def fetch_gresearch(c: dict, deep: bool) -> list[dict]:
+    """G-Research's own vacancies listing. Config: host (default www.gresearch.com).
+
+    One request gets everything. The page renders pagination links — /page/2/,
+    /page/3/ — but each returns the identical 63 vacancies, so following them
+    would triple the work and produce nothing but duplicates.
+    """
+    host = c.get("host", "www.gresearch.com")
+    raw = http(f"https://{host}/vacancies/", headers=BROWSER_HEADERS)
+    html = raw.decode("utf-8", "replace")
+
+    out = []
+    for href, title, place in GRESEARCH_CARD.findall(html):
+        title = strip_html(title)
+        if not title:
+            continue
+        out.append({
+            "title": title,
+            "location": strip_html(place),
+            "url": href,
+            # The listing carries no date and the detail pages don't publish one
+            # either, so there is nothing to read short of a request per role.
+            "posted": "",
+            "department": "",
+            "description": "",
+        })
+    if not out:
+        raise FetchError("no vacancies on the G-Research listing")
+    return out
+
+
 def fetch_citadel(c: dict, deep: bool) -> list[dict]:
     """Citadel / Citadel Securities. Config: host."""
     host = c.get("host")
@@ -897,6 +1000,8 @@ ADAPTERS = {
     "uber": fetch_uber,
     "wolverine": fetch_wolverine,
     "citadel": fetch_citadel,
+    "deshaw": fetch_deshaw,
+    "gresearch": fetch_gresearch,
     "janestreet": fetch_janestreet,
     "sitemap": fetch_sitemap,
     "optiver": fetch_optiver,
@@ -1471,7 +1576,7 @@ def is_configured(c: dict) -> bool:
         return bool(c.get("host") and c.get("tenant"))
     if ats == "sitemap":
         return bool(c.get("host") and c.get("sitemap"))
-    if ats in ("jibe", "citadel"):
+    if ats in ("jibe", "citadel", "deshaw", "gresearch"):
         return bool(c.get("host"))
     if ats in ("amazon", "uber", "wolverine", "optiver", "twosigma",
                "simplify", "janestreet"):

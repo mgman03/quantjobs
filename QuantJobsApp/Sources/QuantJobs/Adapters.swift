@@ -33,6 +33,8 @@ enum Adapters {
         case .citadel:         try await citadel(c, deep: deep)
         case .sitemap:         try await sitemapJobs(c, deep: deep)
         case .janestreet:      try await janeStreet(c, deep: deep)
+        case .deshaw:          try await deShaw(c, deep: deep)
+        case .gresearch:       try await gResearch(c, deep: deep)
         case .optiver:         try await optiver(c, deep: deep)
         case .twosigma:        try await twoSigma(c, deep: deep)
         case .simplify:        try await simplify(c, deep: deep)
@@ -771,6 +773,129 @@ enum Adapters {
         }
         return out
     }
+
+    // MARK: - D. E. Shaw
+
+    /// The D. E. Shaw group, read from the payload its careers page hydrates.
+    ///
+    /// The site is a Next.js app, so the listing it renders client-side is also
+    /// embedded in the document it serves — every role, one request, no API to
+    /// find. `__NEXT_DATA__` is a framework convention rather than a private
+    /// endpoint, so this is the same read a browser does.
+    ///
+    /// Must stay in step with `fetch_deshaw` in quantjobs.py.
+    static func deShaw(_ c: Company, deep: Bool) async throws -> [RawJob] {
+        let host = c.host ?? "www.deshaw.com"
+        let raw = try await HTTP.data("https://\(host)/careers",
+                                      headers: Self.browserHeaders)
+        let html = String(decoding: raw, as: UTF8.self)
+        guard let payload = Self.nextDataPayload(html) else {
+            throw FetchError.badPayload("no __NEXT_DATA__ on the D. E. Shaw careers page")
+        }
+        guard let props = (payload["props"] as? [String: Any])?["pageProps"]
+                as? [String: Any] else {
+            throw FetchError.badPayload("unreadable D. E. Shaw payload")
+        }
+
+        var out: [RawJob] = []
+        // `internalJobs` is the third bucket and deliberately skipped: those are
+        // transfers for people already there, not roles anyone can apply to.
+        for bucket in ["internships", "regularJobs"] {
+            for entry in props[bucket] as? [[String: Any]] ?? [] {
+                guard let data = entry["data"] as? [String: Any],
+                      let slug = data["jobUrl"] as? String, !slug.isEmpty
+                else { continue }
+                let title = Clean.html(data["displayName"] as? String ?? "")
+                guard !title.isEmpty else { continue }
+                if data["activeOnJobsListing"] as? Bool == false { continue }
+
+                let meta = data["jobMetadata"] as? [String: Any] ?? [:]
+                var places = (meta["jobLocations"] as? [[String: Any]] ?? [])
+                    .compactMap { $0["name"] as? String }
+                if places.isEmpty {
+                    places = (entry["office"] as? [[String: Any]] ?? [])
+                        .compactMap { $0["name"] as? String }
+                }
+                let dept = (data["department"] as? [String: Any])?["name"] as? String ?? ""
+                let cats = (data["jobCategory"] as? [[String: Any]] ?? [])
+                    .compactMap { $0["name"] as? String }.joined(separator: " / ")
+                let body = (data["jobDescription"] as? [String: Any])?["websiteDescription"]
+                    as? String ?? ""
+                out.append(RawJob(
+                    title: title,
+                    location: places.joined(separator: ", "),
+                    // The slug is title-cased in the payload and lowercase on the
+                    // site; the title-cased form answers 308 rather than 200.
+                    url: "https://\(host)/careers/\(slug.lowercased())",
+                    // Nothing in the payload carries one, so these only ever get
+                    // the first-seen date.
+                    posted: "",
+                    department: [dept, cats].filter { !$0.isEmpty }
+                        .joined(separator: " / "),
+                    description: deep ? Clean.html(body) : ""))
+            }
+        }
+        guard !out.isEmpty else {
+            throw FetchError.badPayload("no roles in the D. E. Shaw payload")
+        }
+        return out
+    }
+
+    /// Pulls the JSON out of a Next.js page's `__NEXT_DATA__` script tag.
+    private static func nextDataPayload(_ html: String) -> [String: Any]? {
+        guard let open = html.range(of: "<script id=\"__NEXT_DATA__\""),
+              let gt = html.range(of: ">", range: open.upperBound..<html.endIndex),
+              let close = html.range(of: "</script>",
+                                     range: gt.upperBound..<html.endIndex)
+        else { return nil }
+        let json = html[gt.upperBound..<close.lowerBound]
+        return try? JSONSerialization.jsonObject(with: Data(json.utf8))
+            as? [String: Any]
+    }
+
+    // MARK: - G-Research
+
+    /// G-Research's own vacancies listing, which is server-rendered.
+    ///
+    /// One request gets everything. The page renders /page/2/ and /page/3/ links
+    /// but each returns the identical sixty-odd vacancies, so following them
+    /// would triple the work to collect duplicates.
+    ///
+    /// Must stay in step with `fetch_gresearch` in quantjobs.py.
+    static func gResearch(_ c: Company, deep: Bool) async throws -> [RawJob] {
+        let host = c.host ?? "www.gresearch.com"
+        let raw = try await HTTP.data("https://\(host)/vacancies/",
+                                      headers: Self.browserHeaders)
+        let html = String(decoding: raw, as: UTF8.self)
+
+        var out: [RawJob] = []
+        let ns = html as NSString
+        for m in Self.gResearchCard.matches(
+            in: html, range: NSRange(location: 0, length: ns.length)) {
+            let title = Clean.html(ns.substring(with: m.range(at: 2)))
+            guard !title.isEmpty else { continue }
+            // The location span is optional in the markup, so its group can be
+            // absent on a card that names no office.
+            let locRange = m.range(at: 3)
+            out.append(RawJob(
+                title: title,
+                location: locRange.location == NSNotFound
+                    ? "" : Clean.html(ns.substring(with: locRange)),
+                url: ns.substring(with: m.range(at: 1)),
+                // Neither the listing nor the detail pages publish a date.
+                posted: "",
+                department: "",
+                description: ""))
+        }
+        guard !out.isEmpty else {
+            throw FetchError.badPayload("no vacancies on the G-Research listing")
+        }
+        return out
+    }
+
+    private static let gResearchCard = try! NSRegularExpression(
+        pattern: #"<a href="([^"]+)" class="c-vacancy-result">\s*<span class="c-vacancy-result__title">([^<]*)</span>\s*(?:<span class="c-vacancy-result__location">([^<]*)</span>)?"#,
+        options: [.dotMatchesLineSeparators])
 
     // MARK: - Sites with no board at all
 

@@ -226,13 +226,13 @@ now 404s.
 
 Boards, not firms: a few firms have two — see [`board`](#configuring).
 
-**Tier 1, live**: AQR Capital · Citadel · Citadel Securities · DRW ·
-Hudson River Trading · IMC Trading · Jane Street · Jump Trading · Millennium ·
+**Tier 1, live**: AQR Capital · Citadel · Citadel Securities · D. E. Shaw · DRW ·
+G-Research · Hudson River Trading · IMC Trading · Jane Street · Jump Trading · Millennium ·
 Optiver · Point72 · Qube RT · Radix Trading · SIG · Squarepoint Capital ·
 Tower Research · Two Sigma · Virtu Financial · XTX Markets
 
-**Tier 1, no readable board**: BlackRock · Bloomberg · Bridgewater · D. E. Shaw ·
-G-Research · Goldman Sachs · JPMorgan Chase. They're in the file and off, with a note
+**Tier 1, no readable board**: BlackRock · Bloomberg · Bridgewater ·
+Goldman Sachs · JPMorgan Chase. They're in the file and off, with a note
 each — see the table below for what's in the way. They're marked Tier 1 because that's
 what they are to someone applying, not because anything can be read from them yet.
 
@@ -271,7 +271,7 @@ Recruitment Assistant posting while its internships live as pages on mwam.com. T
 ExodusPoint Jobs Page" and "Non-Investment - Referral" — rather than roles, and its
 site lists nothing. Two non-jobs in the table is worse than an absent firm.
 
-**The names that aren't here, and why.** Ten firms people do apply to have no board
+**The names that aren't here, and why.** Eight firms people do apply to have no board
 this can read, and each sits in `companies.json` disabled with a `note` rather than
 being left out:
 
@@ -281,11 +281,18 @@ being left out:
 | JPMorgan Chase | Oracle HCM (`jpmc.fa.oraclecloud.com`) — no adapter |
 | Cisco | Phenom People — no adapter |
 | Plaid | RippleMatch — no adapter |
-| D. E. Shaw · G-Research | own client-side careers app, no JSON endpoint found |
 | Bridgewater · BlackRock · Bloomberg · Tesla | careers site answers 403 to scripted callers |
 
 The four platform gaps are one adapter each and would bring more than one firm with
 them; the 403s need a browser rather than a new adapter.
+
+**D. E. Shaw** and **G-Research** used to be in that table and now have adapters of
+their own. Neither has an ATS, but neither needs one: D. E. Shaw's careers page is a
+Next.js app, so the listing it renders client-side is also embedded in the document it
+serves — 86 roles, 14 of them internships, in one request to `__NEXT_DATA__`.
+G-Research server-renders its vacancy cards, so a regex over
+`/vacancies/` gets all 63. Both give 13 and 4 early-career roles respectively, and
+neither publishes a posted date, so those rows carry the first-seen date instead.
 
 **Maven Securities** has no scriptable board — its careers page 404s and shows no ATS
 fingerprint — and sits in `companies.json` as a disabled placeholder with a note saying
@@ -326,7 +333,7 @@ dropping it.
 
 - **`ats`** — one of `greenhouse`, `lever`, `ashby`, `smartrecruiters`, `workday`,
   `amazon`, `eightfold`, `jibe`, `uber`, `wolverine`, `citadel`, `optiver`,
-  `twosigma`, `simplify`, `sitemap`, `janestreet`. Most take a `token`; a few need other fields — see
+  `twosigma`, `simplify`, `sitemap`, `janestreet`, `deshaw`, `gresearch`. Most take a `token`; a few need other fields — see
   [INTERNALS.md](INTERNALS.md#board-adapters).
 - **`tags`** — `quant` and `bigtech` decide which half of the app's Firms picker a
   firm lands in. The rest are descriptive and usable with `--tag`.

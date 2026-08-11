@@ -2152,17 +2152,17 @@
       "token" : "cursor"
     },
     {
-      "ats" : "greenhouse",
-      "enabled" : false,
+      "ats" : "deshaw",
+      "enabled" : true,
+      "host" : "www.deshaw.com",
       "name" : "D. E. Shaw",
-      "note" : "Careers site is a client-side app with no JSON endpoint reachable without a browser; not on greenhouse/lever/ashby/smartrecruiters under any token tried.",
       "segment" : "Tier 1",
       "tags" : [
         "quant",
-        "hedge-fund"
+        "hedge-fund",
+        "multistrat"
       ],
-      "tier" : 1,
-      "token" : ""
+      "tier" : 1
     },
     {
       "ats" : "ashby",
@@ -2191,17 +2191,16 @@
       "token" : "figureai"
     },
     {
-      "ats" : "greenhouse",
-      "enabled" : false,
+      "ats" : "gresearch",
+      "enabled" : true,
+      "host" : "www.gresearch.com",
       "name" : "G-Research",
-      "note" : "Own careers app, no ATS fingerprint in the HTML and no public JSON found.",
       "segment" : "Tier 1",
       "tags" : [
         "quant",
         "london"
       ],
-      "tier" : 1,
-      "token" : ""
+      "tier" : 1
     },
     {
       "ats" : "greenhouse",

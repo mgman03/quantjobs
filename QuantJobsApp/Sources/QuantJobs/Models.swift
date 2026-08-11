@@ -6,7 +6,7 @@ import SwiftUI
 enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
     case greenhouse, lever, ashby, smartrecruiters, workday, amazon
     case eightfold, jibe, uber, wolverine, citadel, optiver, twosigma, simplify
-    case sitemap, janestreet
+    case sitemap, janestreet, deshaw, gresearch
 
     var id: String { rawValue }
 
@@ -28,6 +28,8 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         case .simplify: "Simplify feed"
         case .sitemap: "own site"
         case .janestreet: "janestreet.com"
+        case .deshaw: "deshaw.com"
+        case .gresearch: "gresearch.com"
         }
     }
 
@@ -43,7 +45,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         switch self {
         // Eightfold and Jibe are hosted platforms addressed by hostname, so
         // they reuse the Workday-style host fields rather than a slug.
-        case .workday, .eightfold, .jibe, .citadel: .workday
+        case .workday, .eightfold, .jibe, .citadel, .deshaw, .gresearch: .workday
         case .sitemap: .sitemap
         case .amazon, .uber, .wolverine, .optiver, .twosigma, .simplify,
              .janestreet: .query
@@ -119,7 +121,7 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
     var isConfigured: Bool {
         switch ats {
         case .eightfold: !(host ?? "").isEmpty && !(tenant ?? "").isEmpty
-        case .jibe, .citadel: !(host ?? "").isEmpty
+        case .jibe, .citadel, .deshaw, .gresearch: !(host ?? "").isEmpty
         case .sitemap: !(host ?? "").isEmpty && !(sitemap ?? "").isEmpty
         default:
             switch ats.configStyle {
