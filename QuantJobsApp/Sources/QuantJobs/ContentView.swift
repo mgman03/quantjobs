@@ -1041,90 +1041,92 @@ struct JobDetailContent: View {
     /// truncated each one to an ellipsis and the middle button swallowed the
     /// row. Three independent controls, because hiding a role you've applied to
     /// must not overwrite the application.
+    /// The panel's actions, each saying what it does.
+    ///
+    /// They were icon-only, which is right in a table row where space is scarce and
+    /// wrong here: the panel has room, and "what does the paperplane do" is not a
+    /// question a detail view should leave open. The labels also state the *state* —
+    /// "Unsave" when it's saved — so the button says what clicking it will do
+    /// rather than what the role currently is.
+    ///
+    /// Open Posting is no longer full-width prominent. Stretched across the panel it
+    /// read as the only thing here, dwarfing three controls that matter as much.
     private func statusButtons(_ job: Job) -> some View {
-        // Stacked, not side by side. Sharing one row with Open Posting left the
-        // marks fighting it for width, and in a narrow window the panel gets as
-        // little as 250pt — the row that fits at 320 clips at 250. The primary
-        // action gets the full width it deserves; the marks get their own line.
         VStack(alignment: .leading, spacing: 6) {
             if !job.isMerged, let url = URL(string: job.url) {
                 Button {
                     NSWorkspace.shared.open(url)
                 } label: {
                     Label("Open Posting", systemImage: "arrow.up.right.square")
-                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-            }
-
-            HStack(spacing: 6) {
-            let saved = tracking?.saved == true
-            mark(saved ? "star.fill" : "star", on: saved,
-                 help: saved ? "Saved — click to unsave" : "Save this role") {
-                onToggle(.favorite)
-            }
-
-            if tracking?.hasApplication == true {
-                // Not disabled: a greyed-out button reads as broken. It records
-                // the next step, which is the same thing the timeline below does.
-                Menu {
-                    ForEach(tracking?.remainingStages ?? []) { stage in
-                        Button {
-                            onRecord(stage, Dates.today)
-                        } label: {
-                            Label(stage.label, systemImage: stage.symbol)
-                        }
-                    }
-                } label: {
-                    Image(systemName: "paperplane.fill")
-                }
-                .menuStyle(.button)
-                .buttonStyle(.bordered)
-                .tint(.accentColor)
-                .menuIndicator(.hidden)
                 .fixedSize()
-                .help("Applied — pick the next step, or use the timeline below")
-            } else {
-                Menu {
-                    ForEach(Stage.allCases) { stage in
-                        Button {
-                            if stage != .applied { onRecord(.applied, Dates.today) }
-                            onRecord(stage, Dates.today)
-                        } label: {
-                            Label(stage.label, systemImage: stage.symbol)
-                        }
-                    }
-                } label: {
-                    Image(systemName: "paperplane")
-                }
-                .menuStyle(.button)
-                .buttonStyle(.bordered)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help("Track an application to this role")
             }
 
-            let hidden = tracking?.hidden == true
-            mark(hidden ? "eye.slash.fill" : "eye.slash", on: hidden,
-                 help: hidden ? "Hidden from results — any application is kept"
-                              : "Hide this role") {
-                onToggle(.hidden)
-            }
-
-            Spacer(minLength: 0)
+            // One row when the labels fit, stacked when they don't — the panel is
+            // as narrow as 250pt and three labelled buttons want about 330.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) { actions(job) }
+                VStack(alignment: .leading, spacing: 6) { actions(job) }
             }
         }
     }
 
-    private func mark(_ symbol: String, on: Bool, help: String,
-                      action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
+    @ViewBuilder
+    private func actions(_ job: Job) -> some View {
+        let saved = tracking?.saved == true
+        Button { onToggle(.favorite) } label: {
+            Label(saved ? "Unsave" : "Save",
+                  systemImage: saved ? "star.fill" : "star")
+                .font(.callout)
         }
         .buttonStyle(.bordered)
-        .tint(on ? .accentColor : .secondary)
-        .accessibilityLabel(help)
-        .help(help)
+        .tint(saved ? .accentColor : nil)
+
+        if tracking?.hasApplication == true {
+            Menu {
+                ForEach(tracking?.remainingStages ?? []) { stage in
+                    Button {
+                        onRecord(stage, Dates.today)
+                    } label: {
+                        Label(stage.label, systemImage: stage.symbol)
+                    }
+                }
+            } label: {
+                Label("Applied", systemImage: "paperplane.fill").font(.callout)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.bordered)
+            .tint(.accentColor)
+            .help("Pick the next step, or use the timeline below")
+        } else {
+            Menu {
+                ForEach(Stage.allCases) { stage in
+                    Button {
+                        if stage != .applied { onRecord(.applied, Dates.today) }
+                        onRecord(stage, Dates.today)
+                    } label: {
+                        Label(stage.label, systemImage: stage.symbol)
+                    }
+                }
+            } label: {
+                Label("Move to Applied", systemImage: "paperplane").font(.callout)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.bordered)
+            .help("Record an application — Applied today, or a later stage if "
+                  + "you're already past it")
+        }
+
+        let hidden = tracking?.hidden == true
+        Button { onToggle(.hidden) } label: {
+            Label(hidden ? "Unhide" : "Hide",
+                  systemImage: hidden ? "eye.slash.fill" : "eye.slash")
+                .font(.callout)
+        }
+        .buttonStyle(.bordered)
+        .tint(hidden ? .accentColor : nil)
+        .help(hidden ? "Any application here is kept either way" : "")
     }
 
     private func applicationBlock(_ entry: TrackedJob) -> some View {
