@@ -719,6 +719,70 @@ def fetch_gresearch(c: dict, deep: bool) -> list[dict]:
     return out
 
 
+# Google's careers site server-renders its results, so no API key is needed — but
+# the markup is compiled CSS class names, which are the fragile part. Of the three
+# anchors used here, the `aria-label` is the sturdiest: it exists for screen
+# readers, so it survives visual redesigns that rename classes.
+GOOGLE_CARD_SPLIT = 'class="lLd3Je"'
+GOOGLE_TITLE = re.compile(r'aria-label="Learn more about ([^"]+)"')
+GOOGLE_HREF = re.compile(r'href="(jobs/results/[^"?]+)')
+GOOGLE_LOC = re.compile(r'class="r0wTof[^"]*">([^<]+)</span>')
+
+# Two server-side slices rather than the whole board. Google has thousands of
+# openings at twenty a page; asking for everything would be hundreds of requests
+# to throw nearly all of it away. `employment_type=INTERN` is the internships and
+# apprenticeships, `target_level=EARLY` is the new-grad end of full-time — which
+# together is exactly what this tracker is for.
+GOOGLE_SLICES = ("employment_type=INTERN", "target_level=EARLY")
+
+
+def fetch_google(c: dict, deep: bool) -> list[dict]:
+    """Google's own careers listing. Config: host (default www.google.com).
+
+    Replaces the Simplify feed for Google, which carried three stale Student
+    Researcher rows whose links had all gone dead.
+    """
+    host = c.get("host", "www.google.com")
+    base = f"https://{host}/about/careers/applications"
+    seen, out = set(), []
+
+    for slice_ in GOOGLE_SLICES:
+        for page in range(1, 26):        # EARLY runs to ~page 20; cap well past it
+            url = f"{base}/jobs/results?{slice_}&sort_by=date"
+            if page > 1:
+                url += f"&page={page}"
+            html = http(url, headers=BROWSER_HEADERS).decode("utf-8", "replace")
+            cards = html.split(GOOGLE_CARD_SPLIT)[1:]
+            if not cards:
+                break
+            for card in cards:
+                title = GOOGLE_TITLE.search(card)
+                href = GOOGLE_HREF.search(card)
+                if not title or not href:
+                    continue
+                path = href.group(1)
+                if path in seen:         # a role can sit in both slices
+                    continue
+                seen.add(path)
+                places = [p.strip("; ").strip()
+                          for p in GOOGLE_LOC.findall(card)]
+                out.append({
+                    "title": strip_html(title.group(1)),
+                    # Extra offices come as "; Ann Arbor, MI, USA" spans.
+                    "location": ", ".join(dict.fromkeys(p for p in places if p)),
+                    "url": f"{base}/{path}",
+                    # The cards carry no date. Only the detail pages do, and that
+                    # would be a request per role.
+                    "posted": "",
+                    "department": "",
+                    "description": "",
+                })
+            time.sleep(0.4)              # twenty-odd pages, so pace it
+    if not out:
+        raise FetchError("no cards on the Google careers listing")
+    return out
+
+
 def fetch_citadel(c: dict, deep: bool) -> list[dict]:
     """Citadel / Citadel Securities. Config: host."""
     host = c.get("host")
@@ -1001,6 +1065,7 @@ ADAPTERS = {
     "wolverine": fetch_wolverine,
     "citadel": fetch_citadel,
     "deshaw": fetch_deshaw,
+    "google": fetch_google,
     "gresearch": fetch_gresearch,
     "janestreet": fetch_janestreet,
     "sitemap": fetch_sitemap,
@@ -1576,7 +1641,7 @@ def is_configured(c: dict) -> bool:
         return bool(c.get("host") and c.get("tenant"))
     if ats == "sitemap":
         return bool(c.get("host") and c.get("sitemap"))
-    if ats in ("jibe", "citadel", "deshaw", "gresearch"):
+    if ats in ("jibe", "citadel", "deshaw", "gresearch", "google"):
         return bool(c.get("host"))
     if ats in ("amazon", "uber", "wolverine", "optiver", "twosigma",
                "simplify", "janestreet"):

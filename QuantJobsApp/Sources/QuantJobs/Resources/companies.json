@@ -113,11 +113,11 @@
       "token" : "drweng"
     },
     {
-      "ats" : "simplify",
+      "ats" : "google",
       "enabled" : true,
+      "host" : "www.google.com",
       "name" : "Google",
-      "note" : "careers.google.com/api/v3/search 404s without auth and the board is client-rendered. The Simplify feed carries entries, but all of them resolved dead when checked on 2026-08-03, so it ships off.",
-      "query" : "Google",
+      "note" : "Read from google.com/about/careers directly. Two server-side slices — employment_type=INTERN and target_level=EARLY — because the whole board is thousands of roles at 20 a page. Replaces the Simplify feed, whose three Google rows had all gone dead.",
       "segment" : "FAANG+",
       "tags" : [
         "bigtech",

@@ -35,6 +35,7 @@ enum Adapters {
         case .janestreet:      try await janeStreet(c, deep: deep)
         case .deshaw:          try await deShaw(c, deep: deep)
         case .gresearch:       try await gResearch(c, deep: deep)
+        case .google:          try await google(c, deep: deep)
         case .optiver:         try await optiver(c, deep: deep)
         case .twosigma:        try await twoSigma(c, deep: deep)
         case .simplify:        try await simplify(c, deep: deep)
@@ -896,6 +897,80 @@ enum Adapters {
     private static let gResearchCard = try! NSRegularExpression(
         pattern: #"<a href="([^"]+)" class="c-vacancy-result">\s*<span class="c-vacancy-result__title">([^<]*)</span>\s*(?:<span class="c-vacancy-result__location">([^<]*)</span>)?"#,
         options: [.dotMatchesLineSeparators])
+
+    // MARK: - Google
+
+    /// Google's own careers listing, which server-renders its results.
+    ///
+    /// Two server-side slices rather than the whole board: Google has thousands
+    /// of openings at twenty a page, so asking for all of them would be hundreds
+    /// of requests to discard nearly everything. `employment_type=INTERN` is the
+    /// internships and apprenticeships and `target_level=EARLY` is the new-grad
+    /// end of full-time, which together is what this tracker is for.
+    ///
+    /// Replaces the Simplify feed for Google, whose three rows had all gone dead.
+    /// Must stay in step with `fetch_google` in quantjobs.py.
+    static func google(_ c: Company, deep: Bool) async throws -> [RawJob] {
+        let host = c.host ?? "www.google.com"
+        let base = "https://\(host)/about/careers/applications"
+        var seen = Set<String>()
+        var out: [RawJob] = []
+
+        for slice in ["employment_type=INTERN", "target_level=EARLY"] {
+            // EARLY runs to about page 20; the cap sits well past it.
+            for page in 1...25 {
+                var url = "\(base)/jobs/results?\(slice)&sort_by=date"
+                if page > 1 { url += "&page=\(page)" }
+                let raw = try await HTTP.data(url, headers: Self.browserHeaders)
+                let html = String(decoding: raw, as: UTF8.self)
+                let cards = html.components(separatedBy: Self.googleCardSplit)
+                    .dropFirst()
+                if cards.isEmpty { break }
+                for card in cards {
+                    let ns = card as NSString
+                    let full = NSRange(location: 0, length: ns.length)
+                    guard let t = Self.googleTitle.firstMatch(in: card, range: full),
+                          let h = Self.googleHref.firstMatch(in: card, range: full)
+                    else { continue }
+                    let path = ns.substring(with: h.range(at: 1))
+                    // A role can sit in both slices.
+                    guard seen.insert(path).inserted else { continue }
+                    // Extra offices arrive as "; Ann Arbor, MI, USA" spans.
+                    var places: [String] = []
+                    for m in Self.googleLoc.matches(in: card, range: full) {
+                        let p = ns.substring(with: m.range(at: 1))
+                            .trimmingCharacters(in: CharacterSet(charactersIn: "; "))
+                        if !p.isEmpty && !places.contains(p) { places.append(p) }
+                    }
+                    out.append(RawJob(
+                        title: Clean.html(ns.substring(with: t.range(at: 1))),
+                        location: places.joined(separator: ", "),
+                        url: "\(base)/\(path)",
+                        // The cards carry no date; only the detail pages do, and
+                        // that would be a request per role.
+                        posted: "",
+                        department: "",
+                        description: ""))
+                }
+                try? await Task.sleep(for: .milliseconds(400))
+            }
+        }
+        guard !out.isEmpty else {
+            throw FetchError.badPayload("no cards on the Google careers listing")
+        }
+        return out
+    }
+
+    /// Google ships compiled CSS class names, which are the fragile part of this.
+    /// Of the three anchors, the `aria-label` is sturdiest — it exists for screen
+    /// readers, so it survives redesigns that rename classes.
+    private static let googleCardSplit = "class=\"lLd3Je\""
+    private static let googleTitle = try! NSRegularExpression(
+        pattern: #"aria-label="Learn more about ([^"]+)""#)
+    private static let googleHref = try! NSRegularExpression(
+        pattern: #"href="(jobs/results/[^"?]+)"#)
+    private static let googleLoc = try! NSRegularExpression(
+        pattern: #"class="r0wTof[^"]*">([^<]+)</span>"#)
 
     // MARK: - Sites with no board at all
 

@@ -299,10 +299,23 @@ fingerprint — and sits in `companies.json` as a disabled placeholder with a no
 what was tried. **Quantlab**'s board is Jobvite and was empty when last checked, so it
 has nothing to read yet rather than nowhere to read from.
 
-Apple, Google, Meta and Microsoft come from a community internship feed rather than
-their own boards, and it shows: the feed had 12 Apple roles, 10 Microsoft, 4 Meta and 3
-Google when last checked, against the hundreds each firm actually has. Treat those four
-as a hint, not as coverage — Apple and Microsoft ship on, Meta and Google off. See
+**Google is read from its own careers site.** It server-renders its results, so no
+key is needed — but the whole board is thousands of roles at twenty a page, so the
+adapter asks for two slices instead: `employment_type=INTERN` (internships and
+apprenticeships) and `target_level=EARLY` (the new-grad end of full-time). That's 404
+roles, of which 7 are early-career SWE — including *Software Engineer, Early Career,
+Campus*. It replaces the Simplify feed for Google, which carried three Student
+Researcher rows whose links had all gone dead.
+
+Worth knowing what that filter shows: Google currently has **11 postings typed as
+INTERN**, and not one is a software internship — four Student Researcher, three Swiss
+apprenticeships, four gReach roles. Google's 2027 SWE internships simply aren't posted
+yet. The adapter will pick them up the day they are.
+
+Apple, Meta and Microsoft still come from a community internship feed rather than their
+own boards, and it shows: the feed had 12 Apple roles, 10 Microsoft and 4 Meta when last
+checked, against the hundreds each firm actually has. Treat those three as a hint, not
+as coverage — Apple ships on, Meta and Microsoft off. See
 [INTERNALS.md](INTERNALS.md#apple-google-meta-and-microsoft) for the detail.
 
 ## Do the links actually work?
@@ -333,7 +346,7 @@ dropping it.
 
 - **`ats`** — one of `greenhouse`, `lever`, `ashby`, `smartrecruiters`, `workday`,
   `amazon`, `eightfold`, `jibe`, `uber`, `wolverine`, `citadel`, `optiver`,
-  `twosigma`, `simplify`, `sitemap`, `janestreet`, `deshaw`, `gresearch`. Most take a `token`; a few need other fields — see
+  `twosigma`, `simplify`, `sitemap`, `janestreet`, `deshaw`, `gresearch`, `google`. Most take a `token`; a few need other fields — see
   [INTERNALS.md](INTERNALS.md#board-adapters).
 - **`tags`** — `quant` and `bigtech` decide which half of the app's Firms picker a
   firm lands in. The rest are descriptive and usable with `--tag`.
