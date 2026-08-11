@@ -829,7 +829,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "ExodusPoint",
       "note" : "Its Greenhouse board holds two signposts — 'Investment - ExodusPoint Jobs Page' and 'Non-Investment - Referral' — rather than roles, and exoduspoint.com lists nothing and gives an email address. Off, because two non-jobs in the table is worse than an absent firm.",
       "segment" : "Tier 2",

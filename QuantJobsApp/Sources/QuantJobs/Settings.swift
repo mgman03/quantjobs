@@ -48,8 +48,22 @@ struct AppSettings: Codable, Sendable, Equatable {
 
     static let defaultsKey = "appSettings"
 
+    /// Where settings are read and written. Overridable so `--check` can point at
+    /// a throwaway suite: the checks drive the real AppModel, which persists every
+    /// setting it touches, and they were writing into the user's own domain. That
+    /// left `Applied firms: hidden` and a stray category set on a real install more
+    /// than once — a test changing what someone sees when they next open the app.
+    nonisolated(unsafe) static var store: UserDefaults = .standard
+
+    /// Sends settings to a volatile suite and returns nothing to clean up: a
+    /// suite that was never registered vanishes with the process.
+    static func useScratchStore(_ name: String) {
+        store = UserDefaults(suiteName: "local.quantjobs.check.\(name)") ?? .standard
+        store.removePersistentDomain(forName: "local.quantjobs.check.\(name)")
+    }
+
     static func load() -> AppSettings {
-        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+        guard let data = store.data(forKey: defaultsKey),
               var s = try? JSONDecoder().decode(AppSettings.self, from: data)
         else { return .firstRun }
         // The boolean became a three-way choice.
@@ -62,6 +76,6 @@ struct AppSettings: Codable, Sendable, Equatable {
 
     func save() {
         guard let data = try? JSONEncoder().encode(self) else { return }
-        UserDefaults.standard.set(data, forKey: Self.defaultsKey)
+        Self.store.set(data, forKey: Self.defaultsKey)
     }
 }

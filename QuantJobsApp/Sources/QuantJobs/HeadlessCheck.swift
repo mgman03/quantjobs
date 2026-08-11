@@ -131,6 +131,9 @@ enum HeadlessCheck {
                 to: scratch.appendingPathComponent(file))
         }
         ConfigStore.directoryOverride = scratch
+        // Settings live in UserDefaults, not in the config directory, so pointing
+        // the directory somewhere safe was never enough on its own.
+        AppSettings.useScratchStore(name)
     }
 
     /// Writes tracking the way a version before this one would have: keyed on
@@ -426,7 +429,7 @@ enum HeadlessCheck {
     /// fresh model to prove they survive a restart.
     private static func runSettingsCheck() -> Never {
         useScratchConfig("settings")
-        let previous = UserDefaults.standard.data(forKey: AppSettings.defaultsKey)
+        AppSettings.useScratchStore("settings")
 
         Task { @MainActor in
             let a = AppModel()
@@ -472,12 +475,9 @@ enum HeadlessCheck {
             print("          folded=\(b.collapsedStages.map(\.rawValue).sorted())")
             print(ok ? "ALL SETTINGS SURVIVED A RESTART" : "SETTINGS LOST")
 
-            // Leave the real preferences exactly as they were.
-            if let previous {
-                UserDefaults.standard.set(previous, forKey: AppSettings.defaultsKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: AppSettings.defaultsKey)
-            }
+            // Nothing of the user's to put back — the scratch suite was never
+            // theirs — but clear it so a rerun starts from the defaults.
+            AppSettings.store.removeObject(forKey: AppSettings.defaultsKey)
             try? FileManager.default.removeItem(at: ConfigStore.directory)
             exit(ok ? 0 : 1)
         }

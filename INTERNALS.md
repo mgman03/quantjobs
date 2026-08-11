@@ -132,9 +132,13 @@ change can be diffed against the Python original:
 ./.build/debug/QuantJobs --check --migrate                 # tracked keys survive the key change
 ```
 
-Anything under `--check` that writes runs against a throwaway config directory, so a
-check can exercise the real save paths without touching `companies.json` or
-`.tracked.json`. Both point at `$QUANTJOBS_CONFIG` if it's set, which is the easy way
+Anything under `--check` that writes runs against a throwaway config directory *and*
+a throwaway UserDefaults suite, so a check can exercise the real save paths without
+touching `companies.json`, `.tracked.json` or your remembered filters. The second
+half was missing for a long time: settings live in UserDefaults rather than in the
+config directory, so redirecting the directory wasn't enough, and `--check --model`
+left `Applied firms: hidden` and a changed category on a real install more than
+once — a test quietly deciding what someone saw when they next opened the app. Both point at `$QUANTJOBS_CONFIG` if it's set, which is the easy way
 to run both tools against a small scratch roster.
 
 Both implementations return identical results across every category and level, with
