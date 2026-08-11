@@ -81,7 +81,7 @@ list stays empty.
 
 ```
 --category, -c   swe | quant-trading | quant-research | hardware | data | all
---stack          cpp | python | frontend | unspecified, repeatable
+--no-stack       leave out roles using this stack: cpp | python | frontend, repeatable
 --level, -l      intern (default) | newgrad | intern-or-newgrad | any
 --location, -L   substring match on location, repeatable:  -L london -L nyc
 --company        limit to firms matching a name, repeatable
@@ -103,23 +103,28 @@ list stays empty.
 ./quantjobs.py scrape -c all --tag quant --new-only      # daily driver
 ```
 
-**Stacks are a filter, not a category.** `--stack` keeps roles that name a given
-language or layer, and it's *additive* — each one you name adds a bucket rather
-than narrowing to one:
+**Stacks are an exclusion filter, not a category.** `--no-stack` drops roles that
+name a given language or layer, and it's repeatable — each one you name removes a
+bucket:
 
 ```bash
-./quantjobs.py scrape -c swe --stack cpp                    # only roles that say C++
-./quantjobs.py scrape -c swe --stack cpp --stack unspecified # C++, plus the ones that say nothing
+./quantjobs.py scrape -c swe --no-stack python              # everything except Python roles
+./quantjobs.py scrape -c swe --no-stack python --no-stack frontend
 ```
 
-That second form is the one you want, and the reason the filter works this way:
-**270 of 310 early-career SWE roles name no language at all.** A stack you have to
-pick one of would throw away 87% of the list to gain a handful — so "unspecified"
-is a bucket you can select like any other. In the app it's the `{} Any stack`
-menu, with tick boxes rather than a single choice.
+**A role that names no stack is always kept**, and that's the whole reason the
+filter works by exclusion. **270 of 310 early-career SWE roles name no language at
+all.** An include filter meant ticking every language you'd accept *plus* a
+separate "unspecified" box — three ticks to express one preference, and an empty
+table if you forgot the last one. Saying "not Python" needs one tick and can't
+silently empty the list.
 
 Use `--deep` with it. Boards name the language in the description far more often
 than in the title.
+
+In the app it's the `{}` menu in the filter row, with a tick box per stack and
+every row reading *"— hide these"*, because a tick box next to a language name
+otherwise reads as "I want this one".
 
 A category in `categories.json` becomes a stack by naming its `parent`; the
 matching is deliberately *ungated* by that parent, so "does this posting mention
@@ -136,11 +141,14 @@ them experienced. In the app these are the **Both** and **All levels** buttons.
 `QuantJobsApp/` covers the same ground as the CLI and reads the same config files, so
 the two stay in sync and you can use whichever suits the moment.
 
-- **Filters in one row above the table** — level, location, firms, date, hide-applied,
-  search. Location and firms are drill-down pickers: click a group on the left to
-  narrow the list on the right, tick either to select. Each control states its own
-  setting, so there's no second row of chips repeating them; a **Clear** link appears
-  at the end of the row when anything is on.
+- **Filters in one row above the table** — level, location, firms, posted date,
+  intake year, stack, applied, search. Location and firms are drill-down pickers:
+  click a group on the left to narrow the list on the right, tick either to select.
+  Each control states its own setting, so there's no second row of chips repeating
+  them; a **Clear** link appears at the end of the row when anything is on. The row
+  picks between three layouts depending on the window: full labels, icon-only, and
+  icon-only with the level picker folded into a menu — so it never truncates and
+  never squeezes the sidebar.
 - **Changing a filter updates the list straight away.** Level, location, date,
   category and search are applied to what's already been fetched, so they're
   instant — no network at all. Changing *which firms* does need boards fetched, and
@@ -148,15 +156,20 @@ the two stay in sync and you can use whichever suits the moment.
   costs one request, not a hundred. Deselecting a firm just drops its rows.
   ⌘R refetches everything when you want genuinely fresh results.
 - **Click a role for the detail panel** — team, board, tags, the description when the
-  board ships one, and a button straight to the posting.
+  board ships one, and four buttons: **Open Posting**, then **Save**, **Move to
+  Applied** and **Hide** at a matched width. Each says what clicking it will do
+  rather than what the role currently is, so a saved role reads *Unsave*.
 - **Save, track, hide** — three independent marks on every row, each with its own
   list in the sidebar. Independent matters: hiding a role you've applied to keeps the
   application, and none of the three can erase another.
 - **Applications have a timeline.** Record *Applied*, *Online assessment*,
   *Interview*, *Final round*, *Offer*, *Rejected* or *Withdrawn* from the row's
-  ✓ menu, and the Progress column reads `OA · 5d` — where you are and how long it's
-  been. The detail panel shows the whole sequence with dates and "2 weeks ago", and
-  lets you correct one or add a step you did out of order. All of it survives a board
+  ✓ menu, and in the Applied list the Progress column reads `OA · 5d` — where you
+  are and how long it's been. It appears only there; everywhere else it would be an
+  empty column on almost every row. The detail panel shows the whole sequence with
+  dates and "2 weeks ago", and lets you correct one, add a step you did out of
+  order, or record a stage **twice** — a second online assessment is common enough
+  that it shows as *OA (2nd)* rather than overwriting the first. All of it survives a board
   deleting the posting — a role that closed is struck through rather than lost,
   because an application you're tracking shouldn't disappear with the listing.
 - **The Applied list is grouped by stage**, one foldable block per stage you've
@@ -168,6 +181,15 @@ the two stay in sync and you can use whichever suits the moment.
   to — because one application per firm is usually the point, and a firm's other
   twelve postings are noise once you've sent one. Either way they stay in the
   Applied list.
+- **Intake year is parsed out of the title and filterable.** Boards leave stale
+  cycles up, and Qube's internship still says 2026, which in a list reads
+  identically to a 2027 one. The Level chip carries the year (`Intern '27`) and the
+  filter offers only years actually present, with a count each. A posting that names
+  no year is never filtered out, because most name none.
+- **A posting with no date shows when it was first seen** — `~ 6d`, with the tilde
+  marking it inferred rather than stated. Boards that ship no posted date used to
+  leave the column blank, which sorted them to the bottom and made a role found
+  yesterday look older than one from last month.
 - **The Firms picker narrows by tier**, so "only the premium ones" is one click.
   The quant half always had this because its segments *are* tiers; big tech's are
   themes, so FAANG+ meant Apple and Google sitting alongside 49 mid-tier names
@@ -313,6 +335,13 @@ $ ./quantjobs.py discover https://www.headlandstech.com/careers/
 
 `categories.json` holds the `include` / `exclude` phrase lists per category, matched by
 the same rules. Adding a category is a new key in that file.
+
+There is no separate **Quant Dev** category. It was folded into `swe`, because the
+hybrid seat is a software job under another name and the split meant checking two
+lists for one kind of role — and because `swe` already includes the bare term
+`developer`, so nearly every quant-dev posting had been matching both lists anyway.
+Its fourteen phrases (`quantitative developer`, `quant technologist`, `trading
+systems`, `strat`, …) now live in `swe`.
 
 **Where the config lives.** Both tools read the files sitting in the checkout.
 `$QUANTJOBS_CONFIG` overrides that for both:
