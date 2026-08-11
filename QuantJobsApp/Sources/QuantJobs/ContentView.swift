@@ -496,12 +496,21 @@ struct ContentView: View {
                     // the Progress pill, the stage-section counts — so this joins
                     // that language instead of being a third treatment for a
                     // short fixed value.
-                    Text(job.levelShort)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.quaternary.opacity(0.5), in: .capsule)
+                    HStack(spacing: 3) {
+                        Text(job.levelShort)
+                        // The intake, when the posting names one. Two digits: the
+                        // column is 66pt and "Intern 2027" doesn't fit, while a
+                        // stale cycle showing '26 next to '27 is the whole point.
+                        if let year = job.intakeYear {
+                            Text("'\(String(year).suffix(2))")
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.quaternary.opacity(0.5), in: .capsule)
                 }
             }
             .width(66)
@@ -807,6 +816,7 @@ struct JobDetail: View {
                     tracking: model.trackedEntry(for: job),
                     onToggle: { model.toggleStatus($0, for: [job]) },
                     onRecord: { model.record($0, on: $1, for: [job]) },
+                    onRepeat: { model.record($0, on: $1, repeating: true, for: [job]) },
                     onRemove: { model.removeStage($0, for: [job]) },
                     onClear: { model.clearApplication(for: [job]) },
                     onSaveNote: { model.setNote($0, for: job) })
@@ -861,8 +871,17 @@ struct ApplicationTimeline: View {
 
     let entry: TrackedJob
     var onRecord: (Stage, String) -> Void = { _, _ in }
+    var onRepeat: (Stage, String) -> Void = { _, _ in }
     var onRemove: (Stage) -> Void = { _ in }
     var onClear: () -> Void = {}
+
+    private func ordinal(_ n: Int) -> String {
+        switch n {
+        case 2: "2nd"
+        case 3: "3rd"
+        default: "\(n)th"
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -937,11 +956,26 @@ struct ApplicationTimeline: View {
                         Label(stage.label, systemImage: stage.symbol)
                     }
                 }
+                // A stage can happen twice — two online assessments is normal, and
+                // recording the second used to just move the first one's date.
+                let repeats = TrackedJob.repeatable.filter { entry.count(of: $0) > 0 }
+                if !repeats.isEmpty {
+                    Section("Again") {
+                        ForEach(repeats) { stage in
+                            Button {
+                                onRepeat(stage, Dates.today)
+                            } label: {
+                                Label("\(ordinal(entry.count(of: stage) + 1)) "
+                                      + stage.label.lowercased(),
+                                      systemImage: stage.symbol)
+                            }
+                        }
+                    }
+                }
                 Divider()
                 Button("Clear Progress", role: .destructive) { onClear() }
             } label: {
-                Text(entry.remainingStages.isEmpty ? "Edit" : "Add a step")
-                    .font(.caption)
+                Text("Add a step").font(.caption)
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
@@ -957,6 +991,7 @@ struct JobDetailContent: View {
     let tracking: TrackedJob?
     var onToggle: (JobStatus) -> Void = { _ in }
     var onRecord: (Stage, String) -> Void = { _, _ in }
+    var onRepeat: (Stage, String) -> Void = { _, _ in }
     var onRemove: (Stage) -> Void = { _ in }
     var onClear: () -> Void = {}
     var onSaveNote: (String) -> Void = { _ in }
@@ -970,6 +1005,7 @@ struct JobDetailContent: View {
     init(job: Job, tracking: TrackedJob?,
          onToggle: @escaping (JobStatus) -> Void = { _ in },
          onRecord: @escaping (Stage, String) -> Void = { _, _ in },
+         onRepeat: @escaping (Stage, String) -> Void = { _, _ in },
          onRemove: @escaping (Stage) -> Void = { _ in },
          onClear: @escaping () -> Void = {},
          onSaveNote: @escaping (String) -> Void = { _ in }) {
@@ -977,6 +1013,7 @@ struct JobDetailContent: View {
         self.tracking = tracking
         self.onToggle = onToggle
         self.onRecord = onRecord
+        self.onRepeat = onRepeat
         self.onRemove = onRemove
         self.onClear = onClear
         self.onSaveNote = onSaveNote
@@ -1100,7 +1137,8 @@ struct JobDetailContent: View {
                 StagePill(entry: entry)
             }
             ApplicationTimeline(entry: entry, onRecord: onRecord,
-                                onRemove: onRemove, onClear: onClear)
+                                onRepeat: onRepeat, onRemove: onRemove,
+                                onClear: onClear)
             if entry.hidden {
                 Label("Hidden from results — this history is kept regardless",
                       systemImage: "eye.slash")

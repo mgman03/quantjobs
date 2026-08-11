@@ -53,6 +53,32 @@ struct FilterBar: View {
         .help(compact ? text : "")
     }
 
+    /// Which intake year to show. Only years actually present are offered, and a
+    /// posting that names no year is never filtered out — most don't name one.
+    private func intakeMenu(compact: Bool) -> some View {
+        Menu {
+            Section("Intake") {
+                Button("Any year") { model.intakeFilter = nil }
+                ForEach(model.availableIntakes, id: \.year) { intake in
+                    Button {
+                        model.intakeFilter = intake.year
+                    } label: {
+                        Text("\(String(intake.year))  ·  \(intake.count) roles")
+                    }
+                }
+            }
+        } label: {
+            filterLabel("calendar.badge.clock", model.intakeLabel, compact: compact)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .menuIndicator(.hidden)
+        .layoutPriority(-1)
+        .help("Boards leave stale cycles up — Qube's internship still says 2026, "
+              + "which reads the same as a 2027 one in a list. Roles that name no "
+              + "year are always kept.")
+    }
+
     /// Which stacks to leave out. Tick boxes, not a Picker: it's a set of things
     /// you don't want, and every label says so — an include list needed a tick on
     /// everything you'd accept plus one on "unspecified", which is three ticks to
@@ -228,6 +254,8 @@ struct FilterBar: View {
             .menuIndicator(.hidden)
             .layoutPriority(-1)
             .help("How recently the role was posted")
+
+            intakeMenu(compact: compact)
 
             stackMenu(compact: compact)
 

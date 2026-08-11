@@ -28,6 +28,8 @@ struct AppSettings: Codable, Sendable, Equatable {
     var appliedFilter = AppliedFilter.show.rawValue
     /// Stacks kept by the filter. Empty means all.
     var stacks: [String] = []
+    /// Which intake year the results are narrowed to, if any.
+    var intakeFilter: Int?
     var hideApplied: Bool? = nil
     /// Which stage sections are folded shut in the Applied list.
     var collapsedStages: [String] = []

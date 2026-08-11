@@ -333,6 +333,29 @@ enum HeadlessCheck {
             reloaded.setSaved(false, for: [hidden])
             print("  hidden survives a save/unsave: \(reloaded.isHidden(hidden))")
 
+            // A stage can happen twice: two online assessments is normal, and
+            // recording the second used to just move the first one's date.
+            print("\nrepeat a stage:")
+            let twice = make("Optiver", "Quant Intern")
+            reloaded.record(.applied, on: "2026-07-01", for: [twice])
+            reloaded.record(.assessment, on: "2026-07-10", for: [twice])
+            reloaded.record(.assessment, on: "2026-07-24", repeating: true, for: [twice])
+            if let e = reloaded.trackedEntry(for: twice) {
+                print("  timeline: " + e.milestones
+                        .map { "\($0.stage.short) \($0.date)" }.joined(separator: " → "))
+                print("  two assessments kept: \(e.count(of: .assessment) == 2) · "
+                      + "stage is still OA: \(e.stage == .assessment) · "
+                      + "a plain record still corrects rather than duplicates: ", terminator: "")
+                reloaded.record(.assessment, on: "2026-07-25", for: [twice])
+                let after = reloaded.trackedEntry(for: twice)
+                print("\((after?.count(of: .assessment) ?? 0) == 2)")
+            }
+
+            // Intake years, so a stale cycle is visible.
+            let intakes = reloaded.availableIntakes
+            print("\nintake years present: "
+                  + intakes.map { "\($0.year)×\($0.count)" }.joined(separator: ", "))
+
             print("\nprogress:")
             reloaded.record(.applied, on: "2026-07-20", for: [applied])
             reloaded.record(.assessment, on: "2026-07-27", for: [applied])

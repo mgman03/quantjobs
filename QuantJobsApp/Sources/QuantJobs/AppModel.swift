@@ -136,7 +136,7 @@ final class AppModel {
     /// Whether anything beyond category + level is narrowing the list.
     var hasExtraFilters: Bool {
         tagFilter != nil || sinceDays != nil
-            || newOnly || deep || appliedFilter.isFiltering || !excludedStacks.isEmpty
+            || newOnly || deep || appliedFilter.isFiltering || !excludedStacks.isEmpty || intakeFilter != nil
             || !search.isEmpty
             || !locationFilter.isEmpty
             || !continentFilter.isEmpty || !cityFilter.isEmpty
@@ -149,6 +149,7 @@ final class AppModel {
         deep = false
         appliedFilter = .show
         excludedStacks = []
+        intakeFilter = nil
         search = ""
         locationFilter = ""
         continentFilter = []
@@ -232,6 +233,8 @@ final class AppModel {
     /// exclusion, and unusable if you forgot the last one, since 87% of roles
     /// name no stack at all.
     var excludedStacks: Set<String> = []
+    /// Which intake year to keep. Nil means every year.
+    var intakeFilter: Int?
     /// Stage sections folded shut in the Applied list.
     var collapsedStages: Set<Stage> = []
     private(set) var tracked: [String: TrackedJob] = [:]
@@ -295,6 +298,7 @@ final class AppModel {
     private var visibleKey: String {
         "\(resultsVersion)|\(list.rawValue)|\(showHidden)|\(appliedFilter.rawValue)|\(mergeRoles)|"
         + "\(excludedStacks.sorted().joined(separator: ","))|"
+        + "\(intakeFilter.map(String.init) ?? "-")|"
         + "\(selectedCategoryID)|\(level.rawValue)|\(search)|"
         + "\(tagFilter ?? "-")|\(sinceDays.map(String.init) ?? "-")|"
         + "\(newOnly)|\(locationFilter)|"
@@ -352,6 +356,11 @@ final class AppModel {
             // nothing can never exclude it, which is what keeps the majority.
             if !excludedStacks.isEmpty,
                !job.matchedStacks.isDisjoint(with: excludedStacks) {
+                return false
+            }
+            // A posting that names no year is kept: most don't, and dropping them
+            // would be the same mistake the stack filter started out making.
+            if let wanted = intakeFilter, let year = job.intakeYear, year != wanted {
                 return false
             }
             let entry = tracked[job.key]
@@ -412,6 +421,18 @@ final class AppModel {
     /// offered as a filter rather than as a place to navigate to.
     var stackCategories: [JobCategory] { categories.filter { $0.parent != nil } }
     var navCategories: [JobCategory] { categories.filter { $0.parent == nil } }
+
+    /// Intake years present in the current results, newest first, so the menu only
+    /// ever offers a year you could actually pick.
+    var availableIntakes: [(year: Int, count: Int)] {
+        var tally: [Int: Int] = [:]
+        for job in jobs where job.matchedCategories.contains(selectedCategoryID) {
+            if let y = job.intakeYear { tally[y, default: 0] += 1 }
+        }
+        return tally.map { (year: $0.key, count: $0.value) }.sorted { $0.year > $1.year }
+    }
+
+    var intakeLabel: String { intakeFilter.map { "\($0) intake" } ?? "Any year" }
 
     func toggleStack(_ name: String) {
         if excludedStacks.contains(name) { excludedStacks.remove(name) }
@@ -502,9 +523,12 @@ final class AppModel {
 
     /// Records a step, dated today unless a date is given. Recording the same
     /// step again just moves its date, so this doubles as "correct that".
-    func record(_ stage: Stage, on date: String? = nil, for targets: [Job]) {
+    /// `repeating` records another occurrence instead of moving the existing one's
+    /// date — a second online assessment rather than a correction to the first.
+    func record(_ stage: Stage, on date: String? = nil, repeating: Bool = false,
+                for targets: [Job]) {
         let when = date ?? Dates.today
-        edit(targets) { $0.record(stage, on: when) }
+        edit(targets) { $0.record(stage, on: when, repeating: repeating) }
     }
 
     func removeStage(_ stage: Stage, for targets: [Job]) {
@@ -633,16 +657,21 @@ final class AppModel {
     /// A cheap value that changes whenever any persisted setting does, so the
     /// view can watch one thing instead of twenty.
     var settingsFingerprint: String {
-        [selectedCategoryID, level.rawValue, list.rawValue,
-         tagFilter ?? "-", locationFilter,
-         sinceDays.map(String.init) ?? "-",
-         continentFilter.sorted().joined(separator: ","),
-         cityFilter.sorted().joined(separator: ","),
-         "\(newOnly)\(deep)\(mergeRoles)\(recordState)\(showHidden)\(appliedFilter.rawValue)",
-         excludedStacks.sorted().joined(separator: ","),
-         collapsedStages.map(\.rawValue).sorted().joined(separator: ","),
-         "\(refreshOnLaunch)\(refreshIfOlderThanHours)",
-        ].joined(separator: "|")
+        // Built in pieces rather than one literal: at a dozen interpolations in a
+        // single array the type checker gives up.
+        var parts: [String] = [selectedCategoryID, level.rawValue, list.rawValue]
+        parts.append(tagFilter ?? "-")
+        parts.append(locationFilter)
+        parts.append(sinceDays.map(String.init) ?? "-")
+        parts.append(continentFilter.sorted().joined(separator: ","))
+        parts.append(cityFilter.sorted().joined(separator: ","))
+        parts.append("\(newOnly)\(deep)\(mergeRoles)\(recordState)")
+        parts.append("\(showHidden)\(appliedFilter.rawValue)")
+        parts.append(excludedStacks.sorted().joined(separator: ","))
+        parts.append(intakeFilter.map(String.init) ?? "-")
+        parts.append(collapsedStages.map(\.rawValue).sorted().joined(separator: ","))
+        parts.append("\(refreshOnLaunch)\(refreshIfOlderThanHours)")
+        return parts.joined(separator: "|")
     }
 
     var currentSettings: AppSettings {
@@ -656,6 +685,7 @@ final class AppModel {
                     recordState: recordState, showHidden: showHidden,
                     appliedFilter: appliedFilter.rawValue,
                     stacks: excludedStacks.sorted(),
+                    intakeFilter: intakeFilter,
                     collapsedStages: collapsedStages.map(\.rawValue).sorted(),
                     refreshOnLaunch: refreshOnLaunch,
                     refreshIfOlderThanHours: refreshIfOlderThanHours)
@@ -677,6 +707,7 @@ final class AppModel {
         showHidden = s.showHidden
         appliedFilter = AppliedFilter(rawValue: s.appliedFilter) ?? .show
         excludedStacks = Set(s.stacks)
+        intakeFilter = s.intakeFilter
         collapsedStages = Set(s.collapsedStages.compactMap(Stage.init(rawValue:)))
         refreshOnLaunch = s.refreshOnLaunch
         refreshIfOlderThanHours = s.refreshIfOlderThanHours

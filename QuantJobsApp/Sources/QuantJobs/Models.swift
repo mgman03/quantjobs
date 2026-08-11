@@ -457,6 +457,32 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
         "\(company)|\(title)|\(location)".lowercased()
     }
 
+    /// The intake the posting is for — the 2027 in "Software Engineer Intern -
+    /// Summer 2027". Derived, not stored, so it costs nothing on disk.
+    ///
+    /// Worth surfacing because boards leave stale cycles up: Qube's internship
+    /// still says 2026, and someone reading a list sorted by recency has no way to
+    /// tell it apart from the 2027 ones without opening it.
+    ///
+    /// Only a plausible intake year, and only from the title and department — a
+    /// description mentions years for all sorts of reasons.
+    var intakeYear: Int? {
+        let text = "\(title) \(department)"
+        var years: [Int] = []
+        var digits = ""
+        for ch in text {
+            if ch.isNumber { digits.append(ch) } else {
+                if digits.count == 4, let n = Int(digits) { years.append(n) }
+                digits = ""
+            }
+        }
+        if digits.count == 4, let n = Int(digits) { years.append(n) }
+        // A hiring cycle, not a founding date or a graduating class decades out.
+        let thisYear = Calendar.current.component(.year, from: Date())
+        // The latest plausible one: "2026 Internship for 2027 Start" means 2027.
+        return years.filter { $0 >= thisYear - 1 && $0 <= thisYear + 3 }.max()
+    }
+
     /// When we first saw this posting, filled in from `.seen.json`. Deliberately
     /// not in CodingKeys: a synthesized decoder throws on a missing key, so adding
     /// one there breaks every cache and tracking file already on disk. It's filled
@@ -703,10 +729,11 @@ struct Milestone: Codable, Hashable, Sendable, Identifiable {
     var stage: Stage
     var date: String              // yyyy-MM-dd
 
-    /// The stage, not the date: a step is recorded once and its date is edited
-    /// in place, so an identity that moved when you corrected the date would
-    /// make the row jump out from under the picker.
-    var id: String { stage.rawValue }
+    /// Stage *and* date, because a stage can happen twice — two online
+    /// assessments is normal — so the stage alone isn't unique. Editing a date
+    /// therefore changes the identity and the row animates; that's the cost of
+    /// being able to record the second one at all.
+    var id: String { "\(stage.rawValue)|\(date)" }
 
     var relative: String? { Dates.relative(date) }
 }
@@ -884,18 +911,32 @@ struct TrackedJob: Codable, Identifiable, Sendable {
         return Stage.allCases.filter { !have.contains($0) }
     }
 
-    mutating func record(_ stage: Stage, on date: String) {
-        if let i = milestones.firstIndex(where: { $0.stage == stage }) {
+    /// `repeating` distinguishes "correct the date of the OA I recorded" from
+    /// "I had a second OA".
+    mutating func record(_ stage: Stage, on date: String, repeating: Bool = false) {
+        if !repeating, let i = milestones.firstIndex(where: { $0.stage == stage }) {
             milestones[i].date = date
-        } else {
+        } else if !milestones.contains(where: { $0.stage == stage && $0.date == date }) {
             milestones.append(Milestone(stage: stage, date: date))
         }
         sortMilestones()
     }
 
-    mutating func remove(_ stage: Stage) {
-        milestones.removeAll { $0.stage == stage }
+    mutating func remove(_ stage: Stage, on date: String? = nil) {
+        if let date {
+            milestones.removeAll { $0.stage == stage && $0.date == date }
+        } else {
+            milestones.removeAll { $0.stage == stage }
+        }
     }
+
+    /// How many times a stage has happened, for labelling "2nd Online assessment".
+    func count(of stage: Stage) -> Int {
+        milestones.count { $0.stage == stage }
+    }
+
+    /// Stages worth offering as a *repeat* — the ones that genuinely recur.
+    static let repeatable: [Stage] = [.assessment, .interview, .final]
 
     private mutating func sortMilestones() {
         milestones.sort {
