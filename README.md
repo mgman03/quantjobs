@@ -312,11 +312,23 @@ INTERN**, and not one is a software internship — four Student Researcher, thre
 apprenticeships, four gReach roles. Google's 2027 SWE internships simply aren't posted
 yet. The adapter will pick them up the day they are.
 
-Apple, Meta and Microsoft still come from a community internship feed rather than their
-own boards, and it shows: the feed had 12 Apple roles, 10 Microsoft and 4 Meta when last
-checked, against the hundreds each firm actually has. Treat those three as a hint, not
-as coverage — Apple ships on, Meta and Microsoft off. See
+**Apple is read from its own careers search**, filtered to the Students/Internships
+team — 51 internships against the feed's 12, and the only board here that dates its own
+cards. The filter matters more than the parsing: `search=intern` returns retail roles
+like *IN-Business Expert*, because Apple matches the keyword against everything.
+
+**Meta and Microsoft still come from the community feed** and are the two remaining
+second-hand sources. Meta's own site posts to a GraphQL endpoint needing an `fb_dtsg`
+session token; Microsoft's `gcsservices.careers.microsoft.com` refuses scripted
+connections. Both ship off. See
 [INTERNALS.md](INTERNALS.md#apple-google-meta-and-microsoft) for the detail.
+
+**On thin-looking firms.** A small count usually means a small firm, not a broken
+board. XTX Markets returning 7 roles looks wrong for a firm that size, but its careers
+page points at exactly the Greenhouse board being read — that's genuinely all it posts.
+Bracebridge (4), Quadrature (4) and Simplex (5) are the same story. The counts worth
+chasing are the ones from *aggregators* rather than a firm's own board, which is what
+Google and Apple both were.
 
 ## Do the links actually work?
 
@@ -346,7 +358,7 @@ dropping it.
 
 - **`ats`** — one of `greenhouse`, `lever`, `ashby`, `smartrecruiters`, `workday`,
   `amazon`, `eightfold`, `jibe`, `uber`, `wolverine`, `citadel`, `optiver`,
-  `twosigma`, `simplify`, `sitemap`, `janestreet`, `deshaw`, `gresearch`, `google`. Most take a `token`; a few need other fields — see
+  `twosigma`, `simplify`, `sitemap`, `janestreet`, `deshaw`, `gresearch`, `google`, `apple`. Most take a `token`; a few need other fields — see
   [INTERNALS.md](INTERNALS.md#board-adapters).
 - **`tags`** — `quant` and `bigtech` decide which half of the app's Firms picker a
   firm lands in. The rest are descriptive and usable with `--tag`.

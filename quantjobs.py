@@ -783,6 +783,71 @@ def fetch_google(c: dict, deep: bool) -> list[dict]:
     return out
 
 
+# Apple's search pages are server-rendered and the markup is semantic, unlike
+# Google's. The one thing that matters is the filter: `search=intern` returns
+# retail roles ("IN-Business Expert"), because the keyword is matched against
+# everything, so the team filter is what actually isolates internships.
+APPLE_TEAM = "internships-STDNT-INTRN"
+# Not 'class="job-title-link' — the class sits mid-list in the attribute
+# ("column large-7 small-12 job-title-link pr-40"), so anchoring on class= finds
+# nothing.
+APPLE_CARD_SPLIT = "job-title-link"
+APPLE_TITLE = re.compile(
+    r'href="(/en-us/details/[^"]+)"[^>]*>\s*([^<]{3,140}?)\s*</a>')
+APPLE_DATE = re.compile(r'class="job-posted-date"[^>]*>\s*([^<]+?)\s*<')
+APPLE_LOC = re.compile(r'id="search-store-name-container-\d+"[^>]*>\s*([^<]+?)\s*<')
+
+
+def fetch_apple(c: dict, deep: bool) -> list[dict]:
+    """Apple's own careers search, filtered to the Students/Internships team.
+
+    Config: host (default jobs.apple.com). Replaces the Simplify feed for Apple,
+    which carried 12 second-hand rows against the ~46 internships Apple lists.
+    """
+    host = c.get("host", "jobs.apple.com")
+    seen, out = set(), []
+    for page in range(1, 16):
+        url = (f"https://{host}/en-us/search?team={APPLE_TEAM}&sort=newest"
+               + (f"&page={page}" if page > 1 else ""))
+        html = http(url, headers=BROWSER_HEADERS).decode("utf-8", "replace")
+        cards = html.split(APPLE_CARD_SPLIT)[1:]
+        if not cards:
+            break
+        for card in cards:
+            m = APPLE_TITLE.search(card)
+            if not m:
+                continue
+            path, title = m.group(1), strip_html(m.group(2))
+            ident = re.match(r"/en-us/details/([\w-]+)", path)
+            key = ident.group(1) if ident else path
+            if not title or key in seen:
+                continue
+            seen.add(key)
+            when = APPLE_DATE.search(card)
+            where = APPLE_LOC.search(card)
+            out.append({
+                "title": title,
+                "location": strip_html(where.group(1)) if where else "",
+                "url": f"https://{host}{path}",
+                # "Aug 07, 2026" — the only board here that dates its cards.
+                "posted": apple_date(when.group(1)) if when else "",
+                "department": "",
+                "description": "",
+            })
+        time.sleep(0.3)
+    if not out:
+        raise FetchError("no cards on the Apple careers search")
+    return out
+
+
+def apple_date(s: str) -> str:
+    """"Aug 07, 2026" to 2026-08-07. Empty string if Apple changes the format."""
+    try:
+        return dt.datetime.strptime(s.strip(), "%b %d, %Y").strftime("%Y-%m-%d")
+    except ValueError:
+        return ""
+
+
 def fetch_citadel(c: dict, deep: bool) -> list[dict]:
     """Citadel / Citadel Securities. Config: host."""
     host = c.get("host")
@@ -1066,6 +1131,7 @@ ADAPTERS = {
     "citadel": fetch_citadel,
     "deshaw": fetch_deshaw,
     "google": fetch_google,
+    "apple": fetch_apple,
     "gresearch": fetch_gresearch,
     "janestreet": fetch_janestreet,
     "sitemap": fetch_sitemap,
@@ -1641,7 +1707,8 @@ def is_configured(c: dict) -> bool:
         return bool(c.get("host") and c.get("tenant"))
     if ats == "sitemap":
         return bool(c.get("host") and c.get("sitemap"))
-    if ats in ("jibe", "citadel", "deshaw", "gresearch", "google"):
+    if ats in ("jibe", "citadel", "deshaw", "gresearch", "google",
+               "apple"):
         return bool(c.get("host"))
     if ats in ("amazon", "uber", "wolverine", "optiver", "twosigma",
                "simplify", "janestreet"):

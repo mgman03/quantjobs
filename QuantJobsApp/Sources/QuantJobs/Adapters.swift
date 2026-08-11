@@ -36,6 +36,7 @@ enum Adapters {
         case .deshaw:          try await deShaw(c, deep: deep)
         case .gresearch:       try await gResearch(c, deep: deep)
         case .google:          try await google(c, deep: deep)
+        case .apple:           try await apple(c, deep: deep)
         case .optiver:         try await optiver(c, deep: deep)
         case .twosigma:        try await twoSigma(c, deep: deep)
         case .simplify:        try await simplify(c, deep: deep)
@@ -971,6 +972,83 @@ enum Adapters {
         pattern: #"href="(jobs/results/[^"?]+)"#)
     private static let googleLoc = try! NSRegularExpression(
         pattern: #"class="r0wTof[^"]*">([^<]+)</span>"#)
+
+    // MARK: - Apple
+
+    /// Apple's own careers search, filtered to the Students/Internships team.
+    ///
+    /// The pages are server-rendered with semantic markup, so this is a much
+    /// steadier read than Google's compiled class names — and Apple dates its
+    /// cards, which almost nothing else here does.
+    ///
+    /// The team filter is what matters: `search=intern` returns retail roles
+    /// ("IN-Business Expert") because the keyword is matched against everything.
+    ///
+    /// Replaces the Simplify feed for Apple, which carried 12 second-hand rows
+    /// against the ~51 internships Apple actually lists.
+    /// Must stay in step with `fetch_apple` in quantjobs.py.
+    static func apple(_ c: Company, deep: Bool) async throws -> [RawJob] {
+        let host = c.host ?? "jobs.apple.com"
+        var seen = Set<String>()
+        var out: [RawJob] = []
+
+        for page in 1...15 {
+            var url = "https://\(host)/en-us/search?team=internships-STDNT-INTRN"
+                + "&sort=newest"
+            if page > 1 { url += "&page=\(page)" }
+            let raw = try await HTTP.data(url, headers: Self.browserHeaders)
+            let html = String(decoding: raw, as: UTF8.self)
+            // Not `class="job-title-link"` — the class sits mid-list in the
+            // attribute, so anchoring on class= finds nothing.
+            let cards = html.components(separatedBy: "job-title-link").dropFirst()
+            if cards.isEmpty { break }
+            for card in cards {
+                let ns = card as NSString
+                let full = NSRange(location: 0, length: ns.length)
+                guard let m = Self.appleTitle.firstMatch(in: card, range: full)
+                else { continue }
+                let path = ns.substring(with: m.range(at: 1))
+                let title = Clean.html(ns.substring(with: m.range(at: 2)))
+                let key = path.split(separator: "/").dropFirst(2).first.map(String.init)
+                    ?? path
+                guard !title.isEmpty, seen.insert(key).inserted else { continue }
+                var place = "", when = ""
+                if let l = Self.appleLoc.firstMatch(in: card, range: full) {
+                    place = Clean.html(ns.substring(with: l.range(at: 1)))
+                }
+                if let d = Self.appleDate.firstMatch(in: card, range: full) {
+                    when = Self.appleDay(ns.substring(with: d.range(at: 1)))
+                }
+                out.append(RawJob(title: title, location: place,
+                                  url: "https://\(host)\(path)",
+                                  posted: when, department: "", description: ""))
+            }
+            try? await Task.sleep(for: .milliseconds(300))
+        }
+        guard !out.isEmpty else {
+            throw FetchError.badPayload("no cards on the Apple careers search")
+        }
+        return out
+    }
+
+    private static let appleTitle = try! NSRegularExpression(
+        pattern: #"href="(/en-us/details/[^"]+)"[^>]*>\s*([^<]{3,140}?)\s*</a>"#,
+        options: [.dotMatchesLineSeparators])
+    private static let appleDate = try! NSRegularExpression(
+        pattern: #"class="job-posted-date"[^>]*>\s*([^<]+?)\s*<"#)
+    private static let appleLoc = try! NSRegularExpression(
+        pattern: #"id="search-store-name-container-\d+"[^>]*>\s*([^<]+?)\s*<"#)
+
+    /// "Aug 07, 2026" to 2026-08-07. Empty if Apple changes the format.
+    private static func appleDay(_ s: String) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "MMM dd, yyyy"
+        guard let d = f.date(from: s.trimmingCharacters(in: .whitespaces))
+        else { return "" }
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: d)
+    }
 
     // MARK: - Sites with no board at all
 

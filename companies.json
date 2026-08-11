@@ -32,11 +32,11 @@
       "token" : "anthropic"
     },
     {
-      "ats" : "simplify",
+      "ats" : "apple",
       "enabled" : true,
+      "host" : "jobs.apple.com",
       "name" : "Apple",
-      "note" : "jobs.apple.com server-renders its search pages but exposes no usable search/sort parameters, so any scripted pull is an arbitrary slice of ~6,000 mostly-retail roles. Sourced from the Simplify/Pitt CSC community feed instead — second-hand and internships-only. Links verified 200 on 2026-08-03.",
-      "query" : "Apple",
+      "note" : "Read from jobs.apple.com, filtered to the Students/Internships team. search=intern is useless here — it matches retail roles — so the team filter is what isolates internships. Replaces the Simplify feed, which had 12 rows against Apple's ~51.",
       "segment" : "FAANG+",
       "tags" : [
         "bigtech",
