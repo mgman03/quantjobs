@@ -185,9 +185,15 @@ case "clicktext":
     // what opens the detail panel.
     guard args.count > 1 else { exit(2) }
     let needle = args[1].lowercased()
+    // Right of the sidebar and below the filter row: matching the first label
+    // anywhere in the window picked a sidebar row and switched lists instead.
+    let windowBox = frame(window) ?? .zero
+    let contentX = windowBox.minX + 260
+    let contentY = windowBox.minY + 110
     func findText(_ e: AXUIElement) -> AXUIElement? {
         if label(e).lowercased().contains(needle), let box = frame(e),
-           box.width > 8, box.height > 4 { return e }
+           box.width > 8, box.height > 4,
+           box.minX > contentX, box.minY > contentY { return e }
         for c in children(e) { if let hit = findText(c) { return hit } }
         return nil
     }

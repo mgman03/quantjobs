@@ -51,6 +51,21 @@ struct ContentView: View {
                 }
                 Divider()
                 jobTable(rows)
+                    // Screenshotting the detail panel needs a row selected, and
+                    // synthetic clicks land on a SwiftUI Table without selecting
+                    // anything — it exposes no AXRow to target. One env var beats
+                    // guessing at pixel coordinates.
+                    .onChange(of: rows.count, initial: true) {
+                        guard selection.isEmpty,
+                              let want = ProcessInfo.processInfo
+                                  .environment["QUANTJOBS_SELECT"]?.lowercased(),
+                              let hit = rows.first(where: {
+                                  $0.title.lowercased().contains(want)
+                                      || $0.company.lowercased().contains(want)
+                              })
+                        else { return }
+                        selection = [hit.id]
+                    }
                 Divider()
                 statusBar(rows)
             }
@@ -996,6 +1011,7 @@ struct JobDetailContent: View {
     var onClear: () -> Void = {}
     var onSaveNote: (String) -> Void = { _ in }
 
+    @State private var showingStages = false
     @State private var note: String
 
     /// Takes plain values rather than the model: a view that observes
@@ -1072,6 +1088,39 @@ struct JobDetailContent: View {
         }
     }
 
+    /// The stages offered by the Applied button. Recording one that isn't
+    /// `applied` fills in the application itself, so a role you're already
+    /// interviewing for takes one click rather than two.
+    private func stagePicker(applied: Bool) -> some View {
+        let stages = applied ? (tracking?.remainingStages ?? []) : Stage.allCases
+        return VStack(alignment: .leading, spacing: 1) {
+            Text(applied ? "Record the next step" : "Record where you are")
+                .font(.caption).foregroundStyle(.secondary)
+                .padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 4)
+            if stages.isEmpty {
+                Text("Nothing left to record")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .padding(.horizontal, 10).padding(.bottom, 8)
+            }
+            ForEach(stages) { stage in
+                Button {
+                    if !applied && stage != .applied { onRecord(.applied, Dates.today) }
+                    onRecord(stage, Dates.today)
+                    showingStages = false
+                } label: {
+                    Label(stage.label, systemImage: stage.symbol)
+                        .font(.callout)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.bottom, 6)
+        .frame(width: 210)
+    }
+
     @ViewBuilder
     private func actions(_ job: Job) -> some View {
         let saved = tracking?.saved == true
@@ -1083,43 +1132,32 @@ struct JobDetailContent: View {
         }
         .buttonStyle(.bordered)
         .tint(saved ? .accentColor : nil)
+        .frame(maxWidth: .infinity)
 
-        if tracking?.hasApplication == true {
-            Menu {
-                ForEach(tracking?.remainingStages ?? []) { stage in
-                    Button {
-                        onRecord(stage, Dates.today)
-                    } label: {
-                        Label(stage.label, systemImage: stage.symbol)
-                    }
-                }
-            } label: {
-                Label("Applied", systemImage: "paperplane.fill").font(.callout)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+        let applied = tracking?.hasApplication == true
+        // A Button with a popover rather than a Menu. A Menu sizes itself to its
+        // content and a frame around it only recentres it, so it sat visibly
+        // narrower than the Save and Hide buttons either side of it. This matches
+        // them exactly, and the popover has room to date each step.
+        Button { showingStages.toggle() } label: {
+            HStack(spacing: 4) {
+                Label(applied ? "Applied" : "Move to Applied",
+                      systemImage: applied ? "paperplane.fill" : "paperplane")
+                Spacer(minLength: 2)
+                Image(systemName: "chevron.down").font(.system(size: 8))
             }
-            .menuStyle(.button)
-            .buttonStyle(.bordered)
-            .tint(.accentColor)
-            .help("Pick the next step, or use the timeline below")
-        } else {
-            Menu {
-                ForEach(Stage.allCases) { stage in
-                    Button {
-                        if stage != .applied { onRecord(.applied, Dates.today) }
-                        onRecord(stage, Dates.today)
-                    } label: {
-                        Label(stage.label, systemImage: stage.symbol)
-                    }
-                }
-            } label: {
-                Label("Move to Applied", systemImage: "paperplane").font(.callout)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .menuStyle(.button)
-            .buttonStyle(.bordered)
-            .help("Record an application — Applied today, or a later stage if "
-                  + "you're already past it")
+            .font(.callout)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .buttonStyle(.bordered)
+        .tint(applied ? .accentColor : nil)
+        .frame(maxWidth: .infinity)
+        .popover(isPresented: $showingStages, arrowEdge: .bottom) {
+            stagePicker(applied: applied)
+        }
+        .help(applied ? "Pick the next step, or use the timeline below"
+                      : "Record an application — Applied today, or a later stage "
+                        + "if you're already past it")
 
         let hidden = tracking?.hidden == true
         Button { onToggle(.hidden) } label: {
@@ -1130,6 +1168,7 @@ struct JobDetailContent: View {
         }
         .buttonStyle(.bordered)
         .tint(hidden ? .accentColor : nil)
+        .frame(maxWidth: .infinity)
         .help(hidden ? "Any application here is kept either way" : "")
     }
 
