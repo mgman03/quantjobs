@@ -214,8 +214,11 @@ extension Array where Element == Job {
     /// Newest first, undated roles last, company name as the tiebreak.
     func sortedByRecency() -> [Job] {
         sorted { a, b in
-            if a.posted.isEmpty != b.posted.isEmpty { return !a.posted.isEmpty }
-            if a.posted != b.posted { return a.posted > b.posted }
+            // effectiveDate, so a board that states no dates isn't permanently
+            // last — it falls back to when we first saw the posting.
+            let (x, y) = (a.effectiveDate, b.effectiveDate)
+            if x.isEmpty != y.isEmpty { return !x.isEmpty }
+            if x != y { return x > y }
             return a.company.localizedCaseInsensitiveCompare(b.company) == .orderedAscending
         }
     }

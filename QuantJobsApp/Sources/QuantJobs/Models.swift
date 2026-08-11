@@ -457,6 +457,22 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
         "\(company)|\(title)|\(location)".lowercased()
     }
 
+    /// When we first saw this posting, filled in from `.seen.json`. Deliberately
+    /// not in CodingKeys: a synthesized decoder throws on a missing key, so adding
+    /// one there breaks every cache and tracking file already on disk. It's filled
+    /// in from the seen map at ingest and again when the cache is restored.
+    var firstSeen: String = ""
+
+    /// The date to sort and show by. Plenty of boards state none at all — Optiver
+    /// and Citadel state none anywhere — and an undated row sank to the bottom of a
+    /// newest-first list for good. Falling back to when we first saw it is a
+    /// reasonable stand-in: it's an upper bound on how old the posting is.
+    var effectiveDate: String { posted.isEmpty ? firstSeen : posted }
+
+    /// True when the date shown is ours rather than the board's, so the UI can say
+    /// so instead of implying the firm published it.
+    var dateIsInferred: Bool { posted.isEmpty && !firstSeen.isEmpty }
+
     var postedDate: Date? {
         guard !posted.isEmpty else { return nil }
         return Job.dateFormatter.date(from: posted)

@@ -801,7 +801,14 @@ final class AppModel {
         // one thing while showing another.
         if let cache = loaded.cache, !cache.jobs.isEmpty,
            cache.category == selectedCategoryID, cache.level == level.rawValue {
-            jobs = cache.jobs
+            // firstSeen isn't persisted (see Job.firstSeen), so restore it here or
+            // every undated cached row would show "–" until the next scrape.
+            jobs = cache.jobs.map { job in
+                guard job.posted.isEmpty else { return job }
+                var copy = job
+                copy.firstSeen = seen[job.key] ?? seen[job.legacyKey] ?? ""
+                return copy
+            }
             showingCache = true
             cacheDate = cache.savedAt
         }
@@ -1113,6 +1120,7 @@ final class AppModel {
         // that are C++ rather than anything C++.
         let byName = Dictionary(categories.map { ($0.name, $0) },
                                 uniquingKeysWith: { a, _ in a })
+        let today = Dates.today
         let matchers = navCategories.map {
             CategoryMatcher($0, parent: $0.parent.flatMap { byName[$0] })
         }
@@ -1164,6 +1172,11 @@ final class AppModel {
                     // The legacy key too, so the run after the key changed
                     // doesn't announce every posting as new.
                     job.isNew = known[job.key] == nil && known[job.legacyKey] == nil
+                    // Stand-in date for boards that state none. Today for one we
+                    // have never seen, since that's when we first saw it.
+                    if job.posted.isEmpty {
+                        job.firstSeen = known[job.key] ?? known[job.legacyKey] ?? today
+                    }
                     kept.append(job)
                 }
                 // Every key the board returned, before the category filter —

@@ -9,7 +9,7 @@
   "companies" : [
     {
       "ats" : "amazon",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Amazon",
       "query" : "intern",
       "segment" : "FAANG+",

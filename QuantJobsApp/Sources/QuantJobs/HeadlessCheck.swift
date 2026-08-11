@@ -870,6 +870,20 @@ enum HeadlessCheck {
             let unmerged = model.visibleJobs.count
             model.mergeRoles = true
             let merged = model.visibleJobs
+            // Boards that state no date get a stand-in from .seen.json, so they
+            // stop sinking to the bottom of a newest-first list for good.
+            do {
+                let undated = model.jobs.filter { $0.posted.isEmpty }
+                let rescued = undated.filter { !$0.firstSeen.isEmpty }
+                let stillBlank = undated.count - rescued.count
+                let sorted = model.visibleJobs
+                let lastTen = sorted.suffix(10).count { $0.effectiveDate.isEmpty }
+                print("dates     \(undated.count) postings state none · "
+                      + "\(rescued.count) given a first-seen date · "
+                      + "\(stillBlank) still blank · "
+                      + "undated rows stuck at the bottom: \(lastTen)")
+            }
+
             print("\nmerge     \(unmerged) postings → \(merged.count) rows")
             for job in merged.filter(\.isMerged).prefix(5) {
                 print("  \(job.company) · \(job.shortTitle) → "

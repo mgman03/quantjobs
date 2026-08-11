@@ -508,17 +508,26 @@ struct ContentView: View {
 
             // Fixed, not a range: a squeezed table was shrinking this below a
             // full date and showing "2026-07".
-            TableColumn("Posted", value: \.posted) { job in
-                if let age = Dates.compact(job.posted) {
+            TableColumn("Posted", value: \.effectiveDate) { job in
+                if let age = Dates.compact(job.effectiveDate) {
                     // Fresh postings earn the accent. What you scan this column
                     // for is what turned up recently, and an ISO date makes you
                     // do that arithmetic yourself — it's on hover instead.
-                    let days = Dates.days(since: job.posted) ?? 99
-                    Text(age)
-                        .monospacedDigit()
-                        .foregroundStyle(days <= 3 ? AnyShapeStyle(.tint)
-                                                   : AnyShapeStyle(.secondary))
-                        .help(job.posted)
+                    let days = Dates.days(since: job.effectiveDate) ?? 99
+                    HStack(spacing: 2) {
+                        // A tilde where the date is ours rather than the board's:
+                        // the number means "no older than this", not "posted then".
+                        if job.dateIsInferred {
+                            Text("~").foregroundStyle(.tertiary)
+                        }
+                        Text(age)
+                            .monospacedDigit()
+                            .foregroundStyle(days <= 3 ? AnyShapeStyle(.tint)
+                                                       : AnyShapeStyle(.secondary))
+                    }
+                    .help(job.dateIsInferred
+                          ? "This board states no date — first seen \(job.firstSeen)"
+                          : job.posted)
                 } else {
                     Text("–").foregroundStyle(.tertiary)
                 }
