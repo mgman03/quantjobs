@@ -1,6 +1,6 @@
 # quantjobs
 
-Finds internship and new-grad postings by reading firms' job boards directly — 178 of
+Finds internship and new-grad postings by reading firms' job boards directly — 179 of
 them, quant shops and big tech. A command-line tool and a native Mac app, sharing one
 config.
 
@@ -209,8 +209,8 @@ the two stay in sync and you can use whichever suits the moment.
 
 ## Which firms are wired up
 
-**178 of the 193 boards answer** — `./quantjobs.py verify --all` returns
-*178 working, 15 broken*. Twelve of the fifteen are firms with no scriptable board at
+**179 of the 193 boards answer** — `./quantjobs.py verify --all` returns
+*179 working, 14 broken*. Ten of the fourteen are firms with no scriptable board at
 all, kept in the file with a `note` so you can see they were considered rather than
 missed; they're named further down. One, **Uber**, is a board that used to work and
 now 404s.
