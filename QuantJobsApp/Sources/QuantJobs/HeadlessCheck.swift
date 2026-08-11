@@ -549,6 +549,25 @@ enum HeadlessCheck {
                 print("wrote \(url.path)")
             }
 
+            // The case from the screenshot: a merged, undated posting whose title
+            // names one of its two cities.
+            do {
+                var a = sample
+                a.company = "Optiver"
+                a.title = "Software Engineer Intern (Summer 2027 - Austin)"
+                a.location = "Austin"
+                a.posted = ""
+                a.firstSeen = "2026-08-08"
+                a.places = LocationParser.parse("Austin")
+                a.variants = [Job.Variant(location: "Chicago",
+                                          locationDisplay: "Chicago, US",
+                                          url: "https://example.com/2",
+                                          posted: "", key: "k2")]
+                a.places += LocationParser.parse("Chicago")
+                write(JobDetailContent(job: a, tracking: nil).frame(width: 300),
+                      "detail-merged-dark", .dark)
+            }
+
             // Untracked as well as tracked: the row of action buttons is widest
             // before anything is marked, which is the state that clipped.
             for (name, scheme) in [("detail-untracked-dark", ColorScheme.dark)] {

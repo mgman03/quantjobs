@@ -1079,6 +1079,7 @@ struct JobDetailContent: View {
             Label(saved ? "Unsave" : "Save",
                   systemImage: saved ? "star.fill" : "star")
                 .font(.callout)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.bordered)
         .tint(saved ? .accentColor : nil)
@@ -1094,6 +1095,7 @@ struct JobDetailContent: View {
                 }
             } label: {
                 Label("Applied", systemImage: "paperplane.fill").font(.callout)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .menuStyle(.button)
             .buttonStyle(.bordered)
@@ -1111,6 +1113,7 @@ struct JobDetailContent: View {
                 }
             } label: {
                 Label("Move to Applied", systemImage: "paperplane").font(.callout)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .menuStyle(.button)
             .buttonStyle(.bordered)
@@ -1123,6 +1126,7 @@ struct JobDetailContent: View {
             Label(hidden ? "Unhide" : "Hide",
                   systemImage: hidden ? "eye.slash.fill" : "eye.slash")
                 .font(.callout)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.bordered)
         .tint(hidden ? .accentColor : nil)
@@ -1189,6 +1193,15 @@ struct JobDetailContent: View {
                     .foregroundStyle(.tint)
             }
             // Full posted title here; the table shows the tidied one.
+            //
+            // Still wrong on a merged row: Optiver's reads "Software Engineer
+            // Intern (Summer 2027 - Austin)" while the row covers Austin and
+            // Chicago, and the postings listed right below say so. Slicing the
+            // place off by reusing roleKey's cleaned string doesn't work —
+            // roleKey lowercases, so recovering the original casing means
+            // slicing by prefix length, which leaves "(Summer 2027" with an
+            // unbalanced bracket. It needs its own cleaner that operates on the
+            // title directly.
             Text(job.title)
                 .font(.title3.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
@@ -1254,15 +1267,25 @@ struct JobDetailContent: View {
                     row("Region", continents.joined(separator: ", "))
                 }
                 // Worth showing when the tidy-up moved things around.
-                if job.location != job.places.map(\.label).joined(separator: " · ") {
+                // Only when it differs *and* the row is a single posting — on a
+                // merged row it names one office out of several, which reads as a
+                // contradiction of the Location line above it.
+                if !job.isMerged,
+                   job.location != job.places.map(\.label).joined(separator: " · ") {
                     row("As posted", job.location)
                 }
             }
             // Relative age only, with the date on hover: "2026-07-28 · 11 days
             // ago" is wider than the value column and wrapped every time.
-            row("Posted", job.posted.isEmpty ? "not stated"
-                                             : (job.age ?? job.posted),
-                help: job.posted)
+            // effectiveDate, like the table's column: "not stated" was showing
+            // even where we know when we first saw it.
+            row("Posted",
+                Dates.relative(job.effectiveDate).map {
+                    job.dateIsInferred ? "first seen \($0)" : $0
+                } ?? "not stated",
+                help: job.dateIsInferred
+                      ? "This board states no date — first seen \(job.firstSeen)"
+                      : job.posted)
             if !job.department.isEmpty { row("Team", job.department) }
             row("Board", job.ats.label)
             // Only meaningful once a posting is tracked, and it belongs with the
