@@ -2011,6 +2011,444 @@
       ],
       "tier" : 3,
       "token" : "verkada"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : true,
+      "name" : "AlphaGrep",
+      "segment" : "Tier 2",
+      "tags" : [
+        "quant",
+        "hft",
+        "prop"
+      ],
+      "tier" : 2,
+      "token" : "alphagrepsecurities"
+    },
+    {
+      "ats" : "lever",
+      "enabled" : false,
+      "name" : "Ansatz Capital",
+      "segment" : "Tier 3",
+      "tags" : [
+        "quant",
+        "hedge-fund"
+      ],
+      "tier" : 3,
+      "token" : "ansatzcapital"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "Blackedge Capital",
+      "segment" : "Tier 3",
+      "tags" : [
+        "quant",
+        "prop"
+      ],
+      "tier" : 3,
+      "token" : "blackedgecapital"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "BlackRock",
+      "note" : "Job search returns 403 to scripted callers.",
+      "segment" : "Tier 1",
+      "tags" : [
+        "quant",
+        "asset-manager"
+      ],
+      "tier" : 1,
+      "token" : ""
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "Bloomberg",
+      "note" : "careers.bloomberg.com returns 403 to scripted callers; needs a browser.",
+      "segment" : "FAANG+",
+      "tags" : [
+        "bigtech",
+        "fintech"
+      ],
+      "tier" : 1,
+      "token" : ""
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "Bridgewater",
+      "note" : "Careers page returns 403 to scripted callers and exposes no ATS host.",
+      "segment" : "Tier 1",
+      "tags" : [
+        "quant",
+        "hedge-fund",
+        "macro"
+      ],
+      "tier" : 1,
+      "token" : ""
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "Celonis",
+      "segment" : "Startups",
+      "tags" : [
+        "bigtech",
+        "europe"
+      ],
+      "tier" : 3,
+      "token" : "celonis"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "Cisco",
+      "note" : "Runs on Phenom People — no adapter for it yet.",
+      "segment" : "FAANG+",
+      "tags" : [
+        "bigtech"
+      ],
+      "tier" : 1,
+      "token" : ""
+    },
+    {
+      "ats" : "ashby",
+      "enabled" : true,
+      "name" : "Confluent",
+      "segment" : "FAANG+",
+      "tags" : [
+        "bigtech",
+        "data"
+      ],
+      "tier" : 2,
+      "token" : "confluent"
+    },
+    {
+      "ats" : "workday",
+      "enabled" : true,
+      "host" : "crowdstrike.wd5.myworkdayjobs.com",
+      "name" : "CrowdStrike",
+      "segment" : "FAANG+",
+      "site" : "crowdstrikecareers",
+      "tags" : [
+        "bigtech",
+        "security"
+      ],
+      "tenant" : "crowdstrike",
+      "tier" : 2
+    },
+    {
+      "ats" : "ashby",
+      "enabled" : true,
+      "name" : "Cursor",
+      "segment" : "Frontier AI",
+      "tags" : [
+        "bigtech",
+        "ai"
+      ],
+      "tier" : 2,
+      "token" : "cursor"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "D. E. Shaw",
+      "note" : "Careers site is a client-side app with no JSON endpoint reachable without a browser; not on greenhouse/lever/ashby/smartrecruiters under any token tried.",
+      "segment" : "Tier 1",
+      "tags" : [
+        "quant",
+        "hedge-fund"
+      ],
+      "tier" : 1,
+      "token" : ""
+    },
+    {
+      "ats" : "ashby",
+      "enabled" : false,
+      "name" : "DeepL",
+      "segment" : "Startups",
+      "tags" : [
+        "bigtech",
+        "ai",
+        "europe"
+      ],
+      "tier" : 3,
+      "token" : "deepl"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : true,
+      "name" : "Figure AI",
+      "segment" : "Frontier AI",
+      "tags" : [
+        "bigtech",
+        "ai",
+        "robotics"
+      ],
+      "tier" : 2,
+      "token" : "figureai"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "G-Research",
+      "note" : "Own careers app, no ATS fingerprint in the HTML and no public JSON found.",
+      "segment" : "Tier 1",
+      "tags" : [
+        "quant",
+        "london"
+      ],
+      "tier" : 1,
+      "token" : ""
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : true,
+      "name" : "Glean",
+      "segment" : "Frontier AI",
+      "tags" : [
+        "bigtech",
+        "ai"
+      ],
+      "tier" : 2,
+      "token" : "gleanwork"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "Goldman Sachs",
+      "note" : "Runs on Avature (recruiting360.avature.net) — no adapter for it yet.",
+      "segment" : "Tier 1",
+      "tags" : [
+        "quant",
+        "bank"
+      ],
+      "tier" : 1,
+      "token" : ""
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : true,
+      "name" : "Graviton Research Capital",
+      "segment" : "Tier 2",
+      "tags" : [
+        "quant",
+        "hft",
+        "prop"
+      ],
+      "tier" : 2,
+      "token" : "gravitonresearchcapital"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "JPMorgan Chase",
+      "note" : "Runs on Oracle HCM (jpmc.fa.oraclecloud.com) — no adapter for it yet.",
+      "segment" : "Tier 1",
+      "tags" : [
+        "quant",
+        "bank"
+      ],
+      "tier" : 1,
+      "token" : ""
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : true,
+      "name" : "Mako Trading",
+      "segment" : "Tier 2",
+      "tags" : [
+        "quant",
+        "prop",
+        "options",
+        "london"
+      ],
+      "tier" : 2,
+      "token" : "mako"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "Monzo",
+      "segment" : "Startups",
+      "tags" : [
+        "bigtech",
+        "fintech",
+        "london"
+      ],
+      "tier" : 3,
+      "token" : "monzo"
+    },
+    {
+      "ats" : "ashby",
+      "enabled" : true,
+      "name" : "Notion",
+      "segment" : "Startups",
+      "tags" : [
+        "bigtech"
+      ],
+      "tier" : 2,
+      "token" : "notion"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "Plaid",
+      "note" : "Runs on RippleMatch — no adapter for it yet.",
+      "segment" : "Startups",
+      "tags" : [
+        "bigtech",
+        "fintech"
+      ],
+      "tier" : 1,
+      "token" : ""
+    },
+    {
+      "ats" : "smartrecruiters",
+      "enabled" : true,
+      "name" : "ServiceNow",
+      "segment" : "FAANG+",
+      "tags" : [
+        "bigtech"
+      ],
+      "tier" : 2,
+      "token" : "servicenow"
+    },
+    {
+      "ats" : "ashby",
+      "enabled" : true,
+      "name" : "Sierra",
+      "segment" : "Frontier AI",
+      "tags" : [
+        "bigtech",
+        "ai"
+      ],
+      "tier" : 2,
+      "token" : "sierra"
+    },
+    {
+      "ats" : "ashby",
+      "enabled" : true,
+      "name" : "Snowflake",
+      "segment" : "FAANG+",
+      "tags" : [
+        "bigtech",
+        "data"
+      ],
+      "tier" : 2,
+      "token" : "snowflake"
+    },
+    {
+      "ats" : "lever",
+      "enabled" : true,
+      "name" : "Spotify",
+      "segment" : "FAANG+",
+      "tags" : [
+        "bigtech"
+      ],
+      "tier" : 2,
+      "token" : "spotify"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : false,
+      "name" : "Tesla",
+      "note" : "Own careers API behind a 403 for scripted callers.",
+      "segment" : "FAANG+",
+      "tags" : [
+        "bigtech"
+      ],
+      "tier" : 1,
+      "token" : ""
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : true,
+      "name" : "Together AI",
+      "segment" : "Frontier AI",
+      "tags" : [
+        "bigtech",
+        "ai"
+      ],
+      "tier" : 2,
+      "token" : "togetherai"
+    },
+    {
+      "ats" : "lever",
+      "enabled" : false,
+      "name" : "Valkyrie Trading",
+      "segment" : "Tier 3",
+      "tags" : [
+        "quant",
+        "prop",
+        "options"
+      ],
+      "tier" : 3,
+      "token" : "valkyrietrading"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : true,
+      "name" : "Vercel",
+      "segment" : "Startups",
+      "tags" : [
+        "bigtech"
+      ],
+      "tier" : 2,
+      "token" : "vercel"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : true,
+      "name" : "Voloridge",
+      "segment" : "Tier 2",
+      "tags" : [
+        "quant",
+        "hedge-fund",
+        "systematic"
+      ],
+      "tier" : 2,
+      "token" : "voloridgeinvestmentmanagement"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : true,
+      "name" : "Wayve",
+      "segment" : "Frontier AI",
+      "tags" : [
+        "bigtech",
+        "ai",
+        "london"
+      ],
+      "tier" : 2,
+      "token" : "wayve"
+    },
+    {
+      "ats" : "greenhouse",
+      "enabled" : true,
+      "name" : "xAI",
+      "segment" : "Frontier AI",
+      "tags" : [
+        "bigtech",
+        "ai"
+      ],
+      "tier" : 2,
+      "token" : "xai"
+    },
+    {
+      "ats" : "lever",
+      "enabled" : true,
+      "name" : "Zoox",
+      "segment" : "Frontier AI",
+      "tags" : [
+        "bigtech",
+        "ai",
+        "robotics"
+      ],
+      "tier" : 2,
+      "token" : "zoox"
     }
   ]
 }

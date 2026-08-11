@@ -1,6 +1,6 @@
 # quantjobs
 
-Finds internship and new-grad postings by reading firms' job boards directly — 155 of
+Finds internship and new-grad postings by reading firms' job boards directly — 178 of
 them, quant shops and big tech. A command-line tool and a native Mac app, sharing one
 config.
 
@@ -209,33 +209,41 @@ the two stay in sync and you can use whichever suits the moment.
 
 ## Which firms are wired up
 
-**155 of the 158 boards answer** — `./quantjobs.py verify --all` returns
-*155 working, 3 broken*. The three are named further down; they're firms kept in the
-file so you can see they were considered rather than missed.
+**178 of the 193 boards answer** — `./quantjobs.py verify --all` returns
+*178 working, 15 broken*. Twelve of the fifteen are firms with no scriptable board at
+all, kept in the file with a `note` so you can see they were considered rather than
+missed; they're named further down. One, **Uber**, is a board that used to work and
+now 404s.
 
 | group | segment | boards |
 |---|---|--:|
-| Quant | Tier 1 | 20 |
-| Quant | Tier 2 | 32 |
-| Quant | Tier 3 | 8 |
-| Big Tech | FAANG+ | 67 |
-| Big Tech | Frontier AI | 18 |
-| Big Tech | Startups | 13 |
+| Quant | Tier 1 | 26 |
+| Quant | Tier 2 | 36 |
+| Quant | Tier 3 | 11 |
+| Big Tech | FAANG+ | 75 |
+| Big Tech | Frontier AI | 26 |
+| Big Tech | Startups | 19 |
 
 Boards, not firms: a few firms have two — see [`board`](#configuring).
 
-**Tier 1**, all live: AQR Capital · Citadel · Citadel Securities · DRW ·
+**Tier 1, live**: AQR Capital · Citadel · Citadel Securities · DRW ·
 Hudson River Trading · IMC Trading · Jane Street · Jump Trading · Millennium ·
 Optiver · Point72 · Qube RT · Radix Trading · SIG · Squarepoint Capital ·
 Tower Research · Two Sigma · Virtu Financial · XTX Markets
+
+**Tier 1, no readable board**: BlackRock · Bloomberg · Bridgewater · D. E. Shaw ·
+G-Research · Goldman Sachs · JPMorgan Chase. They're in the file and off, with a note
+each — see the table below for what's in the way. They're marked Tier 1 because that's
+what they are to someone applying, not because anything can be read from them yet.
 
 `enabled` isn't a fixed shipped default — the app writes your Firms selection back to
 the same file, so whatever you last picked is what the file says. `./quantjobs.py
 companies` prints the current state.
 
-**Frontier AI**: Anduril · Anthropic · Aurora · Cohere · Databricks · Decagon ·
-ElevenLabs · Harvey · LangChain · Mercor · Modal · Nuro · OpenAI · Perplexity ·
-Physical Intelligence · Replit · Scale AI · Waymo
+**Frontier AI**: Anduril · Anthropic · Aurora · Cohere · Cursor · Databricks ·
+Decagon · ElevenLabs · Figure AI · Glean · Harvey · LangChain · Mercor · Modal ·
+Nuro · OpenAI · Perplexity · Physical Intelligence · Replit · Scale AI · Sierra ·
+Together AI · Waymo · Wayve · xAI · Zoox
 
 Run `./quantjobs.py companies` for the full list rather than trusting a README that
 drifts.
@@ -262,6 +270,22 @@ Recruitment Assistant posting while its internships live as pages on mwam.com. T
 **ExodusPoint** ships off. Its Greenhouse board holds two signposts — "Investment -
 ExodusPoint Jobs Page" and "Non-Investment - Referral" — rather than roles, and its
 site lists nothing. Two non-jobs in the table is worse than an absent firm.
+
+**The names that aren't here, and why.** Ten firms people do apply to have no board
+this can read, and each sits in `companies.json` disabled with a `note` rather than
+being left out:
+
+| firm | what's in the way |
+|---|---|
+| Goldman Sachs | Avature (`recruiting360.avature.net`) — no adapter |
+| JPMorgan Chase | Oracle HCM (`jpmc.fa.oraclecloud.com`) — no adapter |
+| Cisco | Phenom People — no adapter |
+| Plaid | RippleMatch — no adapter |
+| D. E. Shaw · G-Research | own client-side careers app, no JSON endpoint found |
+| Bridgewater · BlackRock · Bloomberg · Tesla | careers site answers 403 to scripted callers |
+
+The four platform gaps are one adapter each and would bring more than one firm with
+them; the 403s need a browser rather than a new adapter.
 
 **Maven Securities** has no scriptable board — its careers page 404s and shows no ATS
 fingerprint — and sits in `companies.json` as a disabled placeholder with a note saying
