@@ -178,7 +178,66 @@ case "pick":
     AXUIElementSetAttributeValue(row, kAXSelectedAttribute as CFString, kCFBooleanTrue)
     print("picked row containing \"\(args[1])\"")
 
+case "clicktext":
+    // Click whatever is showing this text. SwiftUI's Table exposes no AXTable or
+    // AXRow here — only the leaf AXStaticText of each cell — so there is no row
+    // element to target and no AXSelected to set. Clicking the cell's own frame is
+    // what opens the detail panel.
+    guard args.count > 1 else { exit(2) }
+    let needle = args[1].lowercased()
+    func findText(_ e: AXUIElement) -> AXUIElement? {
+        if label(e).lowercased().contains(needle), let box = frame(e),
+           box.width > 8, box.height > 4 { return e }
+        for c in children(e) { if let hit = findText(c) { return hit } }
+        return nil
+    }
+    guard let hit = findText(window), let box = frame(hit) else {
+        print("nothing showing \"\(args[1])\""); exit(3)
+    }
+    let point = CGPoint(x: box.midX, y: box.midY)
+    app.activate()
+    usleep(400_000)
+    for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+        CGEvent(mouseEventSource: nil, mouseType: type,
+                mouseCursorPosition: point, mouseButton: .left)?
+            .post(tap: .cghidEventTap)
+        usleep(60_000)
+    }
+    print(String(format: "clicked \"%@\" at %.0f,%.0f", label(hit), point.x, point.y))
+
+case "rowclick":
+    // A real click, because setting AXSelected on a row doesn't drive SwiftUI's
+    // Table selection — the binding never fires, so the detail panel stays shut.
+    // Posting a mouse event at the row's own frame is the only thing that does.
+    guard args.count > 1, let n = Int(args[1]) else { exit(2) }
+    func firstTable(_ e: AXUIElement) -> AXUIElement? {
+        if string(e, kAXRoleAttribute as String) == kAXTableRole as String { return e }
+        for c in children(e) { if let t = firstTable(c) { return t } }
+        return nil
+    }
+    guard let table = firstTable(window) else { print("no table"); exit(3) }
+    let rows = children(table).filter {
+        string($0, kAXRoleAttribute as String) == kAXRowRole as String }
+    guard n >= 0, n < rows.count else { print("row \(n) of \(rows.count)"); exit(3) }
+    guard let box = frame(rows[n]) else { print("row has no frame"); exit(3) }
+
+    // Left of centre: the row's leading cells hold the mark buttons, and landing
+    // on one of those would toggle it instead of selecting the row.
+    let point = CGPoint(x: box.minX + box.width * 0.45, y: box.midY)
+    app.activate()
+    usleep(400_000)
+    for (type, isDown) in [(CGEventType.leftMouseDown, true), (.leftMouseUp, false)] {
+        guard let event = CGEvent(mouseEventSource: nil, mouseType: type,
+                                  mouseCursorPosition: point,
+                                  mouseButton: .left) else { continue }
+        event.post(tap: .cghidEventTap)
+        usleep(isDown ? 60_000 : 0)
+    }
+    print(String(format: "clicked row %d of %d at %.0f,%.0f",
+                 n, rows.count, point.x, point.y))
+
 default:
-    print("verbs: list | controls | click <text> | select <n> | pick <text>")
+    print("verbs: list | controls | click <text> | select <n> | pick <text> "
+          + "| rowclick <n>")
     exit(2)
 }
