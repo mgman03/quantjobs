@@ -12,6 +12,37 @@ struct ContentView: View {
     @State private var columns = TableColumnCustomization<Job>()
     @State private var showingFailures = false
     @State private var showingSources = false
+    /// Width of the detail column, which is the window minus the sidebar. Drives
+    /// which table columns survive and whether the side panel is worth its space.
+    @State private var pane: CGFloat = 1200
+
+    /// Three shapes rather than one that degrades. Dragging the window narrow used
+    /// to starve every part at once: the panel kept its 300pt and got clipped, the
+    /// table's Company column fell to "TransM…", and the split view gave up and
+    /// drew the sidebar *over* the table.
+    private enum Shape { case tight, narrow, medium, wide }
+
+    private var shape: Shape {
+        if pane < 560 { .tight }
+        else if pane < 740 { .narrow }
+        else if pane < 1000 { .medium }
+        else { .wide }
+    }
+
+    /// Panel width scales with what's left rather than sitting at a fixed 300.
+    ///
+    /// It shrinks before it disappears: the panel is the only place the full
+    /// title, the description and the application timeline exist, so dropping it
+    /// costs more than dropping a column. Zero only at `tight`, where a table
+    /// narrow enough to be useless would be the alternative.
+    private var panelWidth: CGFloat {
+        switch shape {
+        case .tight: 0
+        case .narrow: 224
+        case .medium: 260
+        case .wide: 300
+        }
+    }
 
     private static let defaultSort = [KeyPathComparator(\Job.posted, order: .reverse)]
 
@@ -33,6 +64,7 @@ struct ContentView: View {
             sidebar
         } detail: {
             let rows = rows
+            GeometryReader { proxy in
             HStack(spacing: 0) {
             VStack(spacing: 0) {
                 if let error = model.loadError { banner(error) }
@@ -82,17 +114,26 @@ struct ContentView: View {
             //
             // Purely selection-driven: pick a row and it appears, close it and
             // the row deselects.
-            if selectedJob != nil {
+            if selectedJob != nil, panelWidth > 0 {
                 Divider()
                 JobDetail(job: selectedJob, model: model)
                     // Fresh note state whenever the selection changes.
                     .id(selectedJob?.id)
-                    // Flexible, not fixed: at 300 exactly, a narrow window had
-                    // nowhere left to take space from and clipped the sidebar.
-                    .frame(minWidth: 250, idealWidth: 300, maxWidth: 320)
+                    // Scaled to what's left rather than fixed: at a hard 300 a
+                    // narrow window had nowhere to take space from and clipped
+                    // the sidebar instead.
+                    .frame(width: panelWidth)
+            }
+            }
+            .onChange(of: proxy.size.width, initial: true) { _, w in
+                if abs(w - pane) > 1 { pane = w }
             }
             }
         }
+        // Below this the columns can't all have their minimum and the split view
+        // responds by drawing the sidebar *over* the table, which loses the row
+        // marks and the leading characters of every heading.
+        .frame(minWidth: 560)
         .toolbar { toolbarContent }
         .sheet(isPresented: $model.showBoardEditor) {
             CompaniesView(model: model)
@@ -107,6 +148,16 @@ struct ContentView: View {
         }
         .onChange(of: model.list, initial: true) {
             columns[visibility: "progress"] = model.list == .applied ? .visible : .hidden
+        }
+        // Drop the columns you can live without before the ones you can't. Role
+        // and Company are what the list is *for*; Location, Level and Posted are
+        // context, and context truncated to "Santa Clara,…" is worth less than a
+        // Role you can read.
+        .onChange(of: shape, initial: true) {
+            columns[visibility: "location"] = shape == .wide ? .visible : .hidden
+            columns[visibility: "posted"] =
+                shape == .wide || shape == .medium ? .visible : .hidden
+            columns[visibility: "level"] = shape == .tight ? .hidden : .visible
         }
         .onChange(of: model.settingsFingerprint) { model.persistSettings() }
         .onChange(of: model.refreshFingerprint) { model.scheduleRefresh() }
@@ -489,7 +540,7 @@ struct ContentView: View {
                 }
                 .foregroundStyle(model.isDelisted(job) ? .tertiary : .secondary)
             }
-            .width(min: 74, ideal: 116)
+            .width(min: 74, ideal: 116, max: 190)
 
             TableColumn("Role", value: \.shortTitle) { job in
                 HStack(spacing: 5) {
@@ -508,7 +559,7 @@ struct ContentView: View {
                 }
                 .help(job.title)      // the full posted title on hover
             }
-            .width(min: 120, ideal: 230)
+            .width(min: 96, ideal: 230)
 
             TableColumn("Location", value: \.locationDisplay) { job in
                 Text(job.locationDisplay)
@@ -517,7 +568,8 @@ struct ContentView: View {
                           ? job.places.map(\.label).joined(separator: " · ")
                           : job.location)
             }
-            .width(min: 84, ideal: 128)
+            .width(min: 84, ideal: 128, max: 200)
+            .customizationID("location")
 
             TableColumn("Level", value: \.level) { job in
                 if job.levelShort.isEmpty {
@@ -545,6 +597,7 @@ struct ContentView: View {
                 }
             }
             .width(66)
+            .customizationID("level")
 
             // Fixed, not a range: a squeezed table was shrinking this below a
             // full date and showing "2026-07".
@@ -573,6 +626,7 @@ struct ContentView: View {
                 }
             }
             .width(66)
+            .customizationID("posted")
     }
 
     private func jobTable(_ rows: [Job]) -> some View {
