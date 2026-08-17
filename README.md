@@ -169,7 +169,15 @@ the two stay in sync and you can use whichever suits the moment.
   empty column on almost every row. The detail panel shows the whole sequence with
   dates and "2 weeks ago", and lets you correct one, add a step you did out of
   order, or record a stage **twice** — a second online assessment is common enough
-  that it shows as *OA (2nd)* rather than overwriting the first. All of it survives a board
+  that it shows as *OA (2nd)* rather than overwriting the first.
+- **An OA you've been given and an OA you've handed in are different states**, and
+  the tracker says which. A step you sit — online assessment, interview, final
+  round — carries two dates: when it arrived and when you actually sat it. Until
+  the second one is set, the row reads `OA · to do` and the stage heading counts it
+  in *"2 to do"*; afterwards it reads `OA · done` and ages from the day you sat it
+  rather than the day it landed. One is a deadline you still owe and the other is a
+  wait for a result, which the old single-date `OA · 5d` couldn't tell apart. Each
+  occurrence is completed separately, so a second OA doesn't inherit the first's. All of it survives a board
   deleting the posting — a role that closed is struck through rather than lost,
   because an application you're tracking shouldn't disappear with the listing.
 - **The Applied list is grouped by stage**, one foldable block per stage you've

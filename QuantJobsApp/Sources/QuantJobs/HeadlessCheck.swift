@@ -387,6 +387,40 @@ enum HeadlessCheck {
             print("  after reload: \(third.trackedEntry(for: applied)?.milestones.count ?? 0) "
                   + "step(s), at \(third.stage(of: applied)?.label ?? "—")")
 
+            // Received versus sat. An OA that has landed and an OA you've handed
+            // in are opposite situations — one is a deadline you still owe — and
+            // before this they both read as "OA · 5d".
+            print("\nreceived vs done:")
+            let oa = make("Jane Street", "Software Engineer Intern")
+            third.record(.applied, on: "2026-08-01", for: [oa])
+            third.record(.assessment, on: "2026-08-05", for: [oa])
+            @MainActor func state(_ m: AppModel) -> String {
+                guard let e = m.trackedEntry(for: oa),
+                      let step = e.currentMilestone else { return "—" }
+                return "\(step.stage.short) done=\(step.isDone) "
+                     + "awaitingYou=\(e.isAwaitingYou) ages-from=\(e.lastActivityOrDone)"
+            }
+            print("  just received:  \(state(third))")
+            third.markDone(.assessment, dated: "2026-08-05", on: "2026-08-09",
+                           for: [oa])
+            print("  after sitting:  \(state(third))")
+
+            // A second OA must not inherit the first one's completion.
+            third.record(.assessment, on: "2026-08-14", repeating: true, for: [oa])
+            let both = third.trackedEntry(for: oa)?.milestones
+                .filter { $0.stage == .assessment } ?? []
+            print("  two OAs:        "
+                  + both.map { "\($0.date) done=\($0.done ?? "no")" }
+                        .joined(separator: ", "))
+            print("  second is owed: \(third.trackedEntry(for: oa)?.isAwaitingYou == true)")
+
+            let fourth = AppModel()
+            await fourth.reload()
+            let kept = fourth.trackedEntry(for: oa)?.milestones
+                .first { $0.stage == .assessment && $0.date == "2026-08-05" }
+            print("  after reload:   first OA done=\(kept?.done ?? "LOST")")
+            third.clearApplication(for: [oa])
+
             // Stage sections: one block per stage reached, in pipeline order,
             // and folding one takes its rows out of the table.
             print("\nstage sections:")

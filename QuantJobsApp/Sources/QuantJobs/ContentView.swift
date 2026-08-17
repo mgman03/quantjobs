@@ -367,6 +367,22 @@ struct ContentView: View {
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
                     .background(.quaternary.opacity(0.6), in: .capsule)
+                // The count that actually needs acting on: steps sitting in
+                // this stage that you still owe, rather than ones you're waiting
+                // on them for. Only sat stages can have any.
+                if group.stage.isSat {
+                    let owed = group.jobs.count {
+                        model.trackedEntry(for: $0)?.isAwaitingYou == true
+                    }
+                    if owed > 0 {
+                        Text("\(owed) to do")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(Color.accentColor)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Color.accentColor.opacity(0.18), in: .capsule)
+                    }
+                }
                 if collapsed, let oldest = group.jobs
                     .compactMap({ model.trackedEntry(for: $0)?.lastActivity })
                     .min(), let age = Dates.relative(oldest) {
@@ -834,6 +850,7 @@ struct JobDetail: View {
                     onRepeat: { model.record($0, on: $1, repeating: true, for: [job]) },
                     onRemove: { model.removeStage($0, for: [job]) },
                     onClear: { model.clearApplication(for: [job]) },
+                    onDone: { model.markDone($0, dated: $1, on: $2, for: [job]) },
                     onSaveNote: { model.setNote($0, for: job) })
             }
         } else {
@@ -851,11 +868,24 @@ struct StagePill: View {
     let entry: TrackedJob
 
     var body: some View {
-        if let stage = entry.stage {
+        if let m = entry.currentMilestone {
+            let stage = m.stage
             HStack(spacing: 4) {
                 Image(systemName: stage.symbol).font(.system(size: 9))
                 Text(stage.short)
-                if let age = Dates.compact(entry.lastActivity) {
+                // The word that separates "this landed in my inbox" from "I've
+                // sat it". Without it the pill said "OA · 5d" for both, which
+                // are opposite situations: one is a deadline you still owe.
+                if stage.isSat {
+                    Text(m.isDone ? "done" : "to do")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 0.5)
+                        .background(m.isDone ? AnyShapeStyle(.quaternary)
+                                             : AnyShapeStyle(Color.accentColor.opacity(0.25)),
+                                    in: .capsule)
+                }
+                if let age = Dates.compact(entry.lastActivityOrDone) {
                     Text(age)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
@@ -872,7 +902,7 @@ struct StagePill: View {
 
     private var summary: String {
         entry.milestones
-            .map { "\($0.stage.label) \($0.relative ?? $0.date)" }
+            .map { "\($0.stage.label) \($0.summary)" }
             .joined(separator: " · ")
     }
 }
@@ -889,6 +919,8 @@ struct ApplicationTimeline: View {
     var onRepeat: (Stage, String) -> Void = { _, _ in }
     var onRemove: (Stage) -> Void = { _ in }
     var onClear: () -> Void = {}
+    /// (stage, the date it arrived, the date it was sat or nil to undo)
+    var onDone: (Stage, String, String?) -> Void = { _, _, _ in }
 
     private func ordinal(_ n: Int) -> String {
         switch n {
@@ -925,11 +957,38 @@ struct ApplicationTimeline: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(step.stage.label).font(.callout)
                 HStack(spacing: 5) {
-                    Text(step.relative ?? step.date)
+                    // For a sat step the bare date is ambiguous, so it says
+                    // which of the two dates this is.
+                    Text(step.stage.isSat
+                         ? "\(step.stage.receivedVerb) \(step.relative ?? step.date)"
+                         : (step.relative ?? step.date))
                     Text(step.date).foregroundStyle(.tertiary).monospacedDigit()
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+                if step.stage.isSat {
+                    if let done = step.done {
+                        HStack(spacing: 5) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 9))
+                            Text("\(step.stage.doneVerb) \(Dates.relative(done) ?? done)")
+                            Text(done).foregroundStyle(.tertiary).monospacedDigit()
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    } else {
+                        // The one thing you'd want to press on a step you still
+                        // owe, rather than buried in the ellipsis menu.
+                        Button("Mark \(step.stage.doneVerb)") {
+                            onDone(step.stage, step.date, Dates.today)
+                        }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                        .help("Record that you sat this, so it stops reading as "
+                              + "something still owed")
+                    }
+                }
             }
             Spacer(minLength: 4)
             Menu {
@@ -938,6 +997,18 @@ struct ApplicationTimeline: View {
                 Button("Move a Day Earlier") { shift(step, by: -1) }
                 Button("Move a Day Later") { shift(step, by: 1) }
                 Button("Set to Today") { onRecord(step.stage, Dates.today) }
+                if step.stage.isSat {
+                    Divider()
+                    if step.isDone {
+                        Button("Not \(step.stage.doneVerb.capitalized) After All") {
+                            onDone(step.stage, step.date, nil)
+                        }
+                    } else {
+                        Button("Mark \(step.stage.doneVerb.capitalized) Today") {
+                            onDone(step.stage, step.date, Dates.today)
+                        }
+                    }
+                }
                 Divider()
                 Button("Remove", role: .destructive) { onRemove(step.stage) }
             } label: {
@@ -1009,6 +1080,8 @@ struct JobDetailContent: View {
     var onRepeat: (Stage, String) -> Void = { _, _ in }
     var onRemove: (Stage) -> Void = { _ in }
     var onClear: () -> Void = {}
+    /// (stage, the date it arrived, the date it was sat or nil to undo)
+    var onDone: (Stage, String, String?) -> Void = { _, _, _ in }
     var onSaveNote: (String) -> Void = { _ in }
 
     @State private var showingStages = false
@@ -1024,6 +1097,7 @@ struct JobDetailContent: View {
          onRepeat: @escaping (Stage, String) -> Void = { _, _ in },
          onRemove: @escaping (Stage) -> Void = { _ in },
          onClear: @escaping () -> Void = {},
+         onDone: @escaping (Stage, String, String?) -> Void = { _, _, _ in },
          onSaveNote: @escaping (String) -> Void = { _ in }) {
         self.job = job
         self.tracking = tracking
@@ -1032,6 +1106,7 @@ struct JobDetailContent: View {
         self.onRepeat = onRepeat
         self.onRemove = onRemove
         self.onClear = onClear
+        self.onDone = onDone
         self.onSaveNote = onSaveNote
         _note = State(initialValue: tracking?.note ?? "")
     }
@@ -1183,7 +1258,7 @@ struct JobDetailContent: View {
             }
             ApplicationTimeline(entry: entry, onRecord: onRecord,
                                 onRepeat: onRepeat, onRemove: onRemove,
-                                onClear: onClear)
+                                onClear: onClear, onDone: onDone)
             if entry.hidden {
                 Label("Hidden from results — this history is kept regardless",
                       systemImage: "eye.slash")

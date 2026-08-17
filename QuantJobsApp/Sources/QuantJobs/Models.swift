@@ -712,6 +712,16 @@ enum Stage: String, Codable, CaseIterable, Identifiable, Sendable {
     /// Nothing follows these, so the timeline stops drawing a line after them.
     var isClosed: Bool { self == .rejected || self == .withdrawn }
 
+    /// Steps you're *given* and then complete, as opposed to ones that simply
+    /// happen. "OA on the 12th" is ambiguous on its own — it can mean the link
+    /// landed or that you sat it, and those are different states to be in:
+    /// one is a deadline you still owe, the other is a wait for a result.
+    var isSat: Bool { self == .assessment || self == .interview || self == .final }
+
+    /// What the two halves are called for this stage.
+    var receivedVerb: String { self == .assessment ? "received" : "scheduled" }
+    var doneVerb: String { self == .assessment ? "submitted" : "done" }
+
     /// One colour scale for the whole pipeline. It lives on the stage rather
     /// than on a view because it's what the stage *means* — three views were
     /// reaching into `ContentView` for a static to get at it.
@@ -731,7 +741,17 @@ enum Stage: String, Codable, CaseIterable, Identifiable, Sendable {
 /// One dated step of one application.
 struct Milestone: Codable, Hashable, Sendable, Identifiable {
     var stage: Stage
-    var date: String              // yyyy-MM-dd
+    var date: String              // yyyy-MM-dd — when it arrived
+    /// When it was actually sat, for the stages where that differs from arrival.
+    ///
+    /// Optional rather than a second Milestone, because an OA you've submitted
+    /// is one step with two dates, not two steps — as separate milestones the
+    /// pipeline would count it twice and `stage` would report the furthest one
+    /// reached wrongly. Optional also decodes from files written before this
+    /// existed: the synthesised decoder uses decodeIfPresent for optionals, so
+    /// a missing key is nil rather than a thrown error that would lose the whole
+    /// tracking file.
+    var done: String? = nil
 
     /// Stage *and* date, because a stage can happen twice — two online
     /// assessments is normal — so the stage alone isn't unique. Editing a date
@@ -740,6 +760,17 @@ struct Milestone: Codable, Hashable, Sendable, Identifiable {
     var id: String { "\(stage.rawValue)|\(date)" }
 
     var relative: String? { Dates.relative(date) }
+
+    var isDone: Bool { done != nil }
+
+    /// "received 12 Aug · submitted 14 Aug", or just the one date.
+    var summary: String {
+        let arrived = "\(stage.isSat ? stage.receivedVerb + " " : "")"
+            + (relative ?? date)
+        guard stage.isSat, let done, let when = Dates.relative(done) ?? done as String?
+        else { return arrived }
+        return "\(arrived) · \(stage.doneVerb) \(when)"
+    }
 }
 
 /// What to do in the results list about roles you've already applied to.
@@ -924,6 +955,45 @@ struct TrackedJob: Codable, Identifiable, Sendable {
             milestones.append(Milestone(stage: stage, date: date))
         }
         sortMilestones()
+    }
+
+    /// Mark the occurrence that *arrived* on `dated` as sat on `doneDate`.
+    ///
+    /// Keyed by the arrival date rather than by stage, so completing the second
+    /// OA doesn't overwrite the first.
+    mutating func markDone(_ stage: Stage, dated: String, on doneDate: String) {
+        guard let i = milestones.firstIndex(where: {
+            $0.stage == stage && $0.date == dated
+        }) else { return }
+        milestones[i].done = doneDate
+    }
+
+    mutating func clearDone(_ stage: Stage, dated: String) {
+        guard let i = milestones.firstIndex(where: {
+            $0.stage == stage && $0.date == dated
+        }) else { return }
+        milestones[i].done = nil
+    }
+
+    /// The furthest milestone, whichever occurrence of it is latest — what the
+    /// pill and the Applied grouping read to say where things stand.
+    var currentMilestone: Milestone? {
+        milestones.max { a, b in
+            a.date == b.date ? a.stage.order < b.stage.order : a.date < b.date
+        }
+    }
+
+    /// Whether the step you're on is still owed by you, rather than waiting on
+    /// them. Only sat stages can be outstanding.
+    var isAwaitingYou: Bool {
+        guard let m = currentMilestone, m.stage.isSat else { return false }
+        return !m.isDone
+    }
+
+    /// The date the pill should age from: how long since the last thing actually
+    /// happened, which for a sat step is when you sat it, not when it arrived.
+    var lastActivityOrDone: String {
+        milestones.flatMap { [$0.date, $0.done].compactMap { $0 } }.max() ?? updated
     }
 
     mutating func remove(_ stage: Stage, on date: String? = nil) {

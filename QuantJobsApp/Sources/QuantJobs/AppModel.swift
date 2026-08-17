@@ -531,6 +531,16 @@ final class AppModel {
         edit(targets) { $0.record(stage, on: when, repeating: repeating) }
     }
 
+    /// Records that a sat step was actually sat — or unrecords it, with `on` nil.
+    /// Keyed by the arrival date so a second OA doesn't overwrite the first.
+    func markDone(_ stage: Stage, dated: String, on date: String?,
+                  for targets: [Job]) {
+        edit(targets) { entry in
+            if let date { entry.markDone(stage, dated: dated, on: date) }
+            else { entry.clearDone(stage, dated: dated) }
+        }
+    }
+
     func removeStage(_ stage: Stage, for targets: [Job]) {
         edit(targets) { $0.remove(stage) }
     }
