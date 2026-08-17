@@ -487,6 +487,36 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
         return years.filter { $0 >= thisYear - 1 && $0 <= thisYear + 3 }.max()
     }
 
+    /// Whether the posting asks for a doctorate, and only a doctorate.
+    ///
+    /// Read off the title rather than the description, and only a stated
+    /// requirement counts: a quant research role that would take a PhD but
+    /// doesn't say so is still open to a masters student, and guessing on their
+    /// behalf would hide roles they could get.
+    ///
+    /// Every non-alphanumeric becomes a space first, because the punctuation is
+    /// where the doctorate hides — "(PhD)", "PhD:", "PhD," and "Ph.D." all defeat
+    /// a naive " phd " test, which let most of them through.
+    ///
+    /// Must stay in step with `is_phd` in quantjobs.py.
+    var wantsPhD: Bool {
+        let words = title.lowercased()
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+        let joined = words.joined(separator: " ")
+        let single = ["phd", "ph", "doctorate", "doctoral", "postdoc"]
+        let asks = words.contains { w in
+            single.contains(where: { w == $0 || w == $0 + "s" })
+                && !(w == "ph" && !joined.contains("ph d"))
+        } || joined.contains("ph d") || joined.contains("post doc")
+        guard asks else { return false }
+        // "BSc/MSc/PhD", "Master or PhD" — open to less than a doctorate.
+        let lower: Set<String> = ["bs", "ba", "bsc", "bachelor", "bachelors",
+                                  "ms", "msc", "ma", "master", "masters", "mba",
+                                  "undergrad", "undergraduate"]
+        return !words.contains { lower.contains($0) }
+    }
+
     /// When we first saw this posting, filled in from `.seen.json`. Deliberately
     /// not in CodingKeys: a synthesized decoder throws on a missing key, so adding
     /// one there breaks every cache and tracking file already on disk. It's filled

@@ -97,9 +97,25 @@ struct FilterBar: View {
                     }
                 }
             }
-            if !model.excludedStacks.isEmpty {
+            Divider()
+            Section("Leave out roles that require") {
+                // Degree, not stack, but the same kind of decision and the same
+                // menu — a filter row this tight doesn't need a seventh control
+                // for one checkbox.
+                Toggle(isOn: Binding(get: { model.excludePhD },
+                                     set: { model.excludePhD = $0 })) {
+                    Text("A PhD — hide these")
+                }
+                .help("Hides roles whose title states a doctorate requirement. "
+                      + "A title that also names a lower degree, like "
+                      + "\"BSc/MSc/PhD\", is kept — that phrasing means either.")
+            }
+            if !model.excludedStacks.isEmpty || model.excludePhD {
                 Divider()
-                Button("Show every stack") { model.excludedStacks = [] }
+                Button("Show everything") {
+                    model.excludedStacks = []
+                    model.excludePhD = false
+                }
             }
         } label: {
             filterLabel("curlybraces", model.stackLabel, compact: compact)

@@ -387,6 +387,28 @@ enum HeadlessCheck {
             print("  after reload: \(third.trackedEntry(for: applied)?.milestones.count ?? 0) "
                   + "step(s), at \(third.stage(of: applied)?.label ?? "—")")
 
+            // PhD detection has to agree with is_phd in quantjobs.py, so the
+            // fixture is the same list of real titles from the boards.
+            print("\nphd filter:")
+            for t in ["Software Engineering PhD Intern, 2027",
+                      "Quantitative Research Intern (PhD) - Summer 2027",
+                      "Student Researcher, PhD, Fall 2026",
+                      "Quantitative Researcher (Ph.D.) - 2027 Graduate Program",
+                      "Algorithm Developer (Quant Research & Trading) – 2027 PhDs",
+                      "Campus AI Researcher, PhD/Postdoc (Intern)",
+                      "2026 BSc/MSc/PhD Quantitative Research/Strat Internship",
+                      "2027 Internship - Quantitative Researcher (Master or PhD)",
+                      "Software Undergrad Engineering Internships",
+                      "Software Engineer Intern",
+                      "Quantitative Developer Intern",
+                      "Systems PhD - Software Engineer",
+                      "Software PhD Internships",
+                      "MBA Internships",
+                      "Quantitative Researcher (Full-Time - PhD+)"] {
+                let probe = make("X", t)
+                print("  \(probe.wantsPhD ? "PHD " : "  . ")\(t)")
+            }
+
             // Received versus sat. An OA that has landed and an OA you've handed
             // in are opposite situations — one is a deadline you still owe — and
             // before this they both read as "OA · 5d".

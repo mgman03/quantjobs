@@ -82,6 +82,7 @@ list stays empty.
 ```
 --category, -c   swe | quant-trading | quant-research | hardware | data | all
 --no-stack       leave out roles using this stack: cpp | python | frontend, repeatable
+--no-phd         leave out roles that state a doctorate requirement
 --level, -l      intern (default) | newgrad | intern-or-newgrad | any
 --location, -L   substring match on location, repeatable:  -L london -L nyc
 --company        limit to firms matching a name, repeatable
@@ -125,6 +126,19 @@ than in the title.
 In the app it's the `{}` menu in the filter row, with a tick box per stack and
 every row reading *"— hide these"*, because a tick box next to a language name
 otherwise reads as "I want this one".
+
+**`--no-phd` works the same way, on degree rather than language.** A title only
+counts as PhD-only if it *states* the requirement: `Software Engineering PhD Intern`
+and `Quantitative Research Intern (PhD)` go, and so does `2027 PhDs`. A title that
+names a lower degree alongside it is kept, because that phrasing means "either" —
+`2026 BSc/MSc/PhD Quantitative Research` and `Quantitative Researcher (Master or
+PhD)` both stay. A quant research role that would in practice want a doctorate but
+doesn't say so also stays: guessing on your behalf would hide roles you could get.
+
+Punctuation is where the doctorate hides — `(PhD)`, `PhD:`, `PhD,`, `Ph.D.` — so the
+title is split on every non-alphanumeric before matching. A naive space-delimited
+test let most of them through. Against the current cache it flags 92 of 8,237
+postings, and the app has the same rule behind a tick box in the `{}` menu.
 
 A category in `categories.json` becomes a stack by naming its `parent`; the
 matching is deliberately *ungated* by that parent, so "does this posting mention

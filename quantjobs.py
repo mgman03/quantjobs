@@ -1429,6 +1429,40 @@ def job_stacks(job: dict, cats: dict, matchers: dict, deep: bool) -> set[str]:
     return out
 
 
+# Only a stated PhD *requirement* counts. A quant research role that would take a
+# doctorate but doesn't say so is still open to a masters student, and guessing on
+# their behalf would hide roles they could actually get.
+#
+# Every non-alphanumeric becomes a space first, because the punctuation is where
+# the doctorate usually hides: "(PhD)", "PhD:", "PhD," and "Ph.D." all failed a
+# naive " phd " test, which quietly let most of them through.
+PHD_ASKS = ("phd", "ph d", "doctorate", "doctoral", "postdoc", "post doc")
+# A lower degree named alongside means "either", not "PhD only".
+PHD_ALSO_TAKES = ("bs", "ba", "bsc", "bachelor", "bachelors", "ms", "msc", "ma",
+                  "master", "masters", "mba", "undergrad", "undergraduate")
+
+
+def phd_words(title: str) -> list[str]:
+    return re.sub(r"[^a-z0-9]+", " ", (title or "").lower()).split()
+
+
+def is_phd(job: dict) -> bool:
+    """Does the title ask for a doctorate, and only a doctorate?
+
+    Mirrors `Job.wantsPhD` in the app.
+    """
+    words = phd_words(job.get("title", ""))
+    joined = " ".join(words)
+    # Plural-tolerant, the way the category matcher is: "2027 PhDs" is a PhD role.
+    def asks(word: str) -> bool:
+        return any(word == a or word == a + "s" for a in PHD_ASKS if " " not in a)
+    if not (any(asks(w) for w in words)
+            or any(a in joined for a in PHD_ASKS if " " in a)):
+        return False
+    # "BSc/MSc/PhD", "Master or PhD" — open to less than a doctorate.
+    return not any(w in PHD_ALSO_TAKES for w in words)
+
+
 def passes_stacks(job: dict, unwanted: set[str], cats: dict,
                   matchers: dict, deep: bool) -> bool:
     """Exclusion: a posting goes only if it names a stack you ruled out.
@@ -1761,6 +1795,8 @@ def cmd_scrape(args) -> int:
             continue
         if not passes_stacks(j, unwanted_stacks, raw_cats, cats, args.deep):
             continue
+        if args.no_phd and is_phd(j):
+            continue
 
         places = parse_locations(j.get("location"))
         j["places"] = places
@@ -1989,6 +2025,9 @@ def main() -> int:
                    help="don't record this run in .seen.json")
     s.add_argument("--deep", action="store_true",
                    help="also match against full descriptions (slower)")
+    s.add_argument("--no-phd", action="store_true",
+                   help="leave out roles that ask for a doctorate. A title naming "
+                        "a lower degree too (BSc/MSc/PhD) is kept")
     s.add_argument("--no-stack", action="append", metavar="STACK",
                    help="leave out roles using this stack; repeatable. "
                         "cpp | python | frontend. Roles that name no stack are "

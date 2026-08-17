@@ -30,6 +30,8 @@ struct AppSettings: Codable, Sendable, Equatable {
     var stacks: [String] = []
     /// Which intake year the results are narrowed to, if any.
     var intakeFilter: Int?
+    /// Leave out roles that ask for a doctorate.
+    var excludePhD = false
     var hideApplied: Bool? = nil
     /// Which stage sections are folded shut in the Applied list.
     var collapsedStages: [String] = []

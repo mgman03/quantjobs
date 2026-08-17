@@ -137,6 +137,7 @@ final class AppModel {
     var hasExtraFilters: Bool {
         tagFilter != nil || sinceDays != nil
             || newOnly || deep || appliedFilter.isFiltering || !excludedStacks.isEmpty || intakeFilter != nil
+            || excludePhD
             || !search.isEmpty
             || !locationFilter.isEmpty
             || !continentFilter.isEmpty || !cityFilter.isEmpty
@@ -150,6 +151,7 @@ final class AppModel {
         appliedFilter = .show
         excludedStacks = []
         intakeFilter = nil
+        excludePhD = false
         search = ""
         locationFilter = ""
         continentFilter = []
@@ -235,6 +237,9 @@ final class AppModel {
     var excludedStacks: Set<String> = []
     /// Which intake year to keep. Nil means every year.
     var intakeFilter: Int?
+    /// Leave out roles that state a doctorate requirement. A title that also
+    /// names a lower degree ("BSc/MSc/PhD") is kept — see `Job.wantsPhD`.
+    var excludePhD = false
     /// Stage sections folded shut in the Applied list.
     var collapsedStages: Set<Stage> = []
     private(set) var tracked: [String: TrackedJob] = [:]
@@ -298,7 +303,7 @@ final class AppModel {
     private var visibleKey: String {
         "\(resultsVersion)|\(list.rawValue)|\(showHidden)|\(appliedFilter.rawValue)|\(mergeRoles)|"
         + "\(excludedStacks.sorted().joined(separator: ","))|"
-        + "\(intakeFilter.map(String.init) ?? "-")|"
+        + "\(intakeFilter.map(String.init) ?? "-")|\(excludePhD)|"
         + "\(selectedCategoryID)|\(level.rawValue)|\(search)|"
         + "\(tagFilter ?? "-")|\(sinceDays.map(String.init) ?? "-")|"
         + "\(newOnly)|\(locationFilter)|"
@@ -363,6 +368,7 @@ final class AppModel {
             if let wanted = intakeFilter, let year = job.intakeYear, year != wanted {
                 return false
             }
+            if excludePhD && job.wantsPhD { return false }
             let entry = tracked[job.key]
             if entry?.hidden == true {
                 hiddenHeld += 1
@@ -442,13 +448,16 @@ final class AppModel {
     /// "All stacks" / "No Python" / "No Python +1" — the filter-row label, which
     /// states what's being left out rather than what's being kept.
     var stackLabel: String {
-        guard !excludedStacks.isEmpty else { return "All stacks" }
+        guard !excludedStacks.isEmpty else {
+            return excludePhD ? "No PhD" : "All stacks"
+        }
         let names = excludedStacks.sorted()
         let short = { (n: String) -> String in
             self.categories.first { $0.name == n }?.shortName ?? n.capitalized
         }
-        return names.count == 1 ? "No \(short(names[0]))"
-                                : "No \(short(names[0])) +\(names.count - 1)"
+        let extra = excludedStacks.count - 1 + (excludePhD ? 1 : 0)
+        return extra == 0 ? "No \(short(names[0]))"
+                          : "No \(short(names[0])) +\(extra)"
     }
 
     func isCollapsed(_ stage: Stage) -> Bool { collapsedStages.contains(stage) }
@@ -679,6 +688,7 @@ final class AppModel {
         parts.append("\(showHidden)\(appliedFilter.rawValue)")
         parts.append(excludedStacks.sorted().joined(separator: ","))
         parts.append(intakeFilter.map(String.init) ?? "-")
+        parts.append("\(excludePhD)")
         parts.append(collapsedStages.map(\.rawValue).sorted().joined(separator: ","))
         parts.append("\(refreshOnLaunch)\(refreshIfOlderThanHours)")
         return parts.joined(separator: "|")
@@ -696,6 +706,7 @@ final class AppModel {
                     appliedFilter: appliedFilter.rawValue,
                     stacks: excludedStacks.sorted(),
                     intakeFilter: intakeFilter,
+                    excludePhD: excludePhD,
                     collapsedStages: collapsedStages.map(\.rawValue).sorted(),
                     refreshOnLaunch: refreshOnLaunch,
                     refreshIfOlderThanHours: refreshIfOlderThanHours)
@@ -718,6 +729,7 @@ final class AppModel {
         appliedFilter = AppliedFilter(rawValue: s.appliedFilter) ?? .show
         excludedStacks = Set(s.stacks)
         intakeFilter = s.intakeFilter
+        excludePhD = s.excludePhD
         collapsedStages = Set(s.collapsedStages.compactMap(Stage.init(rawValue:)))
         refreshOnLaunch = s.refreshOnLaunch
         refreshIfOlderThanHours = s.refreshIfOlderThanHours
