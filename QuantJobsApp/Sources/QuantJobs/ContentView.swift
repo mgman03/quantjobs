@@ -29,19 +29,34 @@ struct ContentView: View {
         else { .wide }
     }
 
-    /// Panel width scales with what's left rather than sitting at a fixed 300.
+    /// The narrowest the table can draw itself: the sum of the minimums of the
+    /// columns currently showing, plus a little for row insets and the scroller.
     ///
-    /// It shrinks before it disappears: the panel is the only place the full
-    /// title, the description and the application timeline exist, so dropping it
-    /// costs more than dropping a column. Zero only at `tight`, where a table
-    /// narrow enough to be useless would be the alternative.
+    /// This is the number the old fixed-threshold version was missing. The table
+    /// cannot compress below it, so when the panel's width plus this exceeded the
+    /// pane, the surplus went off the right-hand edge — which is why the panel
+    /// clipped its own values ("North Ame", "Chicago, Il") instead of something
+    /// giving way.
+    private var tableFloor: CGFloat {
+        var w: CGFloat = 84 + 74 + 96          // marks + Company + Role
+        if model.list == .applied { w += 84 }  // Progress
+        if shape != .tight { w += 66 }         // Level
+        if shape == .wide || shape == .medium { w += 66 }   // Posted
+        if shape == .wide { w += 84 }          // Location
+        return w + 12
+    }
+
+    /// What's actually left for the panel once the table has its floor.
+    ///
+    /// Derived rather than chosen: a fixed 300 had nowhere to take space from,
+    /// and fixed steps of 300/260/224 were only a coarser version of the same
+    /// mistake. Capped at 300 because the panel gains nothing from being wider,
+    /// and dropped entirely below 200, where it would be too narrow to read and
+    /// the table is the better use of the pixels.
     private var panelWidth: CGFloat {
-        switch shape {
-        case .tight: 0
-        case .narrow: 224
-        case .medium: 260
-        case .wide: 300
-        }
+        guard selectedJob != nil else { return 0 }
+        let spare = pane - tableFloor - 1      // the divider
+        return spare < 200 ? 0 : min(300, spare)
     }
 
     private static let defaultSort = [KeyPathComparator(\Job.posted, order: .reverse)]
