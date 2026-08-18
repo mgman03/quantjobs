@@ -59,6 +59,20 @@ jobs:
       #      CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
       #   4. Cloudflare -> the quantjobs project -> Settings -> Access policy,
       #      one-time PIN to your email. That is the password, free.
+      # wrangler will not create the project implicitly — it answers 8000007,
+      # "project not found". Creating it is idempotent in effect: every run after
+      # the first fails with "already exists", which is why this one is allowed to.
+      - name: Create the Pages project on first run
+        if: env.CF_TOKEN != ''
+        continue-on-error: true
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create quantjobs --production-branch=main
+
       - name: Publish to Cloudflare Pages
         if: env.CF_TOKEN != ''
         env:
