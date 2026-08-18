@@ -377,6 +377,36 @@ live config, so if you've toggled firms in the app git will report a conflict th
 `git checkout --theirs companies.json` takes the new roster if you don't mind losing
 your on/off choices.
 
+## The page on your phone
+
+`.github/workflows/fetch.yml` runs the same Swift scraper on GitHub's Ubuntu
+runners twice a day, builds a single self-contained HTML page with every filter
+the app has, and publishes it to Cloudflare Pages. Free at every step, and it
+keeps working with the Mac shut. Turning it on takes three secrets in
+**Settings → Secrets and variables → Actions**:
+
+| Secret | What it is |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | My Profile → API Tokens → Create Token, with *Cloudflare Pages: Edit* |
+| `CLOUDFLARE_ACCOUNT_ID` | the id in the dashboard URL, `dash.cloudflare.com/<id>/…` |
+| `SITE_PASSWORD` | whatever you want the page to ask for |
+
+The page lists what you applied to and were turned down for, so it is not
+published open. `site/_worker.js` runs on every request and asks for
+`SITE_PASSWORD` over HTTP Basic auth — the browser's own prompt, which Safari
+offers to save to the keychain, so it is one tap after the first time. The
+deploy pushes the secret to Cloudflare for you; there is one place to change it.
+
+Deliberately **not** the Pages "Access policy" toggle in the Cloudflare
+dashboard: that one covers preview deployments only and leaves the real
+`<project>.pages.dev` URL open to anyone with the link. Protecting that through
+Cloudflare instead means onboarding Zero Trust, which is a lot of account setup
+for one page.
+
+With no `SITE_PASSWORD` set the site answers 503 and says so, rather than
+serving the history to whoever asks. `node site/_worker.test.mjs` checks the
+gate.
+
 ## Notes
 
 - `.seen.json` records when a posting was first seen, which is what dates a role

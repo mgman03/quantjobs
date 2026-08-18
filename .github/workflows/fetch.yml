@@ -49,11 +49,17 @@ jobs:
           "$BIN/QuantJobs" web/index.html
           ls -lh web/index.html
 
+      # Pages hands every request to a _worker.js at the root of the deployed
+      # directory, which is what asks for the password. It lives in site/
+      # rather than web/ because web/ is generated and gitignored.
+      - name: Put the password gate next to the page
+        run: cp site/_worker.js web/_worker.js
+
       - name: Keep the page as an artifact
         uses: actions/upload-artifact@v4
         with:
           name: quantjobs-page
-          path: web/index.html
+          path: web            # the page and the function that guards it
           retention-days: 14
 
       # Force-pushed, so the branch is always exactly one commit and the file's
@@ -101,8 +107,10 @@ jobs:
       #   2. Account ID from the dashboard URL: dash.cloudflare.com/<id>/...
       #   3. this repo -> Settings -> Secrets and variables -> Actions -> add
       #      CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
-      #   4. Cloudflare -> the quantjobs project -> Settings -> Access policy,
-      #      one-time PIN to your email. That is the password, free.
+      #   4. add a SITE_PASSWORD secret in the same place. That is the password
+      #      the page asks for; without it the site answers 503 and says so.
+      #      (Not the Pages "Access policy" toggle — that one covers preview
+      #      deployments only and leaves quantjobs.pages.dev itself open.)
       # wrangler will not create the project implicitly — it answers 8000007,
       # "project not found". Creating it is idempotent in effect: every run after
       # the first fails with "already exists", which is why this one is allowed to.
@@ -116,6 +124,22 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages project create quantjobs --production-branch=main
+
+      # Kept in GitHub rather than typed into the Cloudflare dashboard, so there
+      # is one place to change it. Idempotent — it overwrites the same secret
+      # every run. Skipped when unset, in which case the deployed site answers
+      # 503 and says so rather than serving the history to anyone with the link.
+      - name: Give Cloudflare the site password
+        if: env.CF_TOKEN != '' && env.SITE_PASSWORD != ''
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          printf '%s' "$SITE_PASSWORD" \
+            | npx --yes wrangler@4 pages secret put SITE_PASSWORD \
+                --project-name=quantjobs
 
       - name: Publish to Cloudflare Pages
         if: env.CF_TOKEN != ''
