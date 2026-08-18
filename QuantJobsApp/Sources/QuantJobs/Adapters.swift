@@ -596,7 +596,11 @@ enum Adapters {
 
         func rows(_ url: String) async throws -> [SimplifyRow] {
             if let hit = cache[url] { return hit }
-            guard let list = try await HTTP.json(url) as? [[String: Any]] else {
+            // Data rather than HTTP.json: `Any` is not Sendable and this is an
+            // actor, so decoding has to happen on this side of the hop.
+            let raw = try await HTTP.data(url)
+            guard let list = try? JSONSerialization.jsonObject(with: raw)
+                    as? [[String: Any]] else {
                 throw FetchError.badPayload("unexpected Simplify payload")
             }
             let parsed = list.compactMap { j -> SimplifyRow? in

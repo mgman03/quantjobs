@@ -277,9 +277,9 @@ final class AppModel {
         if status == .applied {
             stored = entries
                 .sorted { $0.lastActivity > $1.lastActivity }
-                .map(Self.snapshot)
+                .map { Self.snapshot($0) }
         } else {
-            stored = entries.map(Self.snapshot).sortedByRecency()
+            stored = entries.map { Self.snapshot($0) }.sortedByRecency()
         }
         // The saved lists merge too, so a role saved once doesn't come back as
         // one row per office.
