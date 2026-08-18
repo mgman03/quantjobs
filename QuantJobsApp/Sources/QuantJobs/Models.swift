@@ -5,7 +5,7 @@ import Foundation
 enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
     case greenhouse, lever, ashby, smartrecruiters, workday, amazon
     case eightfold, jibe, uber, wolverine, citadel, optiver, twosigma, simplify
-    case sitemap, janestreet, deshaw, gresearch, google, apple
+    case sitemap, janestreet, deshaw, gresearch, google, apple, stripe
 
     var id: String { rawValue }
 
@@ -31,6 +31,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         case .gresearch: "gresearch.com"
         case .google: "google.com/careers"
         case .apple: "jobs.apple.com"
+        case .stripe: "Greenhouse + stripe.com"
         }
     }
 

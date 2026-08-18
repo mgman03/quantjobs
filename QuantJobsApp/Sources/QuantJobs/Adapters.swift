@@ -24,6 +24,7 @@ enum Adapters {
     static func fetch(_ c: Company, deep: Bool) async throws -> [RawJob] {
         switch c.ats {
         case .greenhouse:      try await greenhouse(c, deep: deep)
+        case .stripe:          try await stripe(c, deep: deep)
         case .lever:           try await lever(c, deep: deep)
         case .ashby:           try await ashby(c, deep: deep)
         case .smartrecruiters: try await smartrecruiters(c, deep: deep)
@@ -77,6 +78,66 @@ enum Adapters {
                 department: depts.joined(separator: ", "),
                 description: deep ? Clean.html(j["content"] as? String) : "")
         }
+    }
+
+    // MARK: - Stripe
+
+    /// Stripe's Greenhouse board, narrowed to what stripe.com actually lists.
+    ///
+    /// Greenhouse keeps answering for postings Stripe has already taken down:
+    /// 578 jobs on the board against 544 on the careers site, and the ones in
+    /// between are dead. They look perfectly alive in a list — the Dublin
+    /// "Software Engineer, Intern" was one — and the board's own link goes to a
+    /// page that says "Sorry", because `stripe.com/jobs/search?gh_jid=…` is a
+    /// redirect that only resolves for a posting the site still has. There is
+    /// no field on the Greenhouse record that says so.
+    ///
+    /// The careers page is a Next.js app, so its index of live roles ships
+    /// inside the document it serves, keyed by the same Greenhouse id. That
+    /// makes the check one extra request for the whole board: keep the
+    /// Greenhouse data, which has the posted dates and departments the index
+    /// lacks, and drop anything the index does not know about.
+    ///
+    /// The URL is rebuilt from the index's slug for the same reason — the
+    /// direct listing link needs no redirect to resolve.
+    static func stripe(_ c: Company, deep: Bool) async throws -> [RawJob] {
+        let jobs = try await greenhouse(c, deep: deep)
+        guard let live = try? await stripeListings() , !live.isEmpty else {
+            // The careers page moved or stopped hydrating. Better a board with
+            // a few dead links than no Stripe at all.
+            return jobs
+        }
+        return jobs.compactMap { job in
+            guard let id = job.url.components(separatedBy: "gh_jid=").last,
+                  let slug = live[id]
+            else { return nil }
+            var kept = job
+            kept.url = "https://stripe.com/careers/listing/\(slug)/\(id)"
+            return kept
+        }
+    }
+
+    /// Greenhouse id → careers-site slug, for every role stripe.com lists.
+    private static func stripeListings() async throws -> [String: String] {
+        let raw = try await HTTP.data("https://stripe.com/jobs/search",
+                                      headers: Self.browserHeaders)
+        let html = String(decoding: raw, as: UTF8.self)
+        guard let payload = Self.nextDataPayload(html),
+              let props = (payload["props"] as? [String: Any])?["pageProps"]
+                as? [String: Any],
+              let index = props["jobIndexData"] as? [String: Any],
+              let listings = index["listings"] as? [[String: Any]]
+        else { throw FetchError.badPayload("no job index on the Stripe careers page") }
+
+        var out: [String: String] = [:]
+        for l in listings {
+            guard let slug = l["slug"] as? String, !slug.isEmpty else { continue }
+            // A JSON number in the payload, a string in the Greenhouse URL.
+            let id = (l["greenhouseId"] as? NSNumber).map { "\($0)" }
+                ?? l["greenhouseId"] as? String ?? ""
+            if !id.isEmpty { out[id] = slug }
+        }
+        return out
     }
 
     // MARK: - Lever
