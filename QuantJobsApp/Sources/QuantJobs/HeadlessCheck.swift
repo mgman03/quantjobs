@@ -42,6 +42,14 @@ enum HeadlessCheck {
         default: .intern
         }
 
+        // A snapshot to read on a phone. See WebExport for why this is an export
+        // and not a web scraper.
+        if let i = args.firstIndex(of: "--web"), i + 1 < args.count {
+            let out = args[i + 1]
+            Task { exit(await WebExport.run(to: out)) }
+            dispatchMain()
+        }
+
         // One board, raw. Writing an adapter means looking at what it returns
         // before any category or level filter has had a chance to hide a mistake,
         // and a full run over every enabled firm takes minutes to answer a
