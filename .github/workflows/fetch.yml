@@ -36,3 +36,26 @@ jobs:
           name: quantjobs-page
           path: web/index.html
           retention-days: 14
+
+      # Publishes to Cloudflare Pages when the two secrets exist, and is skipped
+      # entirely when they do not — so the fetch keeps working, and the page keeps
+      # arriving as a build artifact, until you decide to give it a URL.
+      #
+      # To turn it on, once:
+      #   1. dash.cloudflare.com → Workers & Pages → Create → Pages →
+      #      "Create using direct upload", name it "quantjobs"
+      #   2. My Profile → API Tokens → Create Token → template "Edit Cloudflare
+      #      Workers", or a custom token with the Cloudflare Pages: Edit permission
+      #   3. this repo → Settings → Secrets and variables → Actions → add
+      #      CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
+      #   4. back in Cloudflare: the project → Settings → enable Access policy,
+      #      one-time PIN to your email. That is the password, free, up to 50 users.
+      - name: Publish to Cloudflare Pages
+        if: env.CF_TOKEN != ''
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy web --project-name=quantjobs
