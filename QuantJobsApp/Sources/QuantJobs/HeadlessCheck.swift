@@ -1,3 +1,7 @@
+// Wrapped so the package still builds where SwiftUI does not exist —
+// the scraper has to run on Linux for the scheduled fetch, and only the
+// window needs Apple's UI frameworks.
+#if canImport(SwiftUI)
 import Foundation
 import SwiftUI
 import AppKit
@@ -1114,3 +1118,4 @@ enum HeadlessCheck {
         return lines.joined(separator: "\n")
     }
 }
+#endif

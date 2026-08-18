@@ -1,0 +1,38 @@
+# Fetches every board on a schedule and builds the page the phone reads, so the
+# tracker keeps working with the Mac shut. Runs on GitHub's Ubuntu runners, which
+# are free and unmetered for a public repository.
+#
+# It is the same Swift scraper the app uses — the adapters are not reimplemented
+# for the server. That is why the package builds without SwiftUI.
+name: fetch
+
+on:
+  schedule:
+    - cron: "17 5,17 * * *"     # twice a day, off the hour to avoid the stampede
+  workflow_dispatch:             # and on demand from the Actions tab
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    container: swift:5.10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the scraper
+        run: swift build -c release --package-path QuantJobsApp
+
+      - name: Fetch every board and write the page
+        env:
+          QUANTJOBS_CONFIG: ${{ github.workspace }}
+        run: |
+          mkdir -p web
+          BIN=$(swift build -c release --package-path QuantJobsApp --show-bin-path)
+          "$BIN/QuantJobs" web/index.html
+          ls -lh web/index.html
+
+      - name: Keep the page as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantjobs-page
+          path: web/index.html
+          retention-days: 14

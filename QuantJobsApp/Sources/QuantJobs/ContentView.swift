@@ -1,3 +1,7 @@
+// Wrapped so the package still builds where SwiftUI does not exist —
+// the scraper has to run on Linux for the scheduled fetch, and only the
+// window needs Apple's UI frameworks.
+#if canImport(SwiftUI)
 import SwiftUI
 import AppKit
 
@@ -1519,3 +1523,4 @@ struct JobDetailContent: View {
         }
     }
 }
+#endif

@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(CryptoKit)
 import CryptoKit
+#endif
 
 /// Reads and writes the same `companies.json` / `categories.json` the Python CLI uses,
 /// so the two tools can share one config folder.
@@ -110,6 +112,18 @@ enum ConfigStore {
 
     /// Copy the bundled defaults into the config folder the first time we run
     /// against a location that has no config yet.
+    /// Unchanged on Apple platforms, so an existing stamp still matches and the
+    /// roster is not needlessly re-seeded. Elsewhere any stable digest will do.
+    static func digest(_ data: Data) -> String {
+        #if canImport(CryptoKit)
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        #else
+        var h: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in data { h = (h ^ UInt64(byte)) &* 0x1000_0000_1b3 }
+        return String(h, radix: 16)
+        #endif
+    }
+
     static func seedIfNeeded() {
         seedMissingFiles()
         mergeBundledRoster()
@@ -169,7 +183,7 @@ enum ConfigStore {
                                             withExtension: "json"),
               let seedData = try? Data(contentsOf: seedURL) else { return }
 
-        let hash = SHA256.hash(data: seedData).map { String(format: "%02x", $0) }.joined()
+        let hash = digest(seedData)
         let previous = readStamp()
         guard previous?.hash != hash else { return }
 

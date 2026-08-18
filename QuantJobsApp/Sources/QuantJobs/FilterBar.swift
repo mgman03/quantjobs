@@ -1,3 +1,7 @@
+// Wrapped so the package still builds where SwiftUI does not exist —
+// the scraper has to run on Linux for the scheduled fetch, and only the
+// window needs Apple's UI frameworks.
+#if canImport(SwiftUI)
 import SwiftUI
 
 /// The row of controls above the table: level, place, firms, date, applied,
@@ -328,3 +332,4 @@ struct SearchField: View {
         .help("Filter the roles already on screen")
     }
 }
+#endif

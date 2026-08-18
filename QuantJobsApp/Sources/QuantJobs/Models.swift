@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 // MARK: - ATS
 
@@ -751,18 +750,6 @@ enum Stage: String, Codable, CaseIterable, Identifiable, Sendable {
     var receivedVerb: String { self == .assessment ? "received" : "scheduled" }
     var doneVerb: String { self == .assessment ? "submitted" : "done" }
 
-    /// One colour scale for the whole pipeline. It lives on the stage rather
-    /// than on a view because it's what the stage *means* — three views were
-    /// reaching into `ContentView` for a static to get at it.
-    var tint: Color {
-        switch self {
-        case .applied: .secondary
-        case .assessment, .interview, .final: .orange
-        case .offer: .green
-        case .rejected: .red
-        case .withdrawn: .secondary
-        }
-    }
 
     var order: Int { Self.allCases.firstIndex(of: self) ?? 0 }
 }

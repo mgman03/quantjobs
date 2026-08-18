@@ -1,3 +1,7 @@
+// Wrapped so the package still builds where SwiftUI does not exist —
+// the scraper has to run on Linux for the scheduled fetch, and only the
+// window needs Apple's UI frameworks.
+#if canImport(SwiftUI)
 import SwiftUI
 
 /// Continent on the left, cities on the right, both multi-select.
@@ -160,3 +164,4 @@ struct PlaceFilter: View {
             .padding(.bottom, 10)
     }
 }
+#endif
