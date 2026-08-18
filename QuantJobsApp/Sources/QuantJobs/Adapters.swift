@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking   // URLSession lives here off Apple platforms
+#endif
 
 /// One posting exactly as a board handed it over, before we know anything
 /// about which company or category it belongs to.

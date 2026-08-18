@@ -668,8 +668,11 @@ final class AppModel {
     /// The full board editor, now reachable only from the Scrape menu.
     var showBoardEditor = false
 
-    /// Checks GitHub for a newer release; see Updater.
+    #if canImport(SwiftUI)
+    /// Checks GitHub for a newer release; see Updater. Apple-only: it swaps a
+    /// running .app bundle, which is not a thing on the server.
     let updater = Updater()
+    #endif
     var refreshOnLaunch = true
     var refreshIfOlderThanHours = 6
 

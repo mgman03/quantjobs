@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking   // URLSession lives here off Apple platforms
+#endif
 
 /// Thin wrapper over URLSession with the same retry policy the Python CLI uses:
 /// a 4xx is a real answer (bad token) and fails immediately, everything else
