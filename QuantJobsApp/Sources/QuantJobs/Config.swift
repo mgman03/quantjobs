@@ -294,14 +294,14 @@ enum ConfigStore {
 
     // MARK: seen-before state
 
-    static func loadSeen() -> [String: String] {
+    static func loadSeen() -> [String: Sighting] {
         guard let data = try? Data(contentsOf: seenURL),
-              let d = try? JSONDecoder().decode([String: String].self, from: data)
+              let d = try? JSONDecoder().decode([String: Sighting].self, from: data)
         else { return [:] }
         return d
     }
 
-    static func saveSeen(_ seen: [String: String]) {
+    static func saveSeen(_ seen: [String: Sighting]) {
         let enc = JSONEncoder()
         enc.outputFormatting = [.sortedKeys]
         try? enc.encode(seen).write(to: seenURL, options: .atomic)

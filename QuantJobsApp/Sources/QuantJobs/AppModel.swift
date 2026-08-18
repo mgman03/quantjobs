@@ -176,7 +176,7 @@ final class AppModel {
     private(set) var newCount = 0
     var loadError: String?
 
-    private var seen: [String: String] = [:]
+    private var seen: [String: Sighting] = [:]
     private var task: Task<Void, Never>?
 
     // MARK: - Lists
@@ -646,7 +646,7 @@ final class AppModel {
     private struct LoadedConfig: Sendable {
         var companies: [Company] = []
         var categories: [JobCategory] = []
-        var seen: [String: String] = [:]
+        var seen: [String: Sighting] = [:]
         var tracked: [String: TrackedJob] = [:]
         var comment: [String]?
         var cache: ConfigStore.ResultCache?
@@ -862,7 +862,7 @@ final class AppModel {
             jobs = cache.jobs.map { job in
                 guard job.posted.isEmpty else { return job }
                 var copy = job
-                copy.firstSeen = seen[job.key] ?? seen[job.legacyKey] ?? ""
+                copy.firstSeen = Sighting.firstSeen(of: job, in: seen) ?? ""
                 return copy
             }
             showingCache = true
@@ -1231,7 +1231,7 @@ final class AppModel {
                     // Stand-in date for boards that state none. Today for one we
                     // have never seen, since that's when we first saw it.
                     if job.posted.isEmpty {
-                        job.firstSeen = known[job.key] ?? known[job.legacyKey] ?? today
+                        job.firstSeen = Sighting.firstSeen(of: job, in: known) ?? today
                     }
                     kept.append(job)
                 }
@@ -1347,7 +1347,40 @@ final class AppModel {
 
     private func recordSeen(_ jobs: [Job]) {
         let today = Job.dateFormatter.string(from: Date())
-        for j in jobs where seen[j.key] == nil { seen[j.key] = today }
+        for j in jobs {
+            // Still listed today, whether or not this is the first time.
+            // Nothing reads the last date in the app; it is what lets the
+            // scheduled fetch drop postings that are long gone.
+            if var s = seen[j.key] {
+                guard s.last != today else { continue }
+                s.last = today
+                seen[j.key] = s
+            } else {
+                seen[j.key] = Sighting(first: Sighting.firstSeen(of: j, in: seen) ?? today,
+                                       last: today)
+            }
+        }
+        ConfigStore.saveSeen(seen)
+    }
+
+    /// Folds the scheduled fetch's ledger into the local one, so a posting
+    /// carries the date it was first advertised rather than the date this
+    /// particular machine happened to notice it. See `SharedLedger`.
+    func mergeSharedLedger() async {
+        let incoming = await SharedLedger.fetch()
+        guard !incoming.isEmpty else { return }
+        guard SharedLedger.merge(incoming, into: &seen) > 0 else { return }
+        ConfigStore.saveSeen(seen)
+        for i in jobs.indices where jobs[i].posted.isEmpty {
+            jobs[i].firstSeen = Sighting.firstSeen(of: jobs[i], in: seen) ?? jobs[i].firstSeen
+        }
+    }
+
+    /// Forgets postings last listed more than `days` ago. Only for the
+    /// scheduled fetch, which sees every board on every run — see
+    /// `SharedLedger.pruned`.
+    func pruneSeen(days: Int) {
+        seen = SharedLedger.pruned(seen, days: days)
         ConfigStore.saveSeen(seen)
     }
 

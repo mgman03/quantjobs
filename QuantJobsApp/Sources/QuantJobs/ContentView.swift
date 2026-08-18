@@ -184,6 +184,9 @@ struct ContentView: View {
             // Deliberately after the window is up: the first read of the config
             // folder can trigger a macOS permission prompt.
             if !model.isLoaded { await model.reload() }
+            // Before the scrape, so rows land already carrying the date the
+            // scheduled fetch first saw them rather than this machine's.
+            await model.mergeSharedLedger()
             await model.updater.checkOnLaunch()
             // Refresh on open only when the cache is stale — otherwise the
             // window comes up instantly on last run's results and waits for ⌘R.

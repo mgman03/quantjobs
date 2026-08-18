@@ -25,6 +25,11 @@ struct LinuxMain {
         }
         let count = await model.jobs.count
         FileHandle.standardError.write(Data("fetched \(count) postings\n".utf8))
+
+        // This run saw every board, so a posting missing from it is missing from
+        // the internet, not from the filter. That is the one place it is safe to
+        // forget anything — see SharedLedger.pruned for why it is still by date.
+        await model.pruneSeen(days: 30)
         _ = await WebExport.run(to: out)
     }
 }

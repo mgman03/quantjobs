@@ -19,6 +19,7 @@ enum HeadlessCheck {
         if args.contains("--settings") { runSettingsCheck() }
         if args.contains("--update") { runUpdateCheck() }
         if args.contains("--migrate") { runMigrationCheck() }
+        if args.contains("--ledger") { runLedgerCheck() }
         if let i = args.firstIndex(of: "--render"), i + 1 < args.count {
             runRender(to: args[i + 1])
         }
@@ -722,6 +723,27 @@ enum HeadlessCheck {
         dispatchMain()
     }
 
+    /// `--check --ledger` reports what the scheduled fetch knows about first-seen
+    /// dates, and what folding it into this machine's copy would change. Read
+    /// only — it never writes, so it can be run to answer "why does my phone
+    /// say this is three weeks old and my laptop says today?".
+    private static func runLedgerCheck() -> Never {
+        Task {
+            let remote = await SharedLedger.fetch()
+            var local = ConfigStore.loadSeen()
+            let before = local.count
+            let changed = SharedLedger.merge(remote, into: &local)
+            print("remote    \(remote.count) postings · \(SharedLedger.url)")
+            print("local     \(before) postings")
+            print("merge     \(changed) would change · \(local.count - before) new")
+            if let (k, v) = remote.sorted(by: { $0.value.first < $1.value.first }).first {
+                print("earliest  \(v.first) → \(v.last)  \(k)")
+            }
+            exit(remote.isEmpty ? 1 : 0)
+        }
+        dispatchMain()
+    }
+
     /// `--check --model` drives the real `AppModel` — the path the window uses —
     /// rather than calling the scraper directly, so the incremental ingest,
     /// the live filters and the export all get exercised without a UI.
@@ -1049,6 +1071,39 @@ enum HeadlessCheck {
                       + "\(rescued.count) given a first-seen date · "
                       + "\(stillBlank) still blank · "
                       + "undated rows stuck at the bottom: \(lastTen)")
+            }
+
+            // The shared ledger, offline: the file it reads is written by the
+            // scheduled fetch and read by every machine, so a format that only
+            // half survives the round trip would silently re-date everything.
+            do {
+                let old = Data(#"{"a":"2026-01-02"}"#.utf8)
+                let new = Data(#"{"a":["2026-01-02","2026-03-04"]}"#.utf8)
+                let dec = JSONDecoder()
+                let fromOld = (try? dec.decode([String: Sighting].self, from: old)) ?? [:]
+                var store = (try? dec.decode([String: Sighting].self, from: new)) ?? [:]
+                let asWritten = store
+                let roundTrip = (try? JSONEncoder().encode(store))
+                    .flatMap { try? dec.decode([String: Sighting].self, from: $0) }
+
+                // An older date arriving from the fetch wins; a newer one does not.
+                let earlier = SharedLedger.merge(["a": Sighting(first: "2025-12-31",
+                                                                last: "2026-03-04")],
+                                                 into: &store)
+                let later = SharedLedger.merge(["a": Sighting(first: "2026-06-01",
+                                                              last: "2026-03-04")],
+                                               into: &store)
+                let kept = SharedLedger.pruned(["live": Sighting(first: "2020-01-01",
+                                                                 last: Job.dateFormatter
+                                                                     .string(from: Date())),
+                                                "gone": Sighting(first: "2020-01-01",
+                                                                 last: "2020-01-02")],
+                                               days: 30)
+                print("ledger    old format → \(fromOld["a"]?.first ?? "nil") · "
+                      + "round trip \(roundTrip == asWritten ? "ok" : "BROKEN") · "
+                      + "earlier wins=\(earlier == 1 && store["a"]?.first == "2025-12-31") · "
+                      + "later ignored=\(later == 0) · "
+                      + "prune \(kept.count) of 2 kept")
             }
 
             print("\nmerge     \(unmerged) postings → \(merged.count) rows")

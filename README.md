@@ -119,7 +119,8 @@ the two stay in sync and you can use whichever suits the moment.
   filter offers only years actually present, with a count each. A posting that names
   no year is never filtered out, because most name none.
 - **A posting with no date shows when it was first seen** — `~ 6d`, with the tilde
-  marking it inferred rather than stated. Boards that ship no posted date used to
+  marking it inferred rather than stated, and it is when the *tracker* first saw it
+  rather than when this Mac did (see Notes). Boards that ship no posted date used to
   leave the column blank, which sorted them to the bottom and made a role found
   yesterday look older than one from last month.
 - **The Firms picker narrows by tier**, so "only the premium ones" is one click.
@@ -380,6 +381,14 @@ your on/off choices.
 
 - `.seen.json` records when a posting was first seen, which is what dates a role
   whose board publishes no date. Delete it to reset.
+- **First-seen dates are shared, not per-machine.** A posting has one date it was
+  first advertised, so the scheduled fetch keeps the ledger on the repository's
+  `state` branch — one force-pushed commit, no history — and the app folds it in at
+  launch, earliest date winning. Without it the twice-daily rebuild started from an
+  empty file every run and dated everything "found today", which is what Jane
+  Street's board, publishing no dates of its own, looked like on the phone.
+  `QuantJobs --check --ledger` prints what the fetch knows and what merging it would
+  change.
 - `.tracked.json` holds what you've saved, applied to or hidden, and the application
   timeline for each. It survives a board deleting the posting.
 - Boards are fetched concurrently with retries. A firm that fails is reported in the

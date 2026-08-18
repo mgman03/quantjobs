@@ -15,8 +15,27 @@ jobs:
   fetch:
     runs-on: ubuntu-latest
     container: swift:6.0
+    permissions:
+      contents: write        # only to force-push the ledger to the state branch
     steps:
       - uses: actions/checkout@v4
+
+      # A posting has one date it was first advertised, not one per machine. The
+      # workspace is thrown away when the run ends, so without this every run
+      # started from an empty .seen.json and dated every undated posting today —
+      # which is how Jane Street, whose board states no dates at all, came to
+      # read "found today" on a page rebuilt twice a day.
+      #
+      # The ledger lives on the `state` branch: one force-pushed commit carrying
+      # no history, so the repository does not grow by a megabyte a run.
+      - name: Restore the first-seen ledger
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch --depth=1 origin state 2>/dev/null \
+            && git show FETCH_HEAD:first-seen.json > .seen.json \
+            || echo '{}' > .seen.json
+          cp .seen.json .seen.json.restored
+          echo "restored $(wc -c < .seen.json) bytes"
 
       - name: Build the scraper
         run: swift build -c release --package-path QuantJobsApp
@@ -36,6 +55,31 @@ jobs:
           name: quantjobs-page
           path: web/index.html
           retention-days: 14
+
+      # Force-pushed, so the branch is always exactly one commit and the file's
+      # old versions become unreachable rather than accumulating in the history.
+      # Nothing on `main` is touched.
+      #
+      # The size guard is the point of the step: a run where every board timed
+      # out would write a nearly empty ledger, and pushing that would date every
+      # posting "found today" all over again — the exact bug this fixes.
+      - name: Publish the first-seen ledger
+        run: |
+          before=$(wc -c < .seen.json.restored)
+          after=$(wc -c < .seen.json)
+          echo "ledger $before -> $after bytes"
+          if [ "$before" -gt 1000 ] && [ "$after" -lt $((before / 2)) ]; then
+            echo "::error::ledger shrank by more than half — not publishing it"
+            exit 1
+          fi
+          cp .seen.json first-seen.json
+          git checkout --orphan state-new
+          git reset
+          git add -f first-seen.json
+          git -c user.name="quantjobs" \
+              -c user.email="quantjobs@users.noreply.github.com" \
+              commit -q -m "first-seen ledger $(date -u +%F) ($(date -u +%R) UTC)"
+          git push -qf origin state-new:state
 
   # A separate job on a plain runner: the Swift container has no Node, and the
   # Cloudflare action installs wrangler with npm. Splitting is cheaper than
