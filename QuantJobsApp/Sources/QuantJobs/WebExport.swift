@@ -96,15 +96,21 @@ enum WebExport {
         <title>Quant Jobs</title>
         <style>
         :root {
-          --bg: #fff; --fg: #111; --dim: #6b6b70; --line: #e4e4e8;
-          --chip: #f1f1f4; --accent: #0a63d6; --owed: #b45309;
+          /* Neutrals warmed a touch off pure grey so they read as chosen, and
+             a semantic amber for "you still owe this" that is not the accent. */
+          --bg: #fbfaf8; --fg: #16181d; --dim: #5f6672; --line: #e3e2de;
+          --chip: #efeeea; --accent: #2f4fd0; --owed: #a1631a;
         }
-        @media (prefers-color-scheme: dark) {
-          :root {
-            --bg: #16161a; --fg: #f2f2f4; --dim: #9a9aa2; --line: #2a2a31;
-            --chip: #23232a; --accent: #64a8ff; --owed: #f0b45f;
-          }
-        }
+        /* The OS preference, then the viewer's own toggle, which must win in
+           both directions — a host that stamps data-theme on the root would
+           otherwise be overridden by the media query. */
+        @media (prefers-color-scheme: dark) { :root { --bg: #101216; --fg: #eceef2;
+          --dim: #939aa6; --line: #262a33; --chip: #1c2027; --accent: #7aa2f7;
+          --owed: #e0a458; } }
+        :root[data-theme="dark"] { --bg: #101216; --fg: #eceef2; --dim: #939aa6;
+          --line: #262a33; --chip: #1c2027; --accent: #7aa2f7; --owed: #e0a458; }
+        :root[data-theme="light"] { --bg: #fbfaf8; --fg: #16181d; --dim: #5f6672;
+          --line: #e3e2de; --chip: #efeeea; --accent: #2f4fd0; --owed: #a1631a; }
         * { box-sizing: border-box; -webkit-text-size-adjust: 100%; }
         body {
           margin: 0; background: var(--bg); color: var(--fg);
@@ -141,7 +147,14 @@ enum WebExport {
         .co { font-size: 12px; color: var(--dim); display: flex; gap: 6px;
               align-items: center; flex-wrap: wrap; }
         .ti { font-weight: 600; margin: 1px 0 2px; }
-        .me { font-size: 12px; color: var(--dim); }
+        .me { font-size: 12px; color: var(--dim);
+              font-variant-numeric: tabular-nums; }
+        a.row:focus-visible, .tabs button:focus-visible, input:focus-visible {
+          outline: 2px solid var(--accent); outline-offset: -2px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          * { animation: none !important; transition: none !important; }
+        }
         .tag {
           font-size: 11px; padding: 1px 6px; border-radius: 99px;
           background: var(--chip); color: var(--dim);
