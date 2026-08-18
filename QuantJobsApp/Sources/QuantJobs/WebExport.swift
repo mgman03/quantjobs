@@ -21,18 +21,25 @@ enum WebExport {
         let model = AppModel()
         await model.reload()
 
-        // Every posting worth showing, each once: what the results list shows,
-        // plus anything marked, which may no longer be on any board.
+        // Every early-career posting in every category, not the one slice the
+        // window happens to be showing. The page can only filter what it was
+        // given, so giving it less than the app has is what made it a reading
+        // list rather than the same tool.
         var seen = Set<String>()
         var rows: [(Job, TrackedJob?)] = []
-        for job in model.visibleJobs where seen.insert(job.key).inserted {
+        for job in model.jobs
+        where !job.matchedLevels.isDisjoint(with: ["intern", "newgrad"])
+            && seen.insert(job.key).inserted {
             rows.append((job, model.trackedEntry(for: job)))
         }
+        // Anything marked comes too, at any level, since a role you applied to
+        // matters whether or not it still matches a filter.
         for entry in model.tracked.values
         where (entry.saved || entry.hasApplication || entry.hidden)
             && seen.insert(entry.job.key).inserted {
             rows.append((entry.job, entry))
         }
+        rows.sort { $0.0.effectiveDate > $1.0.effectiveDate }
 
         // matchedStacks is not persisted in the cache — it is tagged at ingest and
         // a cache-restored job carries none — so the stack filter would have had
@@ -86,7 +93,14 @@ enum WebExport {
         let age = Dates.compact(j.effectiveDate)
             .map { (j.dateIsInferred ? "~ " : "") + $0 } ?? ""
         let year = j.intakeYear.map { "’" + String(String($0).suffix(2)) } ?? ""
-        let bits = (j.company + " " + j.shortTitle + " " + j.locationDisplay).lowercased()
+        let bits = (j.company + " " + j.shortTitle + " " + j.locationDisplay
+                    + " " + j.department).lowercased()
+        // "Applied,2026-08-01,;OA,2026-08-05,2026-08-09" — stage, arrival, and the
+        // date it was sat where that applies. One string keeps the whole history on
+        // the row so the sheet can render and edit it.
+        let steps = (e?.milestones ?? [])
+            .map { "\($0.stage.short),\($0.date),\($0.done ?? "")" }
+            .joined(separator: ";")
         // Days since the date the app would show, so the date filter is a number
         // comparison rather than date parsing in the page.
         let days: String = {
@@ -108,6 +122,17 @@ enum WebExport {
         data-region="\(esc(j.continents.joined(separator: "|")))" \
         data-stacks="\(esc(j.matchedStacks.sorted().joined(separator: "|")))" \
         data-phd="\(j.wantsPhD ? 1 : 0)" \
+        data-cat="\(esc(j.matchedCategories.sorted().joined(separator: "|")))" \
+        data-levels="\(esc(j.matchedLevels.sorted().joined(separator: "|")))" \
+        data-city="\(esc(j.cities.joined(separator: "|")))" \
+        data-full="\(esc(j.title))" \
+        data-team="\(esc(j.department))" \
+        data-board="\(esc(j.ats.label))" \
+        data-tags="\(esc(j.tags.joined(separator: "|")))" \
+        data-posted="\(esc(j.effectiveDate))\(j.dateIsInferred ? " (first seen)" : "")" \
+        data-desc="\(esc(String(j.description.prefix(1200))))" \
+        data-steps="\(esc(steps))" \
+        data-note="\(esc(e?.note ?? ""))" \
         data-find="\(esc(bits))">
             <div class="marks">
               <button class="mk save" data-act="save" aria-label="Save">★</button>
@@ -239,6 +264,60 @@ enum WebExport {
         .go { color: var(--dim); text-decoration: none; font-size: 15px;
               padding: 4px 2px 4px 6px; }
         [data-local-hide] { display: none !important; }
+        /* Detail sheet: the app's panel, as a sheet because a phone has no room
+           for a third column. */
+        #sheet { position: fixed; inset: 0; z-index: 20; }
+        .sheet-bg { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
+        .sheet-card {
+          position: absolute; left: 0; right: 0; bottom: 0; max-height: 88vh;
+          overflow-y: auto; background: var(--panel); color: var(--fg);
+          border-radius: 14px 14px 0 0; padding: 16px 15px
+          calc(20px + env(safe-area-inset-bottom));
+          box-shadow: 0 -8px 30px rgba(0,0,0,.35);
+        }
+        .sheet-x {
+          position: absolute; top: 12px; right: 12px; width: 28px; height: 28px;
+          border: 0; border-radius: 99px; background: var(--chip); color: var(--dim);
+          font-size: 13px; cursor: pointer;
+        }
+        .sheet-card h2 { margin: 0 34px 2px 0; font-size: 17px; line-height: 1.25;
+                         text-wrap: balance; }
+        .sheet-card h3 { margin: 16px 0 7px; font-size: 12px; color: var(--dim);
+                         text-transform: uppercase; letter-spacing: .06em; }
+        .s-sub { font-size: 12.5px; color: var(--dim); margin-bottom: 12px; }
+        .s-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+        .btn {
+          flex: 1 1 auto; text-align: center; padding: 9px 12px; font: inherit;
+          font-size: 13.5px; border-radius: 8px; border: 1px solid var(--line);
+          background: var(--chip); color: var(--fg); cursor: pointer;
+          text-decoration: none;
+        }
+        .btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
+        .btn.on { background: color-mix(in srgb, var(--accent) 25%, var(--chip)); }
+        .s-grid { display: grid; grid-template-columns: 86px 1fr; gap: 5px 10px;
+                  margin-top: 14px; font-size: 13px; }
+        .s-grid dt { color: var(--dim); }
+        .s-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 12px; }
+        .s-steps { display: flex; flex-direction: column; gap: 7px; }
+        .step { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+        .step .dot { width: 8px; height: 8px; border-radius: 99px;
+                     background: var(--accent); flex: 0 0 auto; }
+        .step .when { color: var(--dim); font-variant-numeric: tabular-nums;
+                      margin-left: auto; font-size: 12px; }
+        .step button { border: 0; background: var(--chip); color: var(--dim);
+                       border-radius: 6px; padding: 3px 7px; font-size: 11px;
+                       cursor: pointer; }
+        .s-add { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+        .s-add select, .s-add input {
+          flex: 1 1 40%; font: inherit; font-size: 13px; padding: 7px 9px;
+          border: 1px solid var(--line); border-radius: 8px;
+          background: var(--chip); color: var(--fg);
+        }
+        #s-note { width: 100%; font: inherit; font-size: 13.5px; padding: 9px;
+                  border: 1px solid var(--line); border-radius: 8px;
+                  background: var(--chip); color: var(--fg); resize: vertical; }
+        .s-desc { margin-top: 14px; font-size: 13px; color: var(--dim);
+                  white-space: pre-wrap; }
         .empty { padding: 44px 18px; text-align: center; color: var(--dim); }
         footer { padding: 14px 12px calc(20px + env(safe-area-inset-bottom));
                  color: var(--dim); font-size: 11.5px; }
@@ -263,8 +342,9 @@ enum WebExport {
           <input type="search" id="q" placeholder="Filter by role, firm or place"
                  autocomplete="off" autocapitalize="off" spellcheck="false">
           <div class="filters">
+            <select id="f-cat" aria-label="Category"></select>
             <select id="f-level" aria-label="Level">
-              <option value="">Any level</option>
+              <option value="">Both</option>
               <option value="intern" selected>Intern</option>
               <option value="newgrad">New grad</option>
             </select>
@@ -278,9 +358,21 @@ enum WebExport {
             <select id="f-year" aria-label="Intake year"></select>
             <select id="f-region" aria-label="Region"></select>
             <select id="f-stack" aria-label="Stack to leave out"></select>
+            <select id="f-city" aria-label="City"></select>
+            <select id="f-firm" aria-label="Firm"></select>
             <select id="f-phd" aria-label="Doctorate">
               <option value="">PhD roles too</option>
               <option value="1">No PhD roles</option>
+            </select>
+            <select id="f-applied" aria-label="Roles applied to">
+              <option value="">Applied: shown</option>
+              <option value="roles">Applied: hidden</option>
+              <option value="firms">Applied firms: hidden</option>
+            </select>
+            <select id="f-sort" aria-label="Sort">
+              <option value="date">Newest first</option>
+              <option value="firm">By firm</option>
+              <option value="role">By role</option>
             </select>
             <button id="clear" hidden>Clear</button>
           </div>
@@ -290,6 +382,44 @@ enum WebExport {
         \(rows)
         </ul>
         <div class="empty" id="empty" hidden>Nothing in this list.</div>
+
+        <!-- Local scratch UI: the sheet is a view onto a row, never part of the
+             saved document, so it lives outside the synced list. -->
+        <artifact-local>
+        <div id="sheet" hidden>
+          <div class="sheet-bg" data-close></div>
+          <div class="sheet-card" role="dialog" aria-modal="true" aria-label="Role">
+            <button class="sheet-x" data-close aria-label="Close">✕</button>
+            <h2 id="s-title"></h2>
+            <div class="s-sub" id="s-sub"></div>
+            <div class="s-acts">
+              <a id="s-open" class="btn primary" target="_blank" rel="noopener">Open Posting</a>
+              <button id="s-save" class="btn">Save</button>
+              <button id="s-hide" class="btn">Hide</button>
+            </div>
+            <div class="s-grid" id="s-grid"></div>
+            <div id="s-tags" class="s-tags"></div>
+            <h3>Application</h3>
+            <div id="s-steps" class="s-steps"></div>
+            <div class="s-add">
+              <select id="s-stage" aria-label="Add a step">
+                <option value="Applied">Applied</option>
+                <option value="OA">Online assessment</option>
+                <option value="Interview">Interview</option>
+                <option value="Final">Final round</option>
+                <option value="Offer">Offer</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Withdrawn">Withdrawn</option>
+              </select>
+              <input type="date" id="s-date" aria-label="Date">
+              <button id="s-add" class="btn">Add step</button>
+            </div>
+            <h3>Notes</h3>
+            <textarea id="s-note" rows="3" placeholder="Anything worth remembering"></textarea>
+            <div id="s-desc" class="s-desc"></div>
+          </div>
+        </div>
+        </artifact-local>
         <footer id="foot"></footer>
 
         <script>
@@ -325,37 +455,78 @@ enum WebExport {
              'Anywhere', '');
         fill('f-stack', uniq(li => (li.dataset.stacks || '').split('|')),
              'All stacks', 'No ');
+        fill('f-city', uniq(li => (li.dataset.city || '').split('|')), 'Any city', '');
+        fill('f-firm', uniq(li => [li.dataset.firm]), 'All firms', '');
+        // The app's sidebar categories, named the way it names them.
+        const CATS = {swe: 'Software Engineering', 'quant-trading': 'Quant Trading',
+                      'quant-research': 'Quant Research', hardware: 'Hardware / FPGA',
+                      data: 'Data / ML'};
+        const cats = uniq(li => (li.dataset.cat || '').split('|'))
+                       .filter(c => c !== 'all');
+        document.getElementById('f-cat').innerHTML =
+          '<option value="">Everything</option>' +
+          cats.map(c => '<option value="' + c + '">' + (CATS[c] || c) + '</option>').join('');
 
-        const controls = ['q', 'f-level', 'f-days', 'f-year', 'f-region',
-                          'f-stack', 'f-phd'];
+        const controls = ['q', 'f-cat', 'f-level', 'f-days', 'f-year', 'f-region',
+                          'f-city', 'f-firm', 'f-stack', 'f-phd', 'f-applied',
+                          'f-sort'];
         const val = id => document.getElementById(id).value;
 
         function apply() {
           const q = val('q').trim().toLowerCase();
           const level = val('f-level'), days = val('f-days'), year = val('f-year');
           const region = val('f-region'), stack = val('f-stack'), phd = val('f-phd');
+          const cat = val('f-cat'), city = val('f-city'), firm = val('f-firm');
+          const applied = val('f-applied');
+          // "Hide every role at a firm you've applied to" needs the set of those
+          // firms before any row is judged.
+          const appliedFirms = new Set(rows().filter(li => li.dataset.stage !== '')
+                                             .map(li => li.dataset.firm));
           let shown = 0;
           for (const li of rows()) {
             const d = li.dataset;
             const ok = inList(li)
               && (!q || d.find.includes(q))
-              && (!level || d.level === level)
+              && (!level || (d.levels || d.level || '').split('|').includes(level))
               && (!days || Number(d.days) <= Number(days))
               // A posting naming no year is kept, as in the app: most name none.
               && (!year || !d.year || d.year === year)
               && (!region || (d.region || '').split('|').includes(region))
               // Stack is an exclusion, so it drops rows that name it.
               && (!stack || !(d.stacks || '').split('|').includes(stack))
-              && (!phd || d.phd !== '1');
+              && (!phd || d.phd !== '1')
+              && (!cat || (d.cat || '').split('|').includes(cat))
+              && (!city || (d.city || '').split('|').includes(city))
+              && (!firm || d.firm === firm)
+              && (applied !== 'roles' || d.stage === '')
+              && (applied !== 'firms' || !appliedFirms.has(d.firm));
             if (ok) { li.removeAttribute('data-local-hide'); shown++; }
             else { li.setAttribute('data-local-hide', '1'); }
           }
           document.getElementById('empty').hidden = shown > 0;
 
+          const by = val('f-sort');
+          if (by !== window.__sorted) {
+            const key = li => by === 'firm' ? li.dataset.firm.toLowerCase()
+                            : by === 'role' ? li.querySelector('.ti').textContent.toLowerCase()
+                            : '';
+            const sorted = rows().sort((a, b) =>
+              by === 'date' ? Number(a.dataset.days) - Number(b.dataset.days)
+                            : key(a).localeCompare(key(b)));
+            // Reordering the synced list is an edit everyone would receive, so the
+            // order is applied visually instead.
+            sorted.forEach((li, i) => { li.style.order = i; });
+            list.style.display = 'flex';
+            list.style.flexDirection = 'column';
+            window.__sorted = by;
+          }
+
           let active = 0;
           for (const id of controls) {
             const el = document.getElementById(id);
-            const on = !!el.value && !(id === 'f-level' && el.value === 'intern');
+            const on = !!el.value
+              && !(id === 'f-level' && el.value === 'intern')
+              && !(id === 'f-sort' && el.value === 'date');
             if (el.tagName === 'SELECT') el.classList.toggle('on', on);
             if (on) active++;
           }
@@ -409,6 +580,112 @@ enum WebExport {
           for (const id of controls) document.getElementById(id).value = '';
           apply();
         };
+
+        // ---- detail sheet: the app's panel, reading and writing the row ----
+        const SAT_FULL = {OA: 'submitted', Interview: 'done', Final: 'done'};
+        let current = null;
+        const $ = id => document.getElementById(id);
+
+        function stepsOf(li) {
+          return (li.dataset.steps || '').split(';').filter(Boolean)
+            .map(x => { const [stage, at, done] = x.split(','); return {stage, at, done}; });
+        }
+        function writeSteps(li, arr) {
+          const order = STAGES.filter(Boolean);
+          arr.sort((a, b) => a.at === b.at ? order.indexOf(a.stage) - order.indexOf(b.stage)
+                                           : a.at.localeCompare(b.at));
+          li.dataset.steps = arr.map(s => [s.stage, s.at, s.done || ''].join(',')).join(';');
+          const last = arr[arr.length - 1];
+          li.dataset.stage = last ? last.stage : '';
+          li.dataset.owed = last && SAT_FULL[last.stage] && !last.done ? '1' : '0';
+          paint(li);
+        }
+        function ago(d) {
+          if (!d) return '';
+          const n = Math.round((Date.now() - new Date(d)) / 86400000);
+          return n <= 0 ? 'today' : n === 1 ? '1d' : n < 30 ? n + 'd'
+               : n < 365 ? Math.round(n / 30) + 'mo' : Math.round(n / 365) + 'y';
+        }
+
+        function openSheet(li) {
+          current = li;
+          const d = li.dataset;
+          $('s-title').textContent = d.full || li.querySelector('.ti').textContent;
+          $('s-sub').textContent = [d.firm, d.team].filter(Boolean).join(' · ');
+          $('s-open').href = li.querySelector('.go').href;
+          $('s-save').textContent = d.saved === '1' ? 'Unsave' : 'Save';
+          $('s-save').classList.toggle('on', d.saved === '1');
+          $('s-hide').textContent = d.hidden === '1' ? 'Unhide' : 'Hide';
+          $('s-hide').classList.toggle('on', d.hidden === '1');
+          $('s-grid').innerHTML = [['Location', li.querySelector('.me').textContent],
+                                   ['Posted', d.posted || '—'],
+                                   ['Level', (d.levels || '').split('|').join(', ')],
+                                   ['Intake', d.year || '—'],
+                                   ['Board', d.board || '—']]
+            .map(([k, v]) => '<dt>' + k + '</dt><dd>' + v + '</dd>').join('');
+          $('s-tags').innerHTML = (d.tags || '').split('|').filter(Boolean)
+            .map(t => '<span class="pill">' + t + '</span>').join('');
+          $('s-note').value = d.note || '';
+          $('s-desc').textContent = d.desc || '';
+          $('s-date').value = new Date().toISOString().slice(0, 10);
+          drawSteps();
+          $('sheet').hidden = false;
+        }
+
+        function drawSteps() {
+          const arr = stepsOf(current);
+          $('s-steps').innerHTML = arr.length ? '' : '<span class="when">No application recorded.</span>';
+          arr.forEach((st, i) => {
+            const row = document.createElement('div');
+            row.className = 'step';
+            const verb = SAT_FULL[st.stage];
+            row.innerHTML = '<span class="dot"></span><b>' + st.stage + '</b>' +
+              (verb && st.done ? ' <span class="when2">' + verb + ' ' + ago(st.done) + '</span>' : '') +
+              '<span class="when">' + st.at + '</span>';
+            if (verb && !st.done) {
+              const b = document.createElement('button');
+              b.textContent = 'mark ' + verb;
+              b.onclick = () => { arr[i].done = new Date().toISOString().slice(0,10);
+                                  writeSteps(current, arr); drawSteps(); apply(); };
+              row.appendChild(b);
+            }
+            const rm = document.createElement('button');
+            rm.textContent = 'remove';
+            rm.onclick = () => { arr.splice(i, 1); writeSteps(current, arr);
+                                 drawSteps(); apply(); };
+            row.appendChild(rm);
+            $('s-steps').appendChild(row);
+          });
+        }
+
+        list.addEventListener('click', e => {
+          if (e.target.closest('.mk') || e.target.closest('.go')) return;
+          const li = e.target.closest('.row');
+          if (li) openSheet(li);
+        });
+        for (const el of document.querySelectorAll('[data-close]'))
+          el.onclick = () => { $('sheet').hidden = true; current = null; };
+        $('s-save').onclick = () => {
+          current.dataset.saved = current.dataset.saved === '1' ? '0' : '1';
+          openSheet(current); apply();
+        };
+        $('s-hide').onclick = () => {
+          current.dataset.hidden = current.dataset.hidden === '1' ? '0' : '1';
+          openSheet(current); apply();
+        };
+        $('s-add').onclick = () => {
+          const arr = stepsOf(current);
+          arr.push({stage: $('s-stage').value, at: $('s-date').value ||
+                    new Date().toISOString().slice(0, 10), done: ''});
+          // Recording a later step on its own would leave a pipeline with no
+          // start, exactly as the app reasons about it.
+          if (!arr.some(x => x.stage === 'Applied'))
+            arr.push({stage: 'Applied', at: arr[0].at, done: ''});
+          writeSteps(current, arr); drawSteps(); apply();
+        };
+        $('s-note').addEventListener('change', () => {
+          current.dataset.note = $('s-note').value;
+        });
 
         rows().forEach(paint);
         apply();
