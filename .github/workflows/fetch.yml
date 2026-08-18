@@ -7,9 +7,12 @@
 name: fetch
 
 on:
-  schedule:
-    - cron: "17 5,17 * * *"     # twice a day, off the hour to avoid the stampede
-  workflow_dispatch:             # and on demand from the Actions tab
+  # The schedule is off until the Linux build passes. A cron that fails twice a
+  # day emails you twice a day, and a notification you learn to ignore is worse
+  # than no notification. Put the two lines back once a manual run goes green:
+  #   schedule:
+  #     - cron: "17 5,17 * * *"
+  workflow_dispatch:             # on demand from the Actions tab only
 
 jobs:
   fetch:
