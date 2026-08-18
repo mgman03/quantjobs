@@ -34,7 +34,26 @@ enum WebExport {
             rows.append((entry.job, entry))
         }
 
-        let html = page(rows: rows.map { row($0.0, $0.1) }.joined(separator: "\n"),
+        // matchedStacks is not persisted in the cache — it is tagged at ingest and
+        // a cache-restored job carries none — so the stack filter would have had
+        // nothing to offer. Recomputing here from the same stack categories the
+        // app uses is cheaper than persisting a derived field.
+        let stackMatchers = model.stackCategories.map { CategoryMatcher($0) }
+        let tagged: [(Job, TrackedJob?)] = rows.map { pair in
+            var job = pair.0
+            if job.matchedStacks.isEmpty {
+                let raw = RawJob(title: job.title, location: job.location,
+                                 url: job.url, posted: job.posted,
+                                 department: job.department,
+                                 description: job.description)
+                job.matchedStacks = Set(stackMatchers
+                    .filter { $0.acceptsCategory(raw, deep: false) }
+                    .map(\.name))
+            }
+            return (job, pair.1)
+        }
+
+        let html = page(rows: tagged.map { row($0.0, $0.1) }.joined(separator: "\n"),
                         made: stamp())
         do {
             try html.write(toFile: path, atomically: true, encoding: .utf8)
@@ -42,7 +61,7 @@ enum WebExport {
             FileHandle.standardError.write(Data("couldn't write \(path): \(error)\n".utf8))
             return 1
         }
-        print("wrote \(path) — \(rows.count) roles")
+        print("wrote \(path) — \(tagged.count) roles")
         return 0
     }
 
@@ -68,11 +87,27 @@ enum WebExport {
             .map { (j.dateIsInferred ? "~ " : "") + $0 } ?? ""
         let year = j.intakeYear.map { "’" + String(String($0).suffix(2)) } ?? ""
         let bits = (j.company + " " + j.shortTitle + " " + j.locationDisplay).lowercased()
+        // Days since the date the app would show, so the date filter is a number
+        // comparison rather than date parsing in the page.
+        let days: String = {
+            guard !j.effectiveDate.isEmpty else { return "99999" }
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"
+            guard let d = f.date(from: j.effectiveDate) else { return "99999" }
+            return String(max(0, Int(Date().timeIntervalSince(d) / 86400)))
+        }()
         return """
           <li class="row" data-saved="\(e?.saved == true ? 1 : 0)" \
         data-hidden="\(e?.hidden == true ? 1 : 0)" \
         data-stage="\(esc(stage?.stage.short ?? ""))" \
         data-owed="\(e?.isAwaitingYou == true ? 1 : 0)" \
+        data-level="\(esc(j.level))" \
+        data-year="\(j.intakeYear.map(String.init) ?? "")" \
+        data-days="\(days)" \
+        data-firm="\(esc(j.company))" \
+        data-region="\(esc(j.continents.joined(separator: "|")))" \
+        data-stacks="\(esc(j.matchedStacks.sorted().joined(separator: "|")))" \
+        data-phd="\(j.wantsPhD ? 1 : 0)" \
         data-find="\(esc(bits))">
             <div class="marks">
               <button class="mk save" data-act="save" aria-label="Save">★</button>
@@ -145,6 +180,34 @@ enum WebExport {
           background: var(--chip); color: var(--fg);
           border: 1px solid var(--line); border-radius: 8px;
         }
+        /* One scrollable rail of controls, so six filters fit a phone without
+           stacking into a wall the list has to scroll past. */
+        .filters {
+          display: flex; gap: 6px; margin-top: 8px; overflow-x: auto;
+          scrollbar-width: none; -webkit-overflow-scrolling: touch;
+          padding-bottom: 2px;
+        }
+        .filters::-webkit-scrollbar { display: none; }
+        .filters select, .filters button {
+          flex: 0 0 auto; font: inherit; font-size: 12.5px; padding: 6px 26px 6px 10px;
+          border: 1px solid var(--line); border-radius: 99px;
+          background: var(--chip); color: var(--fg); cursor: pointer;
+          appearance: none;
+          background-image: linear-gradient(45deg, transparent 50%, var(--dim) 50%),
+                            linear-gradient(135deg, var(--dim) 50%, transparent 50%);
+          background-position: right 12px center, right 7px center;
+          background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+        }
+        .filters button {
+          padding: 6px 12px; background-image: none; color: var(--accent);
+          border-color: transparent;
+        }
+        /* A control that is doing something says so, the way the app's do. */
+        .filters select.on {
+          background-color: color-mix(in srgb, var(--accent) 22%, var(--chip));
+          border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+          color: var(--fg);
+        }
         ul { list-style: none; margin: 0; padding: 0; }
         .row {
           display: flex; align-items: flex-start; gap: 8px; padding: 9px 12px;
@@ -199,6 +262,28 @@ enum WebExport {
           </div>
           <input type="search" id="q" placeholder="Filter by role, firm or place"
                  autocomplete="off" autocapitalize="off" spellcheck="false">
+          <div class="filters">
+            <select id="f-level" aria-label="Level">
+              <option value="">Any level</option>
+              <option value="intern" selected>Intern</option>
+              <option value="newgrad">New grad</option>
+            </select>
+            <select id="f-days" aria-label="Posted">
+              <option value="">Any time</option>
+              <option value="7">Last 7d</option>
+              <option value="14">Last 14d</option>
+              <option value="30">Last 30d</option>
+              <option value="90">Last 90d</option>
+            </select>
+            <select id="f-year" aria-label="Intake year"></select>
+            <select id="f-region" aria-label="Region"></select>
+            <select id="f-stack" aria-label="Stack to leave out"></select>
+            <select id="f-phd" aria-label="Doctorate">
+              <option value="">PhD roles too</option>
+              <option value="1">No PhD roles</option>
+            </select>
+            <button id="clear" hidden>Clear</button>
+          </div>
         </header>
 
         <ul artifact-sync id="list">
@@ -226,16 +311,56 @@ enum WebExport {
           tab === 'hidden'  ? li.dataset.hidden === '1' :
                               li.dataset.hidden !== '1';
 
+        // Options come from the rows themselves, so a filter can never offer a
+        // year or a region the snapshot does not contain.
+        function fill(sel, values, label, prefix) {
+          const el = document.getElementById(sel);
+          el.innerHTML = '<option value="">' + label + '</option>' +
+            values.map(v => '<option value="' + v + '">' + prefix + v + '</option>').join('');
+        }
+        const uniq = f => [...new Set(rows().flatMap(f).filter(Boolean))].sort();
+        fill('f-year', uniq(li => li.dataset.year ? [li.dataset.year] : []),
+             'Any year', '');
+        fill('f-region', uniq(li => (li.dataset.region || '').split('|')),
+             'Anywhere', '');
+        fill('f-stack', uniq(li => (li.dataset.stacks || '').split('|')),
+             'All stacks', 'No ');
+
+        const controls = ['q', 'f-level', 'f-days', 'f-year', 'f-region',
+                          'f-stack', 'f-phd'];
+        const val = id => document.getElementById(id).value;
+
         function apply() {
-          const q = document.getElementById('q').value.trim().toLowerCase();
+          const q = val('q').trim().toLowerCase();
+          const level = val('f-level'), days = val('f-days'), year = val('f-year');
+          const region = val('f-region'), stack = val('f-stack'), phd = val('f-phd');
           let shown = 0;
           for (const li of rows()) {
-            const ok = inList(li) && (!q || li.dataset.find.includes(q));
-            // data-local-* is scratch state: filtering must not be saved as an edit.
+            const d = li.dataset;
+            const ok = inList(li)
+              && (!q || d.find.includes(q))
+              && (!level || d.level === level)
+              && (!days || Number(d.days) <= Number(days))
+              // A posting naming no year is kept, as in the app: most name none.
+              && (!year || !d.year || d.year === year)
+              && (!region || (d.region || '').split('|').includes(region))
+              // Stack is an exclusion, so it drops rows that name it.
+              && (!stack || !(d.stacks || '').split('|').includes(stack))
+              && (!phd || d.phd !== '1');
             if (ok) { li.removeAttribute('data-local-hide'); shown++; }
             else { li.setAttribute('data-local-hide', '1'); }
           }
           document.getElementById('empty').hidden = shown > 0;
+
+          let active = 0;
+          for (const id of controls) {
+            const el = document.getElementById(id);
+            const on = !!el.value && !(id === 'f-level' && el.value === 'intern');
+            if (el.tagName === 'SELECT') el.classList.toggle('on', on);
+            if (on) active++;
+          }
+          document.getElementById('clear').hidden = active === 0;
+
           const all = rows();
           document.getElementById('n-all').textContent =
             all.filter(li => li.dataset.hidden !== '1').length;
@@ -245,9 +370,9 @@ enum WebExport {
             all.filter(li => li.dataset.stage !== '').length;
           document.getElementById('n-hidden').textContent =
             all.filter(li => li.dataset.hidden === '1').length;
-          document.getElementById('foot').textContent = shown + ' shown · marks made '
-            + 'here are saved to this page. Run ./refresh-web.sh on the Mac to pull '
-            + 'in new postings.';
+          document.getElementById('foot').textContent = shown + ' of ' + all.length
+            + ' shown. Marks made here are saved to this page; run ./refresh-web.sh '
+            + 'on the Mac to pull in new postings.';
         }
 
         list.addEventListener('click', e => {
@@ -276,7 +401,14 @@ enum WebExport {
             apply();
           };
         }
-        document.getElementById('q').oninput = apply;
+        for (const id of controls) {
+          const el = document.getElementById(id);
+          el.addEventListener(id === 'q' ? 'input' : 'change', apply);
+        }
+        document.getElementById('clear').onclick = () => {
+          for (const id of controls) document.getElementById(id).value = '';
+          apply();
+        };
 
         rows().forEach(paint);
         apply();
