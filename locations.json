@@ -1,6 +1,6 @@
 {
  "_comment": [
-  "Gazetteer shared by quantjobs.py and the Mac app.",
+  "Gazetteer the Mac app reads to normalise board locations.",
   "Regenerate with the builder rather than editing by hand.",
   "countryAliases maps any spelling a board might use to an ISO2 code.",
   "A city only sets the country when the string names no country itself,",

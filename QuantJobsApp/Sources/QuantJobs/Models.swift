@@ -497,8 +497,7 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
     /// Every non-alphanumeric becomes a space first, because the punctuation is
     /// where the doctorate hides — "(PhD)", "PhD:", "PhD," and "Ph.D." all defeat
     /// a naive " phd " test, which let most of them through.
-    ///
-    /// Must stay in step with `is_phd` in quantjobs.py.
+
     var wantsPhD: Bool {
         let words = title.lowercased()
             .split(whereSeparator: { !$0.isLetter && !$0.isNumber })

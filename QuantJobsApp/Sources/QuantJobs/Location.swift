@@ -61,7 +61,7 @@ struct Gazetteer: Sendable {
 
 /// Turns a board's free-text location into structured places.
 ///
-/// A direct port of `parse_locations` in quantjobs.py — the ordering rules in
+/// The ordering rules in
 /// `parseGroup` in particular are load-bearing and must stay in step.
 enum LocationParser {
 

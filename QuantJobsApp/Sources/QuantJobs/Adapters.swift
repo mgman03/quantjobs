@@ -785,7 +785,6 @@ enum Adapters {
     /// find. `__NEXT_DATA__` is a framework convention rather than a private
     /// endpoint, so this is the same read a browser does.
     ///
-    /// Must stay in step with `fetch_deshaw` in quantjobs.py.
     static func deShaw(_ c: Company, deep: Bool) async throws -> [RawJob] {
         let host = c.host ?? "www.deshaw.com"
         let raw = try await HTTP.data("https://\(host)/careers",
@@ -863,7 +862,6 @@ enum Adapters {
     /// but each returns the identical sixty-odd vacancies, so following them
     /// would triple the work to collect duplicates.
     ///
-    /// Must stay in step with `fetch_gresearch` in quantjobs.py.
     static func gResearch(_ c: Company, deep: Bool) async throws -> [RawJob] {
         let host = c.host ?? "www.gresearch.com"
         let raw = try await HTTP.data("https://\(host)/vacancies/",
@@ -910,7 +908,6 @@ enum Adapters {
     /// end of full-time, which together is what this tracker is for.
     ///
     /// Replaces the Simplify feed for Google, whose three rows had all gone dead.
-    /// Must stay in step with `fetch_google` in quantjobs.py.
     static func google(_ c: Company, deep: Bool) async throws -> [RawJob] {
         let host = c.host ?? "www.google.com"
         let base = "https://\(host)/about/careers/applications"
@@ -986,7 +983,6 @@ enum Adapters {
     ///
     /// Replaces the Simplify feed for Apple, which carried 12 second-hand rows
     /// against the ~51 internships Apple actually lists.
-    /// Must stay in step with `fetch_apple` in quantjobs.py.
     static func apple(_ c: Company, deep: Bool) async throws -> [RawJob] {
         let host = c.host ?? "jobs.apple.com"
         var seen = Set<String>()

@@ -114,13 +114,16 @@ Two rules are load-bearing and easy to get backwards:
 `tools-build-locations.py` regenerates the gazetteer. You only need it if you're
 extending it.
 
-## Keeping the two implementations honest
+## The headless mode
 
-The app binary has a headless mode that prints the same table the CLI does, so a port
-change can be diffed against the Python original:
+The app binary has a headless mode, so the parts that aren't the UI can be exercised
+without one. It began as a way to diff the Swift port against the Python CLI that used
+to live beside it; that CLI is gone, but the harness is the cheapest way to see what a
+board returns or to prove a save path still round-trips:
 
 ```bash
-./.build/debug/QuantJobs --check -c swe -l intern          # same table as ./quantjobs.py
+./.build/debug/QuantJobs --check -c swe -l intern          # the results table
+./.build/debug/QuantJobs --check --board optiver           # one board, raw, unfiltered
 ./.build/debug/QuantJobs --check -c swe -l intern --json   # pipe-separated, for diffing
 ./.build/debug/QuantJobs --check --model                   # drive the real app model
 ./.build/debug/QuantJobs --check --track                   # saved / applied / hidden
@@ -141,10 +144,10 @@ left `Applied firms: hidden` and a changed category on a real install more than
 once — a test quietly deciding what someone saw when they next opened the app. Both point at `$QUANTJOBS_CONFIG` if it's set, which is the easy way
 to run both tools against a small scratch roster.
 
-Both implementations return identical results across every category and level, with
-and without `--deep`. The one deliberate difference is Workday paging: the app fetches
-a board's pages concurrently once the first response reveals the total, where the CLI
-walks them in order. The set of roles is the same either way.
+`--board` takes a substring of a firm's name or of its `ats`, so `--board shaw` finds
+`D. E. Shaw` and `--board greenhouse` runs every Greenhouse board. It prints what the
+adapter returned before any category or level filter has had a chance to hide a
+mistake, which is what writing a new adapter mostly needs.
 
 `--check --render` writes PNGs of the detail panel. `TextField` and link-style buttons
 are AppKit-backed and `ImageRenderer` can't rasterise them, so they come out as yellow

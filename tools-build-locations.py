@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates locations.json — the gazetteer both quantjobs.py and the Mac app read.
+"""Generates locations.json — the gazetteer the Mac app reads.
 
 Kept as a generator rather than a hand-edited blob so the compact tables below
 stay readable; the JSON it emits is what actually ships.
@@ -266,7 +266,7 @@ def build():
 
     return {
         "_comment": [
-            "Gazetteer shared by quantjobs.py and the Mac app.",
+            "Gazetteer the Mac app reads to normalise board locations.",
             "Regenerate with the builder rather than editing by hand.",
             "countryAliases maps any spelling a board might use to an ISO2 code.",
             "A city only sets the country when the string names no country itself,",

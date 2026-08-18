@@ -1,26 +1,27 @@
 # quantjobs
 
 Finds internship and new-grad postings by reading firms' job boards directly — 181 of
-them, quant shops and big tech. A command-line tool and a native Mac app, sharing one
-config.
+them, quant shops and big tech — and keeps track of what you've applied to. A native
+Mac app, no account and no server.
 
-Dead links are dropped before you see them. No dependencies: Python 3.9+ standard
-library only.
-
-```bash
-./quantjobs.py scrape --category swe --level intern
-```
+Dead links are dropped before you see them.
 
 ```
-COMPANY             TITLE                                        LOCATION              LEVEL  POSTED
-────────────────────────────────────────────────────────────────────────────────────────────────────
-Virtu Financial     2027 Internship - Frontend Engineer (UI)     New York              intern 2026-07-31
-DRW                 Platform Engineer Intern                     Chicago               intern 2026-07-30
-Jump Trading        Campus Software Engineer (Intern)            London                intern 2026-07-24
-Akuna Capital       Software Engineer Intern - C++, Summer 2027  Chicago, IL           intern 2026-07-14
-Old Mission Capital Software Engineer – 2027 Internship Program  Chicago, IL           intern 2026-07-15
+COMPANY             TITLE                                        LOCATION       LEVEL   POSTED
+────────────────────────────────────────────────────────────────────────────────────────────────
+Virtu Financial     2027 Internship - Frontend Engineer (UI)     New York       intern  2026-07-31
+DRW                 Platform Engineer Intern                     Chicago        intern  2026-07-30
+Jump Trading        Campus Software Engineer (Intern)            London         intern  2026-07-24
+Akuna Capital       Software Engineer Intern - C++, Summer 2027  Chicago, IL    intern  2026-07-14
+Old Mission Capital Software Engineer – 2027 Internship Program  Chicago, IL    intern  2026-07-15
 ...
 ```
+
+There used to be a Python CLI alongside this, implementing the same twenty board
+adapters and the same matching rules a second time. Every new board and every filter
+had to be written twice and then proved identical, so it was deleted rather than kept
+limping — `git log` has it if you want it back. What it could do that the app couldn't
+is now `--check` on the app binary; see [INTERNALS.md](INTERNALS.md).
 
 ## Install
 
@@ -41,15 +42,7 @@ removed that shortcut, so the route above is the one that works now.
 
 [dmg]: https://github.com/mgman03/quantjobs/releases/latest/download/QuantJobs.dmg
 
-**Command line:** clone it and run — there's nothing to install.
-
-```bash
-git clone https://github.com/mgman03/quantjobs.git
-cd quantjobs
-./quantjobs.py scrape -c swe -l intern
-```
-
-To build the app yourself instead of downloading it (needs Xcode command-line tools):
+**Build it yourself instead of downloading it (needs Xcode command-line tools):
 
 ```bash
 cd QuantJobsApp
@@ -66,89 +59,6 @@ prompt — and because `make-app.sh` signs ad-hoc, every rebuild looks like a ne
 and the prompt comes back. Anywhere else (`~/quant-internships`, `~/Developer/…`) and
 you're never asked. If you do keep it in a guarded folder, click Allow or the board
 list stays empty.
-
-## Commands
-
-| Command | What it does |
-|---|---|
-| `scrape` | Fetch and filter postings |
-| `companies` | Show the firm list and which are enabled |
-| `categories` | Show the configured categories |
-| `verify` | Check every board still resolves |
-| `discover <url>` | Sniff a careers page for its ATS token so you can add the firm |
-
-## Scrape options
-
-```
---category, -c   swe | quant-trading | quant-research | hardware | data | all
---no-stack       leave out roles using this stack: cpp | python | frontend, repeatable
---no-phd         leave out roles that state a doctorate requirement
---level, -l      intern (default) | newgrad | intern-or-newgrad | any
---location, -L   substring match on location, repeatable:  -L london -L nyc
---company        limit to firms matching a name, repeatable
---tag            limit to firms with a tag (quant, bigtech, hft, london, …)
---continent      Europe | Asia | North America | …, repeatable
---city           match a parsed city name, repeatable:  --city london --city zurich
---since DAYS     only roles posted in the last N days
---new-only       only roles you haven't seen on a previous run
---deep           also match against full job descriptions (slower, wider net)
---format, -f     table (default) | csv | json | md
---out, -o        write to a file instead of stdout
-```
-
-```bash
-./quantjobs.py scrape -c quant-trading -l intern
-./quantjobs.py scrape -c swe -L london -L amsterdam
-./quantjobs.py scrape -c quant-research --since 7 -f md -o roles.md
-./quantjobs.py scrape -c swe -l intern --tag bigtech     # FAANG+ only
-./quantjobs.py scrape -c all --tag quant --new-only      # daily driver
-```
-
-**Stacks are an exclusion filter, not a category.** `--no-stack` drops roles that
-name a given language or layer, and it's repeatable — each one you name removes a
-bucket:
-
-```bash
-./quantjobs.py scrape -c swe --no-stack python              # everything except Python roles
-./quantjobs.py scrape -c swe --no-stack python --no-stack frontend
-```
-
-**A role that names no stack is always kept**, and that's the whole reason the
-filter works by exclusion. **270 of 310 early-career SWE roles name no language at
-all.** An include filter meant ticking every language you'd accept *plus* a
-separate "unspecified" box — three ticks to express one preference, and an empty
-table if you forgot the last one. Saying "not Python" needs one tick and can't
-silently empty the list.
-
-Use `--deep` with it. Boards name the language in the description far more often
-than in the title.
-
-In the app it's the `{}` menu in the filter row, with a tick box per stack and
-every row reading *"— hide these"*, because a tick box next to a language name
-otherwise reads as "I want this one".
-
-**`--no-phd` works the same way, on degree rather than language.** A title only
-counts as PhD-only if it *states* the requirement: `Software Engineering PhD Intern`
-and `Quantitative Research Intern (PhD)` go, and so does `2027 PhDs`. A title that
-names a lower degree alongside it is kept, because that phrasing means "either" —
-`2026 BSc/MSc/PhD Quantitative Research` and `Quantitative Researcher (Master or
-PhD)` both stay. A quant research role that would in practice want a doctorate but
-doesn't say so also stays: guessing on your behalf would hide roles you could get.
-
-Punctuation is where the doctorate hides — `(PhD)`, `PhD:`, `PhD,`, `Ph.D.` — so the
-title is split on every non-alphanumeric before matching. A naive space-delimited
-test let most of them through. Against the current cache it flags 92 of 8,237
-postings, and the app has the same rule behind a tick box in the `{}` menu.
-
-A category in `categories.json` becomes a stack by naming its `parent`; the
-matching is deliberately *ungated* by that parent, so "does this posting mention
-C++" is answerable whichever category you're browsing.
-
-**A note on levels.** `intern-or-newgrad` means *early career only* — a posting has to
-read as an internship or a new-grad role. `any` switches the level test off entirely,
-so senior postings come too. They are not the same thing: Jane Street's SWE board
-returns 0 for all three early-career levels right now, and 26 for `any` — every one of
-them experienced. In the app these are the **Both** and **All levels** buttons.
 
 ## The Mac app
 
@@ -231,7 +141,7 @@ the two stay in sync and you can use whichever suits the moment.
 
 ## Which firms are wired up
 
-**181 of the 193 boards answer** — `./quantjobs.py verify --all` returns
+**181 of the 193 boards answer** — **Scrape ▸ Manage Boards ▸ Verify** reports
 *181 working, 12 broken*. Ten of the twelve are firms with no scriptable board at
 all, kept in the file with a `note` so you can see they were considered rather than
 missed; they're named further down. One, **Uber**, is a board that used to work and
@@ -259,15 +169,15 @@ each — see the table below for what's in the way. They're marked Tier 1 becaus
 what they are to someone applying, not because anything can be read from them yet.
 
 `enabled` isn't a fixed shipped default — the app writes your Firms selection back to
-the same file, so whatever you last picked is what the file says. `./quantjobs.py
-companies` prints the current state.
+the same file, so whatever you last picked is what the file says. The Firms picker
+shows the current state.
 
 **Frontier AI**: Anduril · Anthropic · Aurora · Cohere · Cursor · Databricks ·
 Decagon · ElevenLabs · Figure AI · Glean · Harvey · LangChain · Mercor · Modal ·
 Nuro · OpenAI · Perplexity · Physical Intelligence · Replit · Scale AI · Sierra ·
 Together AI · Waymo · Wayve · xAI · Zoox
 
-Run `./quantjobs.py companies` for the full list rather than trusting a README that
+Open **Scrape ▸ Manage Boards** for the full list rather than trusting a README that
 drifts.
 
 **Jane Street** is read from its own careers JSON. Its Greenhouse board is experienced
@@ -403,12 +313,12 @@ Matching is case-insensitive, word-bounded, and plural-tolerant: `"graduate"` al
 catches *Fresh Graduates*, and spaces match hyphens and slashes, so `"co-op"` catches
 *Co-Op*. That applies to the level vocabulary and to `categories.json` alike.
 
-Don't know a firm's token? Point `discover` at their careers page, then `verify`:
+Don't know a firm's token? **Scrape ▸ Manage Boards ▸ Discover** sniffs a careers page
+for its ATS fingerprint and offers the entry to add. To check what a board actually
+returns before trusting it:
 
 ```bash
-$ ./quantjobs.py discover https://www.headlandstech.com/careers/
-  greenhouse       headlandstechnologiesllc
-    → {"name": "…", "ats": "greenhouse", "token": "headlandstechnologiesllc", "enabled": true}
+./QuantJobsApp/.build/debug/QuantJobs --check --board headlands
 ```
 
 `categories.json` holds the `include` / `exclude` phrase lists per category, matched by
@@ -468,25 +378,19 @@ your on/off choices.
 
 ## Notes
 
-- `.seen.json` tracks postings you've already been shown, which powers `--new-only`.
-  Delete it to reset; pass `--no-state` to leave it untouched.
-- `.tracked.json` holds what you've saved, applied to or hidden, and the CLI reads it
-  too: `--skip-hidden` and `--saved-only`.
-- Boards are fetched in parallel (`--workers`, default 8) with retries. A firm that
-  fails is reported at the end and never kills the run.
+- `.seen.json` records when a posting was first seen, which is what dates a role
+  whose board publishes no date. Delete it to reset.
+- `.tracked.json` holds what you've saved, applied to or hidden, and the application
+  timeline for each. It survives a board deleting the posting.
+- Boards are fetched concurrently with retries. A firm that fails is reported in the
+  status bar and never kills the run.
 - Nothing is authenticated — these are the same public endpoints the firms' own
   careers pages call.
 - Locations are resolved through a gazetteer in `locations.json`, so `US, CA, Santa
   Clara` and `Santa Clara, California, United States` both become `Santa Clara, CA`.
-  That's what makes `--continent` and `--city` work.
-
-Run it daily and only see what's new:
-
-```bash
-cd /path/to/quantjobs && ./quantjobs.py scrape -c swe --new-only -f md -o new.md
-```
-
-Empty output means nothing new since the last run.
+  That's what makes the continent and city filters work.
+- The app opens on the last run's results and refreshes behind them, so "what's new
+  since yesterday" is what you see when you open the window.
 
 ## More
 

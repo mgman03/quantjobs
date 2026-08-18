@@ -42,11 +42,67 @@ enum HeadlessCheck {
         default: .intern
         }
 
+        // One board, raw. Writing an adapter means looking at what it returns
+        // before any category or level filter has had a chance to hide a mistake,
+        // and a full run over every enabled firm takes minutes to answer a
+        // question about one of them.
+        if let i = args.firstIndex(of: "--board"), i + 1 < args.count {
+            let wanted = args[i + 1]
+            Task { exit(await board(wanted, deep: deep)) }
+            dispatchMain()
+        }
+
         Task {
             exit(await scrape(categoryName: categoryName, level: level, deep: deep,
                               stacks: stacks))
         }
         dispatchMain()   // park the main thread; the task above exits the process
+    }
+
+    /// `--check --board optiver` — run one firm's adapter and print what it
+    /// actually returned, unfiltered.
+    private static func board(_ wanted: String, deep: Bool) async -> Int32 {
+        ConfigStore.seedIfNeeded()
+        LocationParser.gazetteer = ConfigStore.loadGazetteer()
+        let companies: [Company]
+        do { companies = try ConfigStore.loadCompanies().companies } catch {
+            FileHandle.standardError.write(Data("couldn't read config: \(error)\n".utf8))
+            return 1
+        }
+        // Substring, case-insensitive: "shaw" should find "D. E. Shaw" without
+        // anyone having to type the punctuation.
+        let hits = companies.filter {
+            $0.name.localizedCaseInsensitiveContains(wanted)
+                || $0.ats.rawValue.localizedCaseInsensitiveContains(wanted)
+        }
+        guard !hits.isEmpty else {
+            FileHandle.standardError.write(Data(
+                "no firm matching '\(wanted)'\n".utf8))
+            return 1
+        }
+        var bad: Int32 = 0
+        for firm in hits {
+            let label = [firm.name, firm.board].compactMap { $0 }.joined(separator: " · ")
+            guard firm.isConfigured else {
+                print("\n\(label)  [\(firm.ats.rawValue)]  not configured — "
+                      + (firm.note ?? "nothing to point it at"))
+                continue
+            }
+            do {
+                let rows = try await Adapters.fetch(firm, deep: deep)
+                print("\n\(label)  [\(firm.ats.rawValue)]  \(rows.count) rows")
+                for r in rows.prefix(40) {
+                    let when = r.posted.isEmpty ? "—" : r.posted
+                    print("  \(when)  \(r.title.prefix(62))")
+                    print("          \(r.location.prefix(40))   \(r.url.prefix(72))")
+                }
+                if rows.count > 40 { print("  … \(rows.count - 40) more") }
+            } catch {
+                print("\n\(label)  [\(firm.ats.rawValue)]  FAILED: \(error)")
+                bad = 1
+            }
+        }
+        return bad
     }
 
     private static func scrape(categoryName: String, level: Level, deep: Bool,
@@ -387,8 +443,9 @@ enum HeadlessCheck {
             print("  after reload: \(third.trackedEntry(for: applied)?.milestones.count ?? 0) "
                   + "step(s), at \(third.stage(of: applied)?.label ?? "—")")
 
-            // PhD detection has to agree with is_phd in quantjobs.py, so the
-            // fixture is the same list of real titles from the boards.
+            // Real titles from the boards, kept as a fixture because the rule
+            // is a pile of special cases and each one came from a posting that
+            // was being classified wrongly.
             print("\nphd filter:")
             for t in ["Software Engineering PhD Intern, 2027",
                       "Quantitative Research Intern (PhD) - Summer 2027",

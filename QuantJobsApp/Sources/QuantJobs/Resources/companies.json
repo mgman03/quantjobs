@@ -38,10 +38,12 @@
       "name" : "Apple",
       "note" : "Read from jobs.apple.com, filtered to the Students/Internships team. search=intern is useless here — it matches retail roles — so the team filter is what isolates internships. Replaces the Simplify feed, which had 12 rows against Apple's ~51.",
       "segment" : "FAANG+",
+      "site" : "",
       "tags" : [
         "bigtech",
         "faang"
       ],
+      "tenant" : "",
       "tier" : 1
     },
     {
@@ -119,10 +121,12 @@
       "name" : "Google",
       "note" : "Read from google.com/about/careers directly. Two server-side slices — employment_type=INTERN and target_level=EARLY — because the whole board is thousands of roles at 20 a page. Replaces the Simplify feed, whose three Google rows had all gone dead.",
       "segment" : "FAANG+",
+      "site" : "",
       "tags" : [
         "bigtech",
         "faang"
       ],
+      "tenant" : "",
       "tier" : 1
     },
     {
@@ -2014,7 +2018,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "AlphaGrep",
       "segment" : "Tier 2",
       "tags" : [
@@ -2027,7 +2031,7 @@
     },
     {
       "ats" : "lever",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Ansatz Capital",
       "segment" : "Tier 3",
       "tags" : [
@@ -2039,7 +2043,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Blackedge Capital",
       "segment" : "Tier 3",
       "tags" : [
@@ -2157,11 +2161,13 @@
       "host" : "www.deshaw.com",
       "name" : "D. E. Shaw",
       "segment" : "Tier 1",
+      "site" : "",
       "tags" : [
         "quant",
         "hedge-fund",
         "multistrat"
       ],
+      "tenant" : "",
       "tier" : 1
     },
     {
@@ -2196,10 +2202,12 @@
       "host" : "www.gresearch.com",
       "name" : "G-Research",
       "segment" : "Tier 1",
+      "site" : "",
       "tags" : [
         "quant",
         "london"
       ],
+      "tenant" : "",
       "tier" : 1
     },
     {
@@ -2229,7 +2237,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Graviton Research Capital",
       "segment" : "Tier 2",
       "tags" : [
@@ -2255,7 +2263,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Mako Trading",
       "segment" : "Tier 2",
       "tags" : [
@@ -2376,7 +2384,7 @@
     },
     {
       "ats" : "lever",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Valkyrie Trading",
       "segment" : "Tier 3",
       "tags" : [
@@ -2400,7 +2408,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Voloridge",
       "segment" : "Tier 2",
       "tags" : [
