@@ -5,6 +5,7 @@ __pycache__/
 .DS_Store
 .seed-version
 .seen.json
+.sync.json
 .tracked.json
 *.csv
 *.dmg

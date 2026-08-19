@@ -20,6 +20,10 @@ enum HeadlessCheck {
         if args.contains("--update") { runUpdateCheck() }
         if args.contains("--migrate") { runMigrationCheck() }
         if args.contains("--ledger") { runLedgerCheck() }
+        if let i = args.firstIndex(of: "--sync-setup"), i + 1 < args.count {
+            runSyncSetup(url: args[i + 1])
+        }
+        if args.contains("--sync") { runSyncCheck() }
         if let i = args.firstIndex(of: "--render"), i + 1 < args.count {
             runRender(to: args[i + 1])
         }
@@ -718,6 +722,94 @@ enum HeadlessCheck {
             // No snapshot of the filter row: it takes a `@Bindable` model, and
             // ImageRenderer never settles on a view that observes @Observable
             // state — the same reason JobDetailContent is handed plain values.
+            exit(0)
+        }
+        dispatchMain()
+    }
+
+    /// `--check --sync-setup <url>` writes the sync config, reading the password
+    /// from stdin so it never appears in a shell history or a process listing.
+    private static func runSyncSetup(url: String) -> Never {
+        FileHandle.standardError.write(Data("password: ".utf8))
+        let line = readLine(strippingNewline: true) ?? ""
+        guard !line.isEmpty else {
+            print("no password given; nothing written")
+            exit(2)
+        }
+        let cfg = SyncConfig(url: url, password: line, enabled: true)
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        let path = ConfigStore.syncURL
+        do {
+            try enc.encode(cfg).write(to: path, options: .atomic)
+            // The password is in it, so it is nobody else's business — including
+            // other accounts on this machine.
+            try FileManager.default.setAttributes([.posixPermissions: 0o600],
+                                                 ofItemAtPath: path.path)
+        } catch {
+            print("could not write \(path.path): \(error.localizedDescription)")
+            exit(1)
+        }
+        print("wrote \(path.path)")
+        print("endpoint \(cfg.endpoint)")
+        print("check it with: QuantJobs --check --sync")
+        exit(0)
+    }
+
+    /// `--check --sync` says what the shared document holds and whether this
+    /// machine can reach it. Read only: it never writes either side.
+    private static func runSyncCheck() -> Never {
+        Task {
+            guard let cfg = ConfigStore.loadSync() else {
+                print("no \(ConfigStore.syncURL.lastPathComponent) — set it up with:")
+                print("  QuantJobs --check --sync-setup https://quantjobs.pages.dev")
+                exit(1)
+            }
+            print("endpoint  \(cfg.endpoint)\(cfg.isOn ? "" : "  (turned off)")")
+            let doc: SyncDoc
+            do {
+                doc = try await StateSync.pull(cfg)
+            } catch {
+                let why = (error as? FetchError)?.errorDescription
+                    ?? error.localizedDescription
+                print("unreachable: \(why)")
+                exit(1)
+            }
+            let marked = doc.tracked.values.filter { !($0.saved == false
+                && $0.hidden == false && $0.milestones.isEmpty) }
+            print("remote    rev \(doc.rev.map(String.init) ?? "-") · "
+                  + "\(doc.tracked.count) postings · \(marked.count) with a mark")
+            print("saved     \(doc.tracked.values.count { $0.saved })")
+            print("applied   \(doc.tracked.values.count { !$0.milestones.isEmpty })")
+            print("hidden    \(doc.tracked.values.count { $0.hidden })")
+            let local = ConfigStore.loadTracked()
+            print("local     \(local.count) postings")
+            if let f = doc.filters {
+                let shown = f.filter { !$0.value.isEmpty }
+                    .sorted { $0.key < $1.key }
+                    .map { "\($0.key)=\($0.value)" }
+                print("filters   \(doc.filtersUpdated ?? "-")  "
+                      + (shown.isEmpty ? "(none set)" : shown.joined(separator: " ")))
+            } else {
+                print("filters   none stored yet")
+            }
+            guard CommandLine.arguments.contains("--push") else { exit(0) }
+
+            // The whole round trip, which is also a useful thing to be able to do
+            // without opening the window. The config folder stays as it is —
+            // pushing the real marks is the point — but settings go to a
+            // throwaway suite, because adopting the phone's filters here would
+            // otherwise change what the window opens on.
+            AppSettings.useScratchStore("sync")
+            let model = await AppModel()
+            await model.reload()
+            await model.syncMarks()
+            if let why = await model.syncError {
+                print("push      failed: \(why)")
+                exit(1)
+            }
+            let after = try? await StateSync.pull(cfg)
+            print("push      ok · remote now \(after?.tracked.count ?? 0) postings")
             exit(0)
         }
         dispatchMain()

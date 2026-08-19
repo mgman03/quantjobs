@@ -1,9 +1,11 @@
-// Tests the password gate in _worker.js. `node site/_worker.test.mjs`.
+// Tests the password gate and the /state sync in _worker.js.
+// `node site/_worker.test.mjs`.
 //
-// Worth having for twenty lines of auth because this is the only thing
-// between the internet and a list of what you applied to and were rejected
-// from, and every failure mode here is silent: a gate that lets everyone
-// through looks exactly like a gate that works.
+// Worth having for a small file because this is the only thing between the
+// internet and a list of what you applied to and were rejected from, and every
+// failure mode is silent: a gate that lets everyone through looks exactly like
+// a gate that works, and a merge that drops half your marks looks exactly like
+// one that keeps them until the day you look.
 //
 // Workers keep timingSafeEqual on crypto.subtle; Node keeps it on the crypto
 // module. That is the only thing stubbed — the rest is the real file.
@@ -49,6 +51,98 @@ check('challenge names Basic', (await get(null, P)).headers.get('WWW-Authenticat
 check('authorized body served', await okResp.text(), '<h1>page</h1>');
 check('no shared caching', okResp.headers.get('Cache-Control'), 'private, no-store');
 check('unset says what to do', (await get(null, {})).headers.get('Content-Type'), 'text/plain; charset=utf-8');
+
+
+// ---- /state ----
+
+/// KV, near enough: get and put over one string.
+const store = (initial = null) => {
+  let v = initial;
+  return { get: async () => v, put: async (_k, s) => { v = s; }, read: () => v };
+};
+
+const call = (method, body, env) => worker.fetch(
+  new Request('https://quantjobs.pages.dev/state', {
+    method,
+    headers: { Authorization: basic('x', P.SITE_PASSWORD) },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  }),
+  { ASSETS: assets, ...P, ...env });
+
+const T = (updated, extra = {}) => ({ saved: true, updated, ...extra });
+
+check('/state needs the password', (await worker.fetch(
+  new Request('https://quantjobs.pages.dev/state'), { ASSETS: assets, ...P })).status, 401);
+check('/state with no store → 501', (await call('GET', undefined, {})).status, 501);
+check('/state POST → 405', (await call('POST', {}, { STATE: store() })).status, 405);
+check('/state bad JSON → 400', (await worker.fetch(
+  new Request('https://quantjobs.pages.dev/state', {
+    method: 'PUT', headers: { Authorization: basic('x', P.SITE_PASSWORD) }, body: 'nope' }),
+  { ASSETS: assets, ...P, STATE: store() })).status, 400);
+
+{
+  const kv = store();
+  const empty = await (await call('GET', undefined, { STATE: kv })).json();
+  check('empty store reads as empty', JSON.stringify(empty.tracked), '{}');
+
+  const first = await (await call('PUT',
+    { tracked: { a: T('2026-08-01T00:00:00Z') } }, { STATE: kv })).json();
+  check('a put comes back merged', first.tracked.a.saved, true);
+  check('rev advances', first.rev, 1);
+  check('the put was stored', JSON.parse(kv.read()).tracked.a.saved, true);
+}
+{
+  // The phone marks one posting, the Mac another, neither having seen the
+  // other's write. Both must survive.
+  const kv = store();
+  await call('PUT', { tracked: { a: T('2026-08-01T00:00:00Z') } }, { STATE: kv });
+  const after = await (await call('PUT',
+    { tracked: { b: T('2026-08-02T00:00:00Z') } }, { STATE: kv })).json();
+  check('a blind write keeps both', Object.keys(after.tracked).sort().join(), 'a,b');
+}
+{
+  const kv = store();
+  await call('PUT', { tracked: { a: T('2026-08-05T00:00:00Z', { note: 'newer' }) } },
+             { STATE: kv });
+  const after = await (await call('PUT',
+    { tracked: { a: T('2026-08-01T00:00:00Z', { note: 'older' }) } },
+    { STATE: kv })).json();
+  check('an older write does not win', after.tracked.a.note, 'newer');
+}
+{
+  // A history, not a value: three steps out of two clients that each know two.
+  const kv = store();
+  const step = (stage, date, done = null) => ({ stage, date, done });
+  await call('PUT', { tracked: { a: { updated: '2026-08-01T00:00:00Z', milestones: [
+    step('applied', '2026-06-03'), step('OA', '2026-06-20')] } } }, { STATE: kv });
+  const after = await (await call('PUT', { tracked: { a: {
+    updated: '2026-08-02T00:00:00Z', milestones: [
+      step('OA', '2026-06-20', '2026-06-21'), step('Interview', '2026-07-01')] } } },
+    { STATE: kv })).json();
+  const got = after.tracked.a.milestones;
+  check('steps are unioned, not replaced', got.length, 3);
+  check('steps stay in date order', got.map(s => s.stage).join(), 'applied,OA,Interview');
+  check('a sat date is not lost', got.find(s => s.stage === 'OA').done, '2026-06-21');
+}
+{
+  const kv = store();
+  await call('PUT', { filters: { 'f-cat': 'swe' }, filtersUpdated: '2026-08-05T00:00:00Z' },
+             { STATE: kv });
+  const older = await (await call('PUT',
+    { filters: { 'f-cat': 'quant-trading' }, filtersUpdated: '2026-08-01T00:00:00Z' },
+    { STATE: kv })).json();
+  check('newest filters win', older.filters['f-cat'], 'swe');
+  const newer = await (await call('PUT',
+    { filters: { 'f-cat': 'quant-research' }, filtersUpdated: '2026-08-09T00:00:00Z' },
+    { STATE: kv })).json();
+  check('newer filters replace them', newer.filters['f-cat'], 'quant-research');
+}
+{
+  const kv = store('{ this is not json');
+  const r = await call('GET', undefined, { STATE: kv });
+  check('a corrupt store still serves', r.status, 200);
+  check('a corrupt store reads as empty', JSON.stringify((await r.json()).tracked), '{}');
+}
 
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

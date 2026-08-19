@@ -111,7 +111,7 @@ enum WebExport {
             return String(max(0, Int(Date().timeIntervalSince(d) / 86400)))
         }()
         return """
-          <li class="row" data-saved="\(e?.saved == true ? 1 : 0)" \
+          <li class="row" data-key="\(esc(j.key))" data-saved="\(e?.saved == true ? 1 : 0)" \
         data-hidden="\(e?.hidden == true ? 1 : 0)" \
         data-stage="\(esc(stage?.stage.short ?? ""))" \
         data-owed="\(e?.isAwaitingYou == true ? 1 : 0)" \
@@ -542,8 +542,7 @@ enum WebExport {
           document.getElementById('n-hidden').textContent =
             all.filter(li => li.dataset.hidden === '1').length;
           document.getElementById('foot').textContent = shown + ' of ' + all.length
-            + ' shown. Marks made here are saved to this page; run ./refresh-web.sh '
-            + 'on the Mac to pull in new postings.';
+            + ' shown. ' + (syncNote || 'Marks and filters sync with the Mac app.');
         }
 
         list.addEventListener('click', e => {
@@ -687,8 +686,161 @@ enum WebExport {
           current.dataset.note = $('s-note').value;
         });
 
+        // ---- sync: the same marks and filters here and in the app ----
+        //
+        // The page is rebuilt from scratch twice a day, so a star tapped on the
+        // train has nowhere to live unless something off the phone keeps it. That
+        // is /state, which the worker serves out of a KV namespace behind the same
+        // password as the page. The Mac app reads and writes the same document.
+        //
+        // Only what changed is sent. The worker merges by posting and by
+        // timestamp, so two clients that both read at breakfast and write at
+        // lunch do not delete each other's marks.
+        const SYNC = '/state';
+        let syncing = false;          // true while incoming state is being applied
+        let syncNote = '';
+        let dirtyRows = new Set();
+        let dirtyFilters = false;
+        let pushTimer = null;
+
+        const keyOf = li => li.dataset.key || '';
+
+        function marksOf(li) {
+          return {
+            saved: li.dataset.saved === '1',
+            hidden: li.dataset.hidden === '1',
+            note: li.dataset.note || '',
+            milestones: stepsOf(li)
+              .map(s => ({stage: s.stage, date: s.at, done: s.done || null})),
+          };
+        }
+
+        function applyMarks(li, t) {
+          li.dataset.saved = t.saved ? '1' : '0';
+          li.dataset.hidden = t.hidden ? '1' : '0';
+          li.dataset.note = t.note || '';
+          writeSteps(li, (t.milestones || [])
+            .map(s => ({stage: s.stage, at: s.date, done: s.done || ''})));
+          paint(li);
+        }
+
+        function filterState() {
+          const o = {tab};
+          for (const id of controls) o[id] = document.getElementById(id).value;
+          return o;
+        }
+
+        function applyState(d) {
+          syncing = true;
+          const byKey = new Map(rows().map(li => [keyOf(li), li]));
+          for (const [key, t] of Object.entries(d.tracked || {})) {
+            const li = byKey.get(key);
+            // A posting the page no longer lists: left in the document, because
+            // the app still has it and dropping it here would delete it there.
+            if (li) applyMarks(li, t);
+          }
+          if (d.filters) {
+            for (const id of controls) {
+              if (id in d.filters) document.getElementById(id).value = d.filters[id];
+            }
+            if (d.filters.tab) {
+              tab = d.filters.tab;
+              for (const b of document.querySelectorAll('[role=tab]')) {
+                b.setAttribute('aria-selected', String(b.dataset.list === tab));
+              }
+            }
+          }
+          syncing = false;
+          apply();
+        }
+
+        async function pull() {
+          let r;
+          try {
+            r = await fetch(SYNC, {headers: {Accept: 'application/json'}});
+          } catch {
+            syncNote = 'offline — marks are not being saved.';
+            apply();
+            return;
+          }
+          if (!r.ok) {
+            syncNote = r.status === 501
+              ? 'no store is bound, so marks are not being saved.'
+              : 'sync is unavailable (' + r.status + '), so marks are not being saved.';
+            apply();
+            return;
+          }
+          applyState(await r.json());
+        }
+
+        function schedulePush() {
+          if (syncing) return;
+          clearTimeout(pushTimer);
+          pushTimer = setTimeout(push, 1200);
+        }
+
+        async function push() {
+          const at = new Date().toISOString();
+          const body = {tracked: {}, filters: null, filtersUpdated: ''};
+          for (const li of rows()) {
+            if (dirtyRows.has(keyOf(li))) {
+              body.tracked[keyOf(li)] = Object.assign(marksOf(li), {updated: at});
+            }
+          }
+          if (dirtyFilters) {
+            body.filters = filterState();
+            body.filtersUpdated = at;
+          }
+          if (!dirtyFilters && Object.keys(body.tracked).length === 0) return;
+          try {
+            const r = await fetch(SYNC, {
+              method: 'PUT',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify(body),
+            });
+            if (!r.ok) {
+              syncNote = 'that change was not saved (' + r.status + ').';
+            } else {
+              await r.json();
+              dirtyRows.clear();
+              dirtyFilters = false;
+              syncNote = '';
+            }
+          } catch {
+            syncNote = 'that change was not saved — offline.';
+          }
+          apply();
+        }
+
+        // Watching the rows rather than every button: a mark can change from the
+        // list, from the detail sheet, or from a step being added, and a save that
+        // silently misses one of those paths is the whole failure mode here.
+        new MutationObserver(muts => {
+          if (syncing) return;
+          for (const m of muts) {
+            const li = m.target.closest && m.target.closest('.row');
+            if (li) dirtyRows.add(keyOf(li));
+          }
+          if (dirtyRows.size) schedulePush();
+        }).observe(list, {subtree: true, attributes: true, attributeFilter:
+          ['data-saved', 'data-hidden', 'data-steps', 'data-note', 'data-stage']});
+
+        for (const id of controls) {
+          document.getElementById(id).addEventListener(
+            id === 'q' ? 'input' : 'change',
+            () => { dirtyFilters = true; schedulePush(); });
+        }
+        for (const b of document.querySelectorAll('[role=tab]')) {
+          b.addEventListener('click', () => { dirtyFilters = true; schedulePush(); });
+        }
+        document.getElementById('clear').addEventListener('click', () => {
+          dirtyFilters = true;
+          schedulePush();
+        });
+
         rows().forEach(paint);
         apply();
+        pull();
         </script>
         """
     }

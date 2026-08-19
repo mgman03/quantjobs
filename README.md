@@ -405,7 +405,42 @@ for one page.
 
 With no `SITE_PASSWORD` set the site answers 503 and says so, rather than
 serving the history to whoever asks. `node site/_worker.test.mjs` checks the
-gate.
+gate and the sync below.
+
+### Marks and filters sync both ways
+
+A star tapped on the train shows up in the app, and the app's filters are the
+ones the page opens with. The page keeps nothing itself — it is rebuilt from
+scratch twice a day — so the marks live in a Cloudflare KV namespace that only
+the worker can reach, behind the same password. The workflow creates it; the
+API token needs **Workers KV Storage: Edit** on top of Pages: Edit, and until it
+has that the site still deploys and the page says marks are not being saved.
+
+On the Mac, once:
+
+```sh
+QuantJobs --check --sync-setup https://quantjobs.pages.dev   # asks for the password
+QuantJobs --check --sync                                      # what the phone knows
+QuantJobs --check --sync --push                               # a full round trip
+```
+
+That writes `.sync.json` in the config folder, `chmod 600`, gitignored. The app
+syncs on launch, two seconds after any mark you make, and on ⇧⌘S.
+
+Conflicts resolve per posting, by the instant of the last edit, **except**
+milestones, which are unioned: the Mac holding "applied 3 June, OA 20 June" and
+the phone adding an interview ends up with three steps, not with whichever side
+was touched last. Filters are all-or-nothing on their own timestamp. The page's
+firm and sort pickers are not synced — the app narrows firms in the Firms picker
+and sorts by clicking a column, and there is nothing to map them onto.
+
+To try it without deploying:
+
+```sh
+node site/serve.mjs 8791 &                       # the real worker, KV in memory
+QuantJobs --check --web /tmp/page.html
+npm i jsdom && node site/page.test.mjs /tmp/page.html
+```
 
 ## Notes
 

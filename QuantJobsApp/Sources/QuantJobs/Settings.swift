@@ -35,6 +35,10 @@ struct AppSettings: Codable, Sendable, Equatable {
     var hideApplied: Bool? = nil
     /// Which stage sections are folded shut in the Applied list.
     var collapsedStages: [String] = []
+    /// When the filters last changed on this machine, as an ISO instant.
+    /// Compared against the phone's stamp to decide whose filters are newer —
+    /// see Sync.swift. Not itself a filter.
+    var filtersUpdated = ""
 
     /// Refresh on open, and how stale the cache has to be before that's worth
     /// doing. A full run is a hundred-odd boards and tens of thousands of

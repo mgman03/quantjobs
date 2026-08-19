@@ -35,6 +35,9 @@ export default {
       return challenge();
     }
 
+    const url = new URL(request.url);
+    if (url.pathname === '/state') return state(request, env);
+
     const response = await env.ASSETS.fetch(request);
     // The response is per-viewer now, so nothing in between may keep a copy.
     const out = new Response(response.body, response);
@@ -42,6 +45,112 @@ export default {
     return out;
   },
 };
+
+// ---- /state: the marks and filters, shared between the phone and the Mac ----
+//
+// The page is rebuilt from scratch twice a day, so anything tapped on the phone
+// has to live somewhere that survives a deploy, and the repository cannot be it:
+// it is public, and these are rejections. So a KV namespace, reachable only
+// through the password above.
+//
+// One document rather than a key per posting. It is a few hundred entries at
+// most, both clients want all of it at once, and KV's free tier counts writes:
+// one PUT for a burst of taps beats one per tap.
+
+const KEY = 'state';
+
+async function state(request, env) {
+  if (!env.STATE) {
+    return json({ error: 'no store bound; marks cannot be saved' }, 501);
+  }
+  if (request.method === 'GET') {
+    return json(await load(env));
+  }
+  if (request.method !== 'PUT') {
+    return json({ error: 'GET or PUT' }, 405, { Allow: 'GET, PUT' });
+  }
+
+  let incoming;
+  try {
+    incoming = await request.json();
+  } catch {
+    return json({ error: 'body is not JSON' }, 400);
+  }
+  if (!incoming || typeof incoming !== 'object') {
+    return json({ error: 'body is not an object' }, 400);
+  }
+
+  // Merged here rather than trusting what arrived, because two clients that
+  // both read at breakfast and write at lunch would otherwise have the second
+  // one silently delete the first one's marks. The rule is per posting and by
+  // timestamp, so neither client has to know the other exists.
+  const merged = mergeState(await load(env), incoming);
+  merged.rev = (merged.rev || 0) + 1;
+  await env.STATE.put(KEY, JSON.stringify(merged));
+  return json(merged);
+}
+
+async function load(env) {
+  const raw = await env.STATE.get(KEY);
+  if (!raw) return { rev: 0, tracked: {}, filters: null, filtersUpdated: '' };
+  try {
+    const d = JSON.parse(raw);
+    d.tracked ||= {};
+    return d;
+  } catch {
+    // Unparseable is indistinguishable from absent, and refusing to serve
+    // would leave both clients stuck on it forever.
+    return { rev: 0, tracked: {}, filters: null, filtersUpdated: '' };
+  }
+}
+
+/// Newest wins, per posting and for the filters separately.
+///
+/// Milestones are unioned instead, because they are a history: the Mac holding
+/// "applied 3 June, OA 20 June" and the phone adding an interview should end up
+/// with three steps, not with whichever side was touched last.
+function mergeState(mine, theirs) {
+  const out = { rev: mine.rev || 0, tracked: { ...(mine.tracked || {}) } };
+
+  for (const [key, t] of Object.entries(theirs.tracked || {})) {
+    const m = out.tracked[key];
+    if (!m) { out.tracked[key] = t; continue; }
+    const newer = (t.updated || '') > (m.updated || '') ? t : m;
+    out.tracked[key] = { ...newer, milestones: unionSteps(m, t) };
+  }
+
+  const a = mine.filtersUpdated || '', b = theirs.filtersUpdated || '';
+  const filtersFrom = b > a ? theirs : mine;
+  out.filters = filtersFrom.filters ?? null;
+  out.filtersUpdated = filtersFrom.filtersUpdated || '';
+  return out;
+}
+
+/// Steps are identified by stage and date, so recording the same OA twice is
+/// one step and two different OAs stay two. A sat date on either side is kept:
+/// "the OA arrived" and "I submitted it" are one step with two dates, and the
+/// side that knows the second one is the side that has been used more recently.
+function unionSteps(m, t) {
+  const by = new Map();
+  for (const s of [...(m.milestones || []), ...(t.milestones || [])]) {
+    if (!s || !s.stage || !s.date) continue;
+    const id = `${s.stage}|${s.date}`;
+    const had = by.get(id);
+    by.set(id, had ? { ...had, done: had.done || s.done || null } : { ...s });
+  }
+  return [...by.values()].sort((x, y) => x.date.localeCompare(y.date));
+}
+
+function json(body, status = 200, headers = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'private, no-store',
+      ...headers,
+    },
+  });
+}
 
 /// The password out of a Basic credential, or null if there isn't one.
 /// The username is ignored — there is one page and one person.

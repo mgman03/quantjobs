@@ -141,6 +141,60 @@ jobs:
             | npx --yes wrangler@4 pages secret put SITE_PASSWORD \
                 --project-name=quantjobs
 
+      # Somewhere for the phone's marks to live. The page is rebuilt from
+      # scratch twice a day, so a star tapped on the train has to survive a
+      # deploy, and the repository cannot hold it: that is public, and these are
+      # rejections.
+      #
+      # Allowed to fail. The API token needs "Workers KV Storage: Edit" on top
+      # of Pages: Edit, and until it has it the site should still go up — the
+      # worker answers /state with 501 and the page says marks are not being
+      # saved, which is a great deal better than no site.
+      - name: Find or create the marks store
+        id: kv
+        if: env.CF_TOKEN != ''
+        continue-on-error: true
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          find_id() {
+            npx --yes wrangler@4 kv namespace list \
+              | jq -r '.[] | select(.title | endswith("quantjobs-state")) | .id' \
+              | head -1
+          }
+          id=$(find_id)
+          if [ -z "$id" ]; then
+            npx --yes wrangler@4 kv namespace create quantjobs-state || true
+            id=$(find_id)
+          fi
+          [ -n "$id" ] || { echo "::warning::no KV namespace; marks will not save"; exit 1; }
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "store $id"
+
+      # Bindings for a direct upload come from wrangler.toml, and it is written
+      # here rather than committed because the namespace id is discovered above.
+      # Without an id the file omits the binding, and the deploy still happens.
+      - name: Declare the deploy
+        if: env.CF_TOKEN != ''
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          KV_ID: ${{ steps.kv.outputs.id }}
+        run: |
+          {
+            echo 'name = "quantjobs"'
+            echo 'pages_build_output_dir = "web"'
+            echo 'compatibility_date = "2026-08-01"'
+            if [ -n "$KV_ID" ]; then
+              echo ''
+              echo '[[kv_namespaces]]'
+              echo 'binding = "STATE"'
+              echo "id = \"$KV_ID\""
+            fi
+          } > wrangler.toml
+          cat wrangler.toml
+
       - name: Publish to Cloudflare Pages
         if: env.CF_TOKEN != ''
         env:
@@ -149,4 +203,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy web --project-name=quantjobs --branch=main
+          command: pages deploy --project-name=quantjobs --branch=main

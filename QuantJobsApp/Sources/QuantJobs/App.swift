@@ -70,6 +70,8 @@ struct QuantJobsApp: App {
                 Button("Reload Config") { Task { await model.reload() } }
                     .keyboardShortcut("r", modifiers: [.command, .shift])
                 Button("Forget Seen Postings", action: model.resetSeen)
+                Button("Sync With the Phone") { Task { await model.syncMarks() } }
+                    .keyboardShortcut("s", modifiers: [.command, .shift])
             }
         }
     }

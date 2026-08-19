@@ -24,7 +24,7 @@ enum HTTP {
         return URLSession(configuration: cfg)
     }()
 
-    static func data(_ urlString: String, body: Data? = nil,
+    static func data(_ urlString: String, method: String? = nil, body: Data? = nil,
                      headers: [String: String] = [:],
                      retries: Int = 2) async throws -> Data {
         guard let url = URL(string: urlString) else {
@@ -39,6 +39,9 @@ enum HTTP {
                 req.httpBody = body
                 req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             }
+            // Named explicitly for the one caller that PUTs; a body still
+            // implies POST, which is every board API here.
+            if let method { req.httpMethod = method }
             // Some in-house careers APIs only answer with their own referer.
             for (field, value) in headers {
                 req.setValue(value, forHTTPHeaderField: field)

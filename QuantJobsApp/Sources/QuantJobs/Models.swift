@@ -658,6 +658,18 @@ enum Dates {
 
     static var today: String { iso.string(from: Date()) }
 
+    /// UTC, to the second, the same shape the page's `toISOString()` produces —
+    /// these two are compared as strings, so they have to sort the same way.
+    static let instantFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        return f
+    }()
+
+    static var instant: String { instantFormatter.string(from: Date()) }
+
     static func date(_ s: String) -> Date? { s.isEmpty ? nil : iso.date(from: s) }
 
     static func days(since s: String) -> Int? {
@@ -914,8 +926,21 @@ struct TrackedJob: Codable, Identifiable, Sendable {
     var note: String = ""
     /// The board stopped listing it. Set by a run that did reach that firm.
     var isDelisted: Bool = false
+    /// The instant of the last edit, for deciding which of two machines is
+    /// carrying the newer version of this entry.
+    ///
+    /// Separate from `updated`, which is a date and gets compared against
+    /// milestone dates — an instant there would break that. Optional so entries
+    /// written before syncing existed still decode; they fall back to midnight
+    /// on `updated`, which loses a same-day tie to the phone. That is the right
+    /// way round: an entry with no instant has not been touched since this was
+    /// added, so the phone's edit is definitely the later one.
+    var touched: String? = nil
 
     var id: String { job.key }
+
+    /// What two machines compare to decide whose copy of this entry is newer.
+    var syncStamp: String { touched ?? (updated.isEmpty ? "" : updated + "T00:00:00Z") }
 
     // MARK: What state it's in
 
@@ -1039,17 +1064,19 @@ struct TrackedJob: Codable, Identifiable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case saved, hidden, milestones, job, updated, lastSeen, note, isDelisted
+        case touched
         case status      // read for migration, never written
     }
 
     init(job: Job, updated: String, lastSeen: String,
          saved: Bool = false, hidden: Bool = false,
          milestones: [Milestone] = [], note: String = "",
-         isDelisted: Bool = false) {
+         isDelisted: Bool = false, touched: String? = nil) {
         self.job = job
         self.updated = updated; self.lastSeen = lastSeen
         self.saved = saved; self.hidden = hidden; self.milestones = milestones
         self.note = note; self.isDelisted = isDelisted
+        self.touched = touched
     }
 
     init(from decoder: Decoder) throws {
@@ -1059,6 +1086,7 @@ struct TrackedJob: Codable, Identifiable, Sendable {
         lastSeen = try c.decodeIfPresent(String.self, forKey: .lastSeen) ?? ""
         note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
         isDelisted = try c.decodeIfPresent(Bool.self, forKey: .isDelisted) ?? false
+        touched = try c.decodeIfPresent(String.self, forKey: .touched)
 
         if let saved = try c.decodeIfPresent(Bool.self, forKey: .saved) {
             self.saved = saved
@@ -1082,6 +1110,7 @@ struct TrackedJob: Codable, Identifiable, Sendable {
 
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encodeIfPresent(touched, forKey: .touched)
         try c.encode(job, forKey: .job)
         try c.encode(saved, forKey: .saved)      // always written; its presence
         try c.encode(hidden, forKey: .hidden)    // is what marks the new format

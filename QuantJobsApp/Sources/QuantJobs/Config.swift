@@ -89,6 +89,7 @@ enum ConfigStore {
     static var seenURL: URL { directory.appendingPathComponent(".seen.json") }
     static var trackedURL: URL { directory.appendingPathComponent(".tracked.json") }
     static var cacheURL: URL { directory.appendingPathComponent(".cache.json") }
+    static var syncURL: URL { directory.appendingPathComponent(".sync.json") }
 
     // MARK: seeding
 
@@ -305,6 +306,18 @@ enum ConfigStore {
         let enc = JSONEncoder()
         enc.outputFormatting = [.sortedKeys]
         try? enc.encode(seen).write(to: seenURL, options: .atomic)
+    }
+
+    // MARK: sync
+
+    /// Where the phone's copy lives and the password to get in, or nil if
+    /// syncing has never been set up. See Sync.swift.
+    static func loadSync() -> SyncConfig? {
+        guard let data = try? Data(contentsOf: syncURL),
+              let c = try? JSONDecoder().decode(SyncConfig.self, from: data),
+              !c.url.isEmpty, !c.password.isEmpty
+        else { return nil }
+        return c
     }
 
     // MARK: last results

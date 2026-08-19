@@ -187,6 +187,9 @@ struct ContentView: View {
             // Before the scrape, so rows land already carrying the date the
             // scheduled fetch first saw them rather than this machine's.
             await model.mergeSharedLedger()
+            // And whatever was starred on the phone since the window was last
+            // open. Silent when syncing has not been set up.
+            await model.syncMarks()
             await model.updater.checkOnLaunch()
             // Refresh on open only when the cache is stale — otherwise the
             // window comes up instantly on last run's results and waits for ⌘R.

@@ -510,6 +510,10 @@ final class AppModel {
                     ?? TrackedJob(job: posting, updated: today, lastSeen: today)
                 change(&entry)
                 entry.updated = today
+                // To the second, so the phone and the Mac can tell whose copy of
+                // this entry is newer. `updated` is a date and is compared with
+                // milestone dates, so it cannot carry a time. See Sync.swift.
+                entry.touched = Dates.instant
                 entry.job = posting              // keep the snapshot current
                 if entry.isEmpty {
                     tracked.removeValue(forKey: key)
@@ -520,6 +524,7 @@ final class AppModel {
         }
         ConfigStore.saveTracked(tracked)
         resultsVersion += 1
+        scheduleSync()
     }
 
     func setSaved(_ value: Bool, for targets: [Job]) {
@@ -711,6 +716,7 @@ final class AppModel {
                     intakeFilter: intakeFilter,
                     excludePhD: excludePhD,
                     collapsedStages: collapsedStages.map(\.rawValue).sorted(),
+                    filtersUpdated: filtersTouched,
                     refreshOnLaunch: refreshOnLaunch,
                     refreshIfOlderThanHours: refreshIfOlderThanHours)
     }
@@ -736,6 +742,7 @@ final class AppModel {
         collapsedStages = Set(s.collapsedStages.compactMap(Stage.init(rawValue:)))
         refreshOnLaunch = s.refreshOnLaunch
         refreshIfOlderThanHours = s.refreshIfOlderThanHours
+        filtersTouched = s.filtersUpdated
     }
 
     private var settingsSaveTask: Task<Void, Never>?
@@ -743,6 +750,9 @@ final class AppModel {
     /// Coalesced, so dragging a slider or typing doesn't write per keystroke.
     func persistSettings() {
         guard isLoaded else { return }      // don't save the pre-load defaults
+        // Stamped here because this is what every filter change already goes
+        // through. The stamp is what decides whose filters the phone shows.
+        filtersTouched = Dates.instant
         let snapshot = currentSettings
         settingsSaveTask?.cancel()
         settingsSaveTask = Task {
@@ -1374,6 +1384,142 @@ final class AppModel {
         for i in jobs.indices where jobs[i].posted.isEmpty {
             jobs[i].firstSeen = Sighting.firstSeen(of: jobs[i], in: seen) ?? jobs[i].firstSeen
         }
+    }
+
+    // MARK: - Marks and filters, shared with the phone
+
+    /// Set when the last sync failed, so the window can say so rather than
+    /// looking like it worked.
+    var syncError: String?
+    /// When the filters last changed here. Compared against the phone's stamp.
+    var filtersTouched = ""
+
+    private var syncTask: Task<Void, Never>?
+
+    /// Coalesced, because working through a list of roles is a burst of edits
+    /// and only the state after the last one matters.
+    func scheduleSync() {
+        guard isLoaded, ConfigStore.loadSync()?.isOn == true else { return }
+        syncTask?.cancel()
+        syncTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            await self?.syncMarks()
+        }
+    }
+
+    /// Trades marks and filters with the deployed page. See Sync.swift.
+    ///
+    /// Pull, merge, push — in that order, and the push carries everything this
+    /// machine knows rather than only what changed, because the server merges
+    /// and the alternative is remembering what has already been sent.
+    func syncMarks() async {
+        guard let cfg = ConfigStore.loadSync(), cfg.isOn else { return }
+        do {
+            let remote = try await StateSync.pull(cfg)
+            merge(remote)
+            _ = try await StateSync.push(
+                SyncDoc(tracked: tracked.mapValues(SyncMarks.init),
+                        filters: outgoingFilters(),
+                        filtersUpdated: filtersTouched),
+                to: cfg)
+            syncError = nil
+        } catch {
+            syncError = (error as? FetchError)?.errorDescription
+                ?? error.localizedDescription
+        }
+    }
+
+    /// Folds the phone's document into this machine's, newest edit winning per
+    /// posting and milestones unioned either way.
+    private func merge(_ doc: SyncDoc) {
+        var byKey: [String: Job]?          // built only if an unknown key turns up
+        var changed = false
+
+        for (key, incoming) in doc.tracked {
+            if var mine = tracked[key] {
+                let steps = unionMilestones(mine.milestones, incoming.steps)
+                let takeTheirs = incoming.updated > mine.syncStamp
+                if takeTheirs { mine = incoming.applied(to: mine) }
+                if takeTheirs || steps != mine.milestones {
+                    mine.milestones = steps
+                    // An entry the phone cleared has nothing left to keep.
+                    if mine.isEmpty { tracked.removeValue(forKey: key) }
+                    else { tracked[key] = mine }
+                    changed = true
+                }
+                continue
+            }
+            // Marked on the phone and never seen here. An entry needs a posting
+            // to hang off, so take it from this run's results; if it is not
+            // there, leave it on the server for a run that does return it rather
+            // than inventing a posting from a URL.
+            if byKey == nil {
+                byKey = Dictionary(jobs.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
+            }
+            guard let job = byKey?[key] else { continue }
+            let entry = TrackedJob(job: job, updated: Dates.today,
+                                   lastSeen: Dates.today,
+                                   saved: incoming.saved, hidden: incoming.hidden,
+                                   milestones: incoming.steps, note: incoming.note,
+                                   touched: incoming.updated)
+            guard !entry.isEmpty else { continue }
+            tracked[key] = entry
+            changed = true
+        }
+
+        if let filters = doc.filters,
+           let stamp = doc.filtersUpdated, stamp > filtersTouched {
+            applyIncoming(filters)
+            filtersTouched = stamp
+            changed = true
+        }
+        if changed {
+            ConfigStore.saveTracked(tracked)
+            resultsVersion += 1
+        }
+    }
+
+    /// The filters, in the ids the page's controls use.
+    ///
+    /// Only the ones that mean the same thing on both sides. The page's firm and
+    /// sort pickers have no equivalent here — the app narrows firms in the Firms
+    /// picker and sorts by clicking a column — and syncing them by guesswork
+    /// would move the window's state for no reason.
+    private func outgoingFilters() -> [String: String] {
+        [
+            "q": search,
+            "f-cat": selectedCategoryID,
+            "f-level": level.rawValue,
+            "f-days": sinceDays.map(String.init) ?? "",
+            "f-year": intakeFilter.map(String.init) ?? "",
+            "f-region": continentFilter.sorted().first ?? "",
+            "f-city": cityFilter.sorted().first ?? "",
+            "f-stack": excludedStacks.sorted().first ?? "",
+            "f-phd": excludePhD ? "1" : "",
+            "f-applied": appliedFilter == .show ? "" : appliedFilter.rawValue,
+            "tab": list.rawValue,
+        ]
+    }
+
+    private func applyIncoming(_ f: [String: String]) {
+        if let v = f["q"] { search = v }
+        if let v = f["f-cat"], navCategories.contains(where: { $0.name == v }) {
+            selectedCategoryID = v
+        }
+        if let v = f["f-level"], let l = Level(rawValue: v) { level = l }
+        if let v = f["f-days"] { sinceDays = Int(v) }
+        if let v = f["f-year"] { intakeFilter = Int(v) }
+        // One at a time on the page, a set here: an empty choice means no filter
+        // rather than an empty set that matches nothing.
+        if let v = f["f-region"] { continentFilter = v.isEmpty ? [] : [v] }
+        if let v = f["f-city"] { cityFilter = v.isEmpty ? [] : [v] }
+        if let v = f["f-stack"] { excludedStacks = v.isEmpty ? [] : [v] }
+        if let v = f["f-phd"] { excludePhD = v == "1" }
+        if let v = f["f-applied"] {
+            appliedFilter = v.isEmpty ? .show : (AppliedFilter(rawValue: v) ?? .show)
+        }
+        if let v = f["tab"], let l = JobList(rawValue: v) { list = l }
     }
 
     /// Forgets postings last listed more than `days` ago. Only for the
