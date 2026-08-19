@@ -1044,9 +1044,9 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Maven Securities",
-      "note" : "mavensecurities.com/careers 404s and no ATS fingerprint was found (rechecked 2026-08-07).",
+      "note" : "Greenhouse under 'mavensecuritiesholdingltd'. Guessing the token never found it; the embed script on mavensecurities.com/jobs names it. 38 roles.",
       "segment" : "Tier 2",
       "tags" : [
         "quant",
@@ -1054,7 +1054,7 @@
         "london"
       ],
       "tier" : 2,
-      "token" : ""
+      "token" : "mavensecuritiesholdingltd"
     },
     {
       "ats" : "workday",
@@ -1239,9 +1239,13 @@
       "ats" : "greenhouse",
       "enabled" : false,
       "name" : "Quantlab",
-      "note" : "Its board is Jobvite (jobs.jobvite.com/quantlab). Both the search page and the careers API return a shell with no postings in it, as when this was first checked \u2014 nothing to read yet rather than nowhere to read from (rechecked 2026-08-19).",
+      "note" : "Its board is Jobvite (jobs.jobvite.com/quantlab). Both the search page and the careers API return a shell with no postings in it, as when this was first checked — nothing to read yet rather than nowhere to read from (rechecked 2026-08-19).",
       "segment" : "Tier 2",
-      "tags" : ["quant", "hft", "prop"],
+      "tags" : [
+        "quant",
+        "hft",
+        "prop"
+      ],
       "tier" : 2,
       "token" : ""
     },
@@ -1576,14 +1580,17 @@
       "token" : "astranis"
     },
     {
-      "ats" : "greenhouse",
-      "enabled" : false,
+      "ats" : "ashby",
+      "enabled" : true,
       "name" : "Aurora",
-      "note" : "aurora.tech renders its board client-side. It cites Ashby, but no board token is in the page and aurora / aurorainnovation / auroratech are all unknown to Ashby's posting API (rechecked 2026-08-19).",
+      "note" : "Ashby under 'aurora-operations-inc'. The board renders client-side, but the page config carries the slug as ashbyOrgSlug. 70 roles.",
       "segment" : "Frontier AI",
-      "tags" : ["bigtech", "av"],
+      "tags" : [
+        "bigtech",
+        "av"
+      ],
       "tier" : 3,
-      "token" : "aurorainnovation"
+      "token" : "aurora-operations-inc"
     },
     {
       "ats" : "greenhouse",
@@ -2051,10 +2058,13 @@
       "enabled" : true,
       "host" : "blackrock.wd1.myworkdayjobs.com",
       "name" : "BlackRock",
-      "note" : "Its own careers search returns 403 to scripted callers; the Workday board behind it does not. No query, because the whole site is 300 roles \u2014 and searching it for 'internship' returns none today. BlackRock_Campus, BlackRock_Students and Campus_Careers are all 404, so this is the only site there is; early-career roles will be picked up here when posted (checked 2026-08-19).",
+      "note" : "Its own careers search returns 403 to scripted callers; the Workday board behind it does not. No query, because the whole site is 300 roles — and searching it for 'internship' returns none today. BlackRock_Campus, BlackRock_Students and Campus_Careers are all 404, so this is the only site there is; early-career roles will be picked up here when posted (checked 2026-08-19).",
       "segment" : "Tier 1",
       "site" : "BlackRock_Professional",
-      "tags" : ["quant", "asset-manager"],
+      "tags" : [
+        "quant",
+        "asset-manager"
+      ],
       "tenant" : "blackrock",
       "tier" : 1
     },
@@ -2064,7 +2074,10 @@
       "name" : "Bloomberg",
       "note" : "careers.bloomberg.com answers 403 to scripted callers, page and search API alike; it needs a real browser (rechecked 2026-08-19).",
       "segment" : "FAANG+",
-      "tags" : ["bigtech", "fintech"],
+      "tags" : [
+        "bigtech",
+        "fintech"
+      ],
       "tier" : 1,
       "token" : ""
     },
@@ -2246,7 +2259,10 @@
       "query" : "internship",
       "segment" : "Tier 1",
       "site" : "CX_1001",
-      "tags" : ["quant", "bank"],
+      "tags" : [
+        "quant",
+        "bank"
+      ],
       "tier" : 1
     },
     {
@@ -2288,17 +2304,19 @@
       "token" : "notion"
     },
     {
-      "ats" : "greenhouse",
-      "enabled" : false,
+      "ats" : "sitemap",
+      "enabled" : true,
+      "host" : "plaid.com",
       "name" : "Plaid",
-      "note" : "Runs on RippleMatch — no adapter for it yet.",
+      "note" : "Its board is RippleMatch, which exposes no readable API — but plaid.com's own sitemap lists every opening as a page under /careers/openings/.",
+      "path" : "/careers/openings/",
       "segment" : "Startups",
+      "sitemap" : "sitemap.xml",
       "tags" : [
         "bigtech",
         "fintech"
       ],
-      "tier" : 1,
-      "token" : ""
+      "tier" : 1
     },
     {
       "ats" : "smartrecruiters",
@@ -2352,7 +2370,9 @@
       "name" : "Tesla",
       "note" : "Its careers API (tesla.com/cua-api/apps/careers/state) answers 403 to scripted callers, with or without a browser user agent and referer (rechecked 2026-08-19).",
       "segment" : "FAANG+",
-      "tags" : ["bigtech"],
+      "tags" : [
+        "bigtech"
+      ],
       "tier" : 1,
       "token" : ""
     },
