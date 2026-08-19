@@ -6,7 +6,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
     case greenhouse, lever, ashby, smartrecruiters, workday, amazon
     case eightfold, jibe, uber, wolverine, citadel, optiver, twosigma, simplify
     case sitemap, janestreet, deshaw, gresearch, google, apple, stripe
-    case oracle
+    case oracle, meta
 
     var id: String { rawValue }
 
@@ -34,6 +34,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         case .apple: "jobs.apple.com"
         case .stripe: "Greenhouse + stripe.com"
         case .oracle: "Oracle Cloud"
+        case .meta: "metacareers.com"
         }
     }
 
@@ -55,7 +56,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         case .oracle: .workday
         case .sitemap: .sitemap
         case .amazon, .uber, .wolverine, .optiver, .twosigma, .simplify,
-             .janestreet: .query
+             .janestreet, .meta: .query
         default: .token
         }
     }

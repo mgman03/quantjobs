@@ -25,6 +25,7 @@ enum Adapters {
         switch c.ats {
         case .greenhouse:      try await greenhouse(c, deep: deep)
         case .oracle:          try await oracle(c, deep: deep)
+        case .meta:            try await meta(c, deep: deep)
         case .stripe:          try await stripe(c, deep: deep)
         case .lever:           try await lever(c, deep: deep)
         case .ashby:           try await ashby(c, deep: deep)
@@ -79,6 +80,140 @@ enum Adapters {
                 department: depts.joined(separator: ", "),
                 description: deep ? Clean.html(j["content"] as? String) : "")
         }
+    }
+
+    // MARK: - Meta
+
+    /// Meta, read from its sitemap and the structured data on each posting.
+    ///
+    /// metacareers.com answers 400 to anything that does not look like a
+    /// browser *navigating* — the Sec-Fetch-* headers are what it checks, and
+    /// with them the whole site opens up, robots.txt included. That is the
+    /// whole of the workaround. The job search itself is Relay over GraphQL and
+    /// still out of reach: the operation names are in the bundles
+    /// (CareersJobSearchResultsDataQuery and friends) but the doc_id that makes
+    /// them callable is not, and Meta answers a persisted query it cannot
+    /// resolve with a blank 500.
+    ///
+    /// So: the jobsearch sitemap lists every posting, and every posting page
+    /// carries a schema.org JobPosting with the title, the offices and the date
+    /// — the same block Google reads to put these in its jobs results.
+    ///
+    /// The cost is one request per posting, which is why this is the only
+    /// adapter here that works that way. It is bounded by `metaCap` and runs
+    /// eight at a time.
+    static func meta(_ c: Company, deep: Bool) async throws -> [RawJob] {
+        let host = c.host ?? "www.metacareers.com"
+        let raw = try await HTTP.data("https://\(host)/jobsearch/sitemap.xml",
+                                      headers: Self.browserHeaders)
+        let xml = String(decoding: raw, as: UTF8.self)
+
+        // <loc> and <lastmod> in pairs, newest first, so a cap keeps what is
+        // most likely to still be open rather than an arbitrary slice.
+        var entries: [(url: String, modified: String)] = []
+        for part in xml.components(separatedBy: "<url>").dropFirst() {
+            guard let loc = Self.between(part, "<loc>", "</loc>")?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                  loc.contains("/job_details/") else { continue }
+            let mod = Self.between(part, "<lastmod>", "</lastmod>") ?? ""
+            entries.append((loc, mod))
+        }
+        guard !entries.isEmpty else {
+            throw FetchError.badPayload("no postings in Meta's sitemap")
+        }
+        entries.sort { $0.modified > $1.modified }
+        let wanted = Array(entries.prefix(Self.metaCap))
+
+        // Bounded, and gathered as they land. A firm that answers slowly must
+        // not hold up the rest of the run, which is why this is a group and not
+        // a loop.
+        // Four at a time, not eight. A thousand requests to one host is the
+        // shape of thing that gets throttled, and it did: eight was fine when
+        // Meta was the only board running and lost a fifth of the postings when
+        // it was competing with every other firm in a full run.
+        func gather(_ urls: [(url: String, modified: String)])
+            async -> [(RawJob?, String)] {
+            await withTaskGroup(of: (RawJob?, String).self) { group in
+                let gate = RequestGate(limit: 4)
+                for entry in urls {
+                    group.addTask {
+                        let job = try? await gate.run {
+                            let page = try await HTTP.data(entry.url,
+                                                           headers: Self.browserHeaders,
+                                                           retries: 2)
+                            return Self.metaPosting(String(decoding: page, as: UTF8.self),
+                                                    url: entry.url, deep: deep)
+                        }
+                        return (job ?? nil, entry.url)
+                    }
+                }
+                var out: [(RawJob?, String)] = []
+                for await r in group { out.append(r) }
+                return out
+            }
+        }
+
+        var answered = await gather(wanted)
+        // One more pass over whatever did not answer, unhurried. Postings that
+        // failed under load usually come back on their own.
+        let missed = answered.filter { $0.0 == nil }.map(\.1)
+        if !missed.isEmpty, missed.count < wanted.count {
+            let retried = await gather(missed.map { (url: $0, modified: "") })
+            answered = answered.filter { $0.0 != nil } + retried
+        }
+        let results = answered.compactMap(\.0)
+
+        // A thousand requests to one host is exactly the shape of thing that
+        // gets throttled, and a throttled run reads as a firm with six jobs
+        // rather than as a firm that failed. Say so instead: better an error in
+        // the status bar than a board that quietly shrank.
+        guard results.count * 4 >= wanted.count * 3 else {
+            throw FetchError.badPayload(
+                "only \(results.count) of \(wanted.count) Meta postings answered")
+        }
+        return results
+    }
+
+    /// How many postings to read. Meta lists around nine hundred; this is not a
+    /// limit anyone has hit, it is a guard against a sitemap that grows by an
+    /// order of magnitude without anyone noticing the run got slower.
+    private static let metaCap = 1200
+
+    /// The schema.org JobPosting a Meta posting page carries, which sits in the
+    /// first two kilobytes of it.
+    private static func metaPosting(_ html: String, url: String, deep: Bool) -> RawJob? {
+        guard let open = html.range(of: "application/ld+json"),
+              let gt = html.range(of: ">", range: open.upperBound..<html.endIndex),
+              let close = html.range(of: "</script>", range: gt.upperBound..<html.endIndex),
+              let data = String(html[gt.upperBound..<close.lowerBound])
+                .data(using: .utf8),
+              let d = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              d["@type"] as? String == "JobPosting",
+              let title = d["title"] as? String, !title.isEmpty
+        else { return nil }
+
+        // One Place, or several for a role open in more than one office.
+        let places: [String]
+        switch d["jobLocation"] {
+        case let many as [[String: Any]]: places = many.compactMap { $0["name"] as? String }
+        case let one as [String: Any]:    places = [one["name"] as? String].compactMap { $0 }
+        default:                          places = []
+        }
+        return RawJob(
+            title: Clean.html(title),
+            location: places.joined(separator: "; "),
+            url: url,
+            // "2026-08-13T08:42:44-07:00" — the date is the first ten of it.
+            posted: String((d["datePosted"] as? String ?? "").prefix(10)),
+            department: (d["occupationalCategory"] as? String) ?? "",
+            description: deep ? Clean.html(d["description"] as? String ?? "") : "")
+    }
+
+    private static func between(_ s: String, _ open: String, _ close: String) -> String? {
+        guard let a = s.range(of: open),
+              let b = s.range(of: close, range: a.upperBound..<s.endIndex)
+        else { return nil }
+        return String(s[a.upperBound..<b.lowerBound])
     }
 
     // MARK: - Oracle Cloud (Oracle HCM Candidate Experience)

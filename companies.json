@@ -185,11 +185,10 @@
       "token" : "jumptrading"
     },
     {
-      "ats" : "simplify",
+      "ats" : "meta",
       "enabled" : true,
       "name" : "Meta",
-      "note" : "metacareers.com posts to a GraphQL endpoint needing an fb_dtsg session token. The Simplify feed has entries, but metacareers.com returns 400 to scripted callers so no link can be confirmed — leads only. Set enabled=true to take them anyway; they arrive flagged as unverified.",
-      "query" : "Meta",
+      "note" : "metacareers.com answers 400 to anything that does not look like a browser navigating — the Sec-Fetch-* headers are what it checks. With them the site opens up: its jobsearch sitemap lists every posting and each posting page carries a schema.org JobPosting. That costs one request per posting, which no other board here needs, but it is Meta's own data rather than a community feed's guess at it. The GraphQL job search is still out of reach: the operation names are in the bundles, the doc_id is not.",
       "segment" : "FAANG+",
       "tags" : [
         "bigtech",
@@ -2256,13 +2255,13 @@
       "host" : "jpmc.fa.oraclecloud.com",
       "name" : "JPMorgan Chase",
       "note" : "Oracle Cloud. 'internship' rather than 'intern': the keyword matches descriptions too, so 'intern' returns 3,784 of the tenant's 7,388 roles and buries the programmes, while 'internship' returns 338 and nearly all of them are early-career.",
-      "query" : "internship",
       "segment" : "Tier 1",
       "site" : "CX_1001",
       "tags" : [
         "quant",
         "bank"
       ],
+      "tenant" : "",
       "tier" : 1
     },
     {
