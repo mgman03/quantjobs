@@ -1417,6 +1417,15 @@ final class AppModel {
         guard let cfg = ConfigStore.loadSync(), cfg.isOn else { return }
         do {
             let remote = try await StateSync.pull(cfg)
+            // Nothing has ever set filters. Stamp this machine's so the first
+            // sync seeds them rather than pushing an empty timestamp that can
+            // never win — an install from before this existed has no stamp, and
+            // without this its filters would stay invisible on the phone
+            // forever. Only when the store is empty: after that the timestamps
+            // decide, and the phone can take over.
+            if remote.filters == nil, filtersTouched.isEmpty {
+                filtersTouched = Dates.instant
+            }
             merge(remote)
             _ = try await StateSync.push(
                 SyncDoc(tracked: tracked.mapValues(SyncMarks.init),
@@ -1493,14 +1502,24 @@ final class AppModel {
             "f-level": level.rawValue,
             "f-days": sinceDays.map(String.init) ?? "",
             "f-year": intakeFilter.map(String.init) ?? "",
-            "f-region": continentFilter.sorted().first ?? "",
-            "f-city": cityFilter.sorted().first ?? "",
-            "f-stack": excludedStacks.sorted().first ?? "",
+            // Joined, not just the first: these are sets here and one <select>
+            // there, and sending only the first quietly dropped the rest on the
+            // way back. The page matches any of them.
+            "f-region": continentFilter.sorted().joined(separator: "|"),
+            "f-city": cityFilter.sorted().joined(separator: "|"),
+            "f-stack": excludedStacks.sorted().joined(separator: "|"),
             "f-phd": excludePhD ? "1" : "",
             "f-applied": appliedFilter == .show ? "" : appliedFilter.rawValue,
-            "tab": list.rawValue,
+            "tab": Self.pageTab[list] ?? "all",
         ]
     }
+
+    /// The lists have different names on each side — "results" and "favorite"
+    /// here, "all" and "saved" there — and sending the raw value meant the page
+    /// silently ignored a tab it had never heard of.
+    private static let pageTab: [JobList: String] = [
+        .results: "all", .favorite: "saved", .applied: "applied", .hidden: "hidden",
+    ]
 
     private func applyIncoming(_ f: [String: String]) {
         if let v = f["q"] { search = v }
@@ -1510,16 +1529,20 @@ final class AppModel {
         if let v = f["f-level"], let l = Level(rawValue: v) { level = l }
         if let v = f["f-days"] { sinceDays = Int(v) }
         if let v = f["f-year"] { intakeFilter = Int(v) }
-        // One at a time on the page, a set here: an empty choice means no filter
-        // rather than an empty set that matches nothing.
-        if let v = f["f-region"] { continentFilter = v.isEmpty ? [] : [v] }
-        if let v = f["f-city"] { cityFilter = v.isEmpty ? [] : [v] }
-        if let v = f["f-stack"] { excludedStacks = v.isEmpty ? [] : [v] }
+        // A set here, one pipe-joined value there. An empty choice means no
+        // filter rather than an empty set, which would match nothing.
+        func set(_ v: String) -> Set<String> {
+            v.isEmpty ? [] : Set(v.split(separator: "|").map(String.init))
+        }
+        if let v = f["f-region"] { continentFilter = set(v) }
+        if let v = f["f-city"] { cityFilter = set(v) }
+        if let v = f["f-stack"] { excludedStacks = set(v) }
         if let v = f["f-phd"] { excludePhD = v == "1" }
         if let v = f["f-applied"] {
             appliedFilter = v.isEmpty ? .show : (AppliedFilter(rawValue: v) ?? .show)
         }
-        if let v = f["tab"], let l = JobList(rawValue: v) { list = l }
+        if let v = f["tab"],
+           let l = Self.pageTab.first(where: { $0.value == v })?.key { list = l }
     }
 
     /// Forgets postings last listed more than `days` ago. Only for the

@@ -796,11 +796,13 @@ enum HeadlessCheck {
             guard CommandLine.arguments.contains("--push") else { exit(0) }
 
             // The whole round trip, which is also a useful thing to be able to do
-            // without opening the window. The config folder stays as it is —
-            // pushing the real marks is the point — but settings go to a
-            // throwaway suite, because adopting the phone's filters here would
-            // otherwise change what the window opens on.
-            AppSettings.useScratchStore("sync")
+            // without opening the window.
+            //
+            // The real settings, deliberately: this reads them to push them, and
+            // pushing the defaults instead would send the phone a category and a
+            // level the user never chose. Nothing is written back — settings are
+            // only persisted from the window's onChange, and there is no window
+            // here — so reading them is safe in a way that writing would not be.
             let model = await AppModel()
             await model.reload()
             await model.syncMarks()

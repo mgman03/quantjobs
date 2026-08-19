@@ -449,6 +449,26 @@ enum WebExport {
             values.map(v => '<option value="' + v + '">' + prefix + v + '</option>').join('');
         }
         const uniq = f => [...new Set(rows().flatMap(f).filter(Boolean))].sort();
+
+        // The app lets you pick several regions, cities or stacks; a <select> on
+        // a phone picks one. So the value is allowed to be a set, joined with a
+        // pipe, and matching is "any of". Without this a round trip through the
+        // page silently narrowed "Europe and North America" down to "Europe".
+        const anyOf = (chosen, field) => {
+          const has = (field || '').split('|');
+          return chosen.split('|').some(c => has.includes(c));
+        };
+
+        // A set that arrived from the app is not one of the options built from
+        // the rows, and a <select> silently drops a value it has no option for.
+        function offer(id, value) {
+          const el = document.getElementById(id);
+          if (!value || [...el.options].some(o => o.value === value)) return;
+          const o = document.createElement('option');
+          o.value = value;
+          o.textContent = value.split('|').join(' + ');
+          el.append(o);
+        }
         fill('f-year', uniq(li => li.dataset.year ? [li.dataset.year] : []),
              'Any year', '');
         fill('f-region', uniq(li => (li.dataset.region || '').split('|')),
@@ -491,12 +511,12 @@ enum WebExport {
               && (!days || Number(d.days) <= Number(days))
               // A posting naming no year is kept, as in the app: most name none.
               && (!year || !d.year || d.year === year)
-              && (!region || (d.region || '').split('|').includes(region))
+              && (!region || anyOf(region, d.region))
               // Stack is an exclusion, so it drops rows that name it.
-              && (!stack || !(d.stacks || '').split('|').includes(stack))
+              && (!stack || !anyOf(stack, d.stacks))
               && (!phd || d.phd !== '1')
               && (!cat || (d.cat || '').split('|').includes(cat))
-              && (!city || (d.city || '').split('|').includes(city))
+              && (!city || anyOf(city, d.city))
               && (!firm || d.firm === firm)
               && (applied !== 'roles' || d.stage === '')
               && (applied !== 'firms' || !appliedFirms.has(d.firm));
@@ -741,7 +761,9 @@ enum WebExport {
           }
           if (d.filters) {
             for (const id of controls) {
-              if (id in d.filters) document.getElementById(id).value = d.filters[id];
+              if (!(id in d.filters)) continue;
+              offer(id, d.filters[id]);
+              document.getElementById(id).value = d.filters[id];
             }
             if (d.filters.tab) {
               tab = d.filters.tab;

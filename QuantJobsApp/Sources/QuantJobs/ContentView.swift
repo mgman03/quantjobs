@@ -178,7 +178,13 @@ struct ContentView: View {
                 shape == .wide || shape == .medium ? .visible : .hidden
             columns[visibility: "level"] = shape == .tight ? .hidden : .visible
         }
-        .onChange(of: model.settingsFingerprint) { model.persistSettings() }
+        .onChange(of: model.settingsFingerprint) {
+            model.persistSettings()
+            // And send them, or a filter changed here reached the phone only on
+            // the next launch — marks were pushed on every edit and filters were
+            // not, which made the sync look half-broken.
+            model.scheduleSync()
+        }
         .onChange(of: model.refreshFingerprint) { model.scheduleRefresh() }
         .task {
             // Deliberately after the window is up: the first read of the config
