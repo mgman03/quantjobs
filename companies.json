@@ -201,7 +201,7 @@
       "ats" : "simplify",
       "enabled" : false,
       "name" : "Microsoft",
-      "note" : "gcsservices.careers.microsoft.com refuses scripted connections. Sourced from the Simplify/Pitt CSC community feed instead. Thin but the links verify 200 (2026-08-03).",
+      "note" : "gcsservices.careers.microsoft.com refuses scripted connections and its search API 404s; jobs.careers.microsoft.com serves an empty sitemap. Sourced from the Simplify/Pitt CSC community feed instead — thin, but the links verify (rechecked 2026-08-19).",
       "query" : "Microsoft",
       "segment" : "FAANG+",
       "tags" : [
@@ -835,7 +835,7 @@
       "ats" : "greenhouse",
       "enabled" : true,
       "name" : "ExodusPoint",
-      "note" : "Its Greenhouse board holds two signposts — 'Investment - ExodusPoint Jobs Page' and 'Non-Investment - Referral' — rather than roles, and exoduspoint.com lists nothing and gives an email address. Off, because two non-jobs in the table is worse than an absent firm.",
+      "note" : "Publishes no listings at all. The homepage's careers link is an anchor to a section offering an email address, and its Greenhouse board holds two signposts rather than roles. Off, because two non-jobs in the table is worse than an absent firm (rechecked 2026-08-19).",
       "segment" : "Tier 2",
       "tags" : [
         "quant",
@@ -1239,7 +1239,7 @@
       "ats" : "greenhouse",
       "enabled" : false,
       "name" : "Quantlab",
-      "note" : "Its board is Jobvite (jobs.jobvite.com/quantlab). Both the search page and the careers API return a shell with no postings in it, as when this was first checked — nothing to read yet rather than nowhere to read from (rechecked 2026-08-19).",
+      "note" : "Its board is Jobvite (jobs.jobvite.com/quantlab). The search page and the careers API both return a shell with no postings in it, and quantlab.com serves no sitemap — nothing to read yet rather than nowhere to read from (rechecked 2026-08-19).",
       "segment" : "Tier 2",
       "tags" : [
         "quant",
@@ -2072,7 +2072,7 @@
       "ats" : "greenhouse",
       "enabled" : false,
       "name" : "Bloomberg",
-      "note" : "careers.bloomberg.com answers 403 to scripted callers, page and search API alike; it needs a real browser (rechecked 2026-08-19).",
+      "note" : "careers.bloomberg.com answers 403 to scripted callers — page, search API and robots.txt alike. It needs a real browser (rechecked 2026-08-19).",
       "segment" : "FAANG+",
       "tags" : [
         "bigtech",
@@ -2085,7 +2085,7 @@
       "ats" : "greenhouse",
       "enabled" : false,
       "name" : "Bridgewater",
-      "note" : "Careers page returns 403 to scripted callers and exposes no ATS host.",
+      "note" : "No readable careers page: /working-at-bridgewater/career-openings 404s and its sitemap lists a hundred pages, none of them jobs or careers. No ATS fingerprint anywhere on the site (rechecked 2026-08-19).",
       "segment" : "Tier 1",
       "tags" : [
         "quant",
@@ -2111,7 +2111,7 @@
       "ats" : "greenhouse",
       "enabled" : false,
       "name" : "Cisco",
-      "note" : "Runs on Phenom People — no adapter for it yet.",
+      "note" : "Phenom People. The page embeds phApp.ddo, but it holds only site config — the jobs arrive by XHR, and the usual Phenom endpoints (/widgets, /api/widgets, /api/apply/v2/jobs, /search-jobs/results) all return the 169kb app shell instead of JSON. Its sitemap.xml is empty (checked 2026-08-19).",
       "segment" : "FAANG+",
       "tags" : [
         "bigtech"
@@ -2228,7 +2228,7 @@
       "ats" : "greenhouse",
       "enabled" : false,
       "name" : "Goldman Sachs",
-      "note" : "Runs on Avature (recruiting360.avature.net) — no adapter for it yet.",
+      "note" : "higher.gs.com is a Next.js app that fetches roles over GraphQL. The operations are GetRoles and GetCampusRoles against roleSearch(searchQueryInput:) — the query text is recoverable from its JS chunks — but the endpoint is not: /gateway/api/v1/graphql appears in the bundle with no base URL, every path under higher.gs.com returns the app shell, and api.gs.com answers 'No Service at Path' for each one tried. Nothing is server-rendered. Finding it needs a browser's network log (checked 2026-08-19).",
       "segment" : "Tier 1",
       "tags" : [
         "quant",
@@ -2368,7 +2368,7 @@
       "ats" : "greenhouse",
       "enabled" : false,
       "name" : "Tesla",
-      "note" : "Its careers API (tesla.com/cua-api/apps/careers/state) answers 403 to scripted callers, with or without a browser user agent and referer (rechecked 2026-08-19).",
+      "note" : "tesla.com/cua-api/apps/careers/state answers 403 to scripted callers, with a browser user agent and a careers referer; robots.txt is 403 too (rechecked 2026-08-19).",
       "segment" : "FAANG+",
       "tags" : [
         "bigtech"
