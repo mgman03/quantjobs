@@ -153,6 +153,30 @@ fi
 
 echo "built $APP"
 
+# ── A name to type ──────────────────────────────────────────────────────
+# The binary lives inside the bundle, which is not on anyone's PATH, so every
+# documented `quantjobs --check ...` was a command not found. A wrapper rather
+# than a symlink: the binary finds its resource bundle relative to its own
+# location, and a link from elsewhere on the PATH moves that ground.
+#
+# Only into a directory the shell already searches, and never over something
+# that is not ours.
+for dir in "$HOME/.local/bin" /usr/local/bin; do
+    case ":$PATH:" in *":$dir:"*) ;; *) continue ;; esac
+    mkdir -p "$dir" 2>/dev/null || continue
+    [ -w "$dir" ] || continue
+    shim="$dir/quantjobs"
+    if [ -e "$shim" ] && ! grep -q "QuantJobs.app/Contents/MacOS/QuantJobs" "$shim" 2>/dev/null
+    then
+        echo "left $shim alone — something else is already there" >&2
+        break
+    fi
+    printf '#!/bin/sh\nexec "%s/Contents/MacOS/QuantJobs" "$@"\n' "$APP" > "$shim"
+    chmod +x "$shim"
+    echo "built $shim"
+    break
+done
+
 # Let Finder and Spotlight notice it, then show it to the user.
 /usr/bin/touch "$APP"
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \

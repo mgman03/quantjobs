@@ -375,7 +375,7 @@
       "token" : "squarepointcapital"
     },
     {
-      "ats" : "greenhouse",
+      "ats" : "stripe",
       "enabled" : true,
       "name" : "Stripe",
       "segment" : "FAANG+",

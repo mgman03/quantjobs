@@ -6,7 +6,7 @@ import Foundation
 import SwiftUI
 import AppKit
 
-/// `QuantJobs --check -c swe -l intern` runs a scrape in the terminal and
+/// `quantjobs --check -c swe -l intern` runs a scrape in the terminal and
 /// prints the same table the Python CLI does, so the two can be diffed
 /// whenever an adapter or a matcher changes.
 enum HeadlessCheck {
@@ -752,7 +752,7 @@ enum HeadlessCheck {
         }
         print("wrote \(path.path)")
         print("endpoint \(cfg.endpoint)")
-        print("check it with: QuantJobs --check --sync")
+        print("check it with: quantjobs --check --sync")
         exit(0)
     }
 
@@ -762,7 +762,7 @@ enum HeadlessCheck {
         Task {
             guard let cfg = ConfigStore.loadSync() else {
                 print("no \(ConfigStore.syncURL.lastPathComponent) — set it up with:")
-                print("  QuantJobs --check --sync-setup https://quantjobs.pages.dev")
+                print("  quantjobs --check --sync-setup https://quantjobs.pages.dev")
                 exit(1)
             }
             print("endpoint  \(cfg.endpoint)\(cfg.isOn ? "" : "  (turned off)")")

@@ -372,6 +372,13 @@ The firm list is refreshed from the new version on first launch: firms added sin
 your version arrive, repaired tokens and corrected notes come with them, and firms you
 switched on or off stay how you left them. Anything you added by hand is untouched.
 
+**The command line:** `make-app.sh` also drops a `quantjobs` wrapper in the first
+of `~/.local/bin` or `/usr/local/bin` that is already on your PATH, so the
+checks below are typeable. The binary itself lives inside the bundle at
+`/Applications/QuantJobs.app/Contents/MacOS/QuantJobs`, which is not on anyone's
+PATH — that is what the wrapper is for. Nothing is written over: a `quantjobs`
+that is not ours is left alone and the script says so.
+
 **The CLI:** `git pull`. Note that `companies.json` is both the shipped roster and your
 live config, so if you've toggled firms in the app git will report a conflict there —
 `git checkout --theirs companies.json` takes the new roster if you don't mind losing
@@ -419,9 +426,9 @@ has that the site still deploys and the page says marks are not being saved.
 On the Mac, once:
 
 ```sh
-QuantJobs --check --sync-setup https://quantjobs.pages.dev   # asks for the password
-QuantJobs --check --sync                                      # what the phone knows
-QuantJobs --check --sync --push                               # a full round trip
+quantjobs --check --sync-setup https://quantjobs.pages.dev   # asks for the password
+quantjobs --check --sync                                     # what the phone knows
+quantjobs --check --sync --push                              # a full round trip
 ```
 
 That writes `.sync.json` in the config folder, `chmod 600`, gitignored. The app
@@ -438,7 +445,7 @@ To try it without deploying:
 
 ```sh
 node site/serve.mjs 8791 &                       # the real worker, KV in memory
-QuantJobs --check --web /tmp/page.html
+quantjobs --check --web /tmp/page.html
 npm i jsdom && node site/page.test.mjs /tmp/page.html
 ```
 
@@ -452,7 +459,7 @@ npm i jsdom && node site/page.test.mjs /tmp/page.html
   launch, earliest date winning. Without it the twice-daily rebuild started from an
   empty file every run and dated everything "found today", which is what Jane
   Street's board, publishing no dates of its own, looked like on the phone.
-  `QuantJobs --check --ledger` prints what the fetch knows and what merging it would
+  `quantjobs --check --ledger` prints what the fetch knows and what merging it would
   change.
 - `.tracked.json` holds what you've saved, applied to or hidden, and the application
   timeline for each. It survives a board deleting the posting.
