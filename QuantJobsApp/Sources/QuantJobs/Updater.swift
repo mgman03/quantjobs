@@ -87,10 +87,19 @@ final class Updater {
 
     /// Called on launch. Quiet about failures — someone offline shouldn't get
     /// an error bar across a window that otherwise works fine.
+    ///
+    /// Every launch. This used to skip if it had checked in the last day, which
+    /// was a guess at protecting GitHub's unauthenticated limit of sixty
+    /// requests an hour — one request per launch is nowhere near it, and the
+    /// cost of the guess was that a release published in the morning went
+    /// unnoticed until the next day however many times the app was reopened.
+    ///
+    /// The floor that remains is only for window churn: `.task` runs whenever
+    /// the window is created, so closing and reopening it is not a new launch
+    /// and should not be a new request.
     func checkOnLaunch() async {
         let last = UserDefaults.standard.double(forKey: Self.lastCheckKey)
-        let day: TimeInterval = 60 * 60 * 24
-        guard Date().timeIntervalSince1970 - last > day else { return }
+        guard Date().timeIntervalSince1970 - last > 60 else { return }
         await check(quietly: true)
     }
 
