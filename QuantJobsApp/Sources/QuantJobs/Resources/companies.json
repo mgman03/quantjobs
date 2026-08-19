@@ -1239,13 +1239,9 @@
       "ats" : "greenhouse",
       "enabled" : false,
       "name" : "Quantlab",
-      "note" : "Its board is Jobvite (jobs.jobvite.com/quantlab/search?nl=1), which had no open roles when checked on 2026-08-07 — so there is nothing to read yet rather than nothing to read from.",
+      "note" : "Its board is Jobvite (jobs.jobvite.com/quantlab). Both the search page and the careers API return a shell with no postings in it, as when this was first checked \u2014 nothing to read yet rather than nowhere to read from (rechecked 2026-08-19).",
       "segment" : "Tier 2",
-      "tags" : [
-        "quant",
-        "hft",
-        "prop"
-      ],
+      "tags" : ["quant", "hft", "prop"],
       "tier" : 2,
       "token" : ""
     },
@@ -1583,12 +1579,9 @@
       "ats" : "greenhouse",
       "enabled" : false,
       "name" : "Aurora",
-      "note" : "greenhouse/aurorainnovation 404s and aurora.tech renders its board client-side with no ATS fingerprint (checked 2026-08-04).",
+      "note" : "aurora.tech renders its board client-side. It cites Ashby, but no board token is in the page and aurora / aurorainnovation / auroratech are all unknown to Ashby's posting API (rechecked 2026-08-19).",
       "segment" : "Frontier AI",
-      "tags" : [
-        "bigtech",
-        "av"
-      ],
+      "tags" : ["bigtech", "av"],
       "tier" : 3,
       "token" : "aurorainnovation"
     },
@@ -2054,28 +2047,24 @@
       "token" : "blackedgecapital"
     },
     {
-      "ats" : "greenhouse",
-      "enabled" : false,
+      "ats" : "workday",
+      "enabled" : true,
+      "host" : "blackrock.wd1.myworkdayjobs.com",
       "name" : "BlackRock",
-      "note" : "Job search returns 403 to scripted callers.",
+      "note" : "Its own careers search returns 403 to scripted callers; the Workday board behind it does not. No query, because the whole site is 300 roles \u2014 and searching it for 'internship' returns none today. BlackRock_Campus, BlackRock_Students and Campus_Careers are all 404, so this is the only site there is; early-career roles will be picked up here when posted (checked 2026-08-19).",
       "segment" : "Tier 1",
-      "tags" : [
-        "quant",
-        "asset-manager"
-      ],
-      "tier" : 1,
-      "token" : ""
+      "site" : "BlackRock_Professional",
+      "tags" : ["quant", "asset-manager"],
+      "tenant" : "blackrock",
+      "tier" : 1
     },
     {
       "ats" : "greenhouse",
       "enabled" : false,
       "name" : "Bloomberg",
-      "note" : "careers.bloomberg.com returns 403 to scripted callers; needs a browser.",
+      "note" : "careers.bloomberg.com answers 403 to scripted callers, page and search API alike; it needs a real browser (rechecked 2026-08-19).",
       "segment" : "FAANG+",
-      "tags" : [
-        "bigtech",
-        "fintech"
-      ],
+      "tags" : ["bigtech", "fintech"],
       "tier" : 1,
       "token" : ""
     },
@@ -2249,17 +2238,16 @@
       "token" : "gravitonresearchcapital"
     },
     {
-      "ats" : "greenhouse",
-      "enabled" : false,
+      "ats" : "oracle",
+      "enabled" : true,
+      "host" : "jpmc.fa.oraclecloud.com",
       "name" : "JPMorgan Chase",
-      "note" : "Runs on Oracle HCM (jpmc.fa.oraclecloud.com) — no adapter for it yet.",
+      "note" : "Oracle Cloud. 'internship' rather than 'intern': the keyword matches descriptions too, so 'intern' returns 3,784 of the tenant's 7,388 roles and buries the programmes, while 'internship' returns 338 and nearly all of them are early-career.",
+      "query" : "internship",
       "segment" : "Tier 1",
-      "tags" : [
-        "quant",
-        "bank"
-      ],
-      "tier" : 1,
-      "token" : ""
+      "site" : "CX_1001",
+      "tags" : ["quant", "bank"],
+      "tier" : 1
     },
     {
       "ats" : "greenhouse",
@@ -2362,11 +2350,9 @@
       "ats" : "greenhouse",
       "enabled" : false,
       "name" : "Tesla",
-      "note" : "Own careers API behind a 403 for scripted callers.",
+      "note" : "Its careers API (tesla.com/cua-api/apps/careers/state) answers 403 to scripted callers, with or without a browser user agent and referer (rechecked 2026-08-19).",
       "segment" : "FAANG+",
-      "tags" : [
-        "bigtech"
-      ],
+      "tags" : ["bigtech"],
       "tier" : 1,
       "token" : ""
     },

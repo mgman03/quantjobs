@@ -24,6 +24,7 @@ enum Adapters {
     static func fetch(_ c: Company, deep: Bool) async throws -> [RawJob] {
         switch c.ats {
         case .greenhouse:      try await greenhouse(c, deep: deep)
+        case .oracle:          try await oracle(c, deep: deep)
         case .stripe:          try await stripe(c, deep: deep)
         case .lever:           try await lever(c, deep: deep)
         case .ashby:           try await ashby(c, deep: deep)
@@ -78,6 +79,85 @@ enum Adapters {
                 department: depts.joined(separator: ", "),
                 description: deep ? Clean.html(j["content"] as? String) : "")
         }
+    }
+
+    // MARK: - Oracle Cloud (Oracle HCM Candidate Experience)
+
+    /// Oracle's hosted careers site, which is what JPMorgan and a good many
+    /// other banks run on.
+    ///
+    /// A platform rather than one firm, so this is written the way the Workday
+    /// adapter is: give it a host and a site number and it reads any tenant.
+    /// The REST resource behind the page is public — it is what the page itself
+    /// calls — and answers JSON without a key.
+    ///
+    /// `query` is worth setting on a big tenant. JPMorgan posts 7,388 roles;
+    /// the keyword narrows that server-side, loosely (it matches descriptions
+    /// too), and the app's own matchers do the rest.
+    static func oracle(_ c: Company, deep: Bool) async throws -> [RawJob] {
+        guard let host = c.host, !host.isEmpty else {
+            throw FetchError.misconfigured("oracle needs a host")
+        }
+        // Oracle calls a careers site CX_1001, CX_1002 and so on. Almost every
+        // tenant has exactly one and it is the first.
+        let site = c.site.flatMap { $0.isEmpty ? nil : $0 } ?? "CX_1001"
+        let pageSize = 200                 // the most this resource will return
+        let cap = 2000
+
+        func page(_ offset: Int) async throws -> ([RawJob], Int) {
+            var finder = "findReqs;siteNumber=\(site),limit=\(pageSize)"
+                + ",offset=\(offset),sortBy=POSTING_DATES_DESC"
+            if let q = c.query, !q.isEmpty {
+                finder += ",keyword=\(Self.escape(q))"
+            }
+            let url = "https://\(host)/hcmRestApi/resources/latest"
+                + "/recruitingCEJobRequisitions?onlyData=true"
+                + "&expand=requisitionList.secondaryLocations&finder=\(finder)"
+            let payload = try await HTTP.object(url)
+            // One item, holding the list and the count. Not a list of items.
+            guard let head = (payload["items"] as? [[String: Any]])?.first else {
+                return ([], 0)
+            }
+            let total = head["TotalJobsCount"] as? Int ?? 0
+            let jobs = (head["requisitionList"] as? [[String: Any]] ?? []).map { j -> RawJob in
+                let id = j["Id"].map { "\($0)" } ?? ""
+                let places = ([j["PrimaryLocation"] as? String]
+                    + (j["secondaryLocations"] as? [[String: Any]] ?? [])
+                        .map { $0["Name"] as? String })
+                    .compactMap { $0 }.filter { !$0.isEmpty }
+                return RawJob(
+                    title: j["Title"] as? String ?? "",
+                    location: places.joined(separator: "; "),
+                    url: "https://\(host)/hcmUI/CandidateExperience/en/sites/"
+                        + "\(site)/job/\(id)",
+                    posted: j["PostedDate"] as? String ?? "",
+                    department: [j["JobFamily"] as? String, j["JobFunction"] as? String]
+                        .compactMap { $0 }.filter { !$0.isEmpty }
+                        .joined(separator: " / "),
+                    description: deep ? (j["ShortDescriptionStr"] as? String ?? "") : "")
+            }
+            return (jobs, total)
+        }
+
+        let (first, total) = try await page(0)
+        guard !first.isEmpty else { return first }
+        var out = first
+        var offset = pageSize
+        while offset < min(total, cap) {
+            let (more, _) = try await page(offset)
+            if more.isEmpty { break }
+            out += more
+            offset += pageSize
+        }
+        return out
+    }
+
+    /// Percent-encoding for a value going into an Oracle finder clause, where a
+    /// comma separates parameters and would otherwise cut the keyword in half.
+    private static func escape(_ s: String) -> String {
+        s.addingPercentEncoding(
+            withAllowedCharacters: CharacterSet.alphanumerics.union(.init(charactersIn: "-_.~")))
+            ?? s
     }
 
     // MARK: - Stripe

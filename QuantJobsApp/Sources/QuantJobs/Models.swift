@@ -6,6 +6,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
     case greenhouse, lever, ashby, smartrecruiters, workday, amazon
     case eightfold, jibe, uber, wolverine, citadel, optiver, twosigma, simplify
     case sitemap, janestreet, deshaw, gresearch, google, apple, stripe
+    case oracle
 
     var id: String { rawValue }
 
@@ -32,6 +33,7 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         case .google: "google.com/careers"
         case .apple: "jobs.apple.com"
         case .stripe: "Greenhouse + stripe.com"
+        case .oracle: "Oracle Cloud"
         }
     }
 
@@ -49,6 +51,8 @@ enum ATS: String, Codable, CaseIterable, Identifiable, Sendable {
         // they reuse the Workday-style host fields rather than a slug.
         case .workday, .eightfold, .jibe, .citadel, .deshaw, .gresearch,
              .google, .apple: .workday
+        // Host and a site number; the tenant is part of the host.
+        case .oracle: .workday
         case .sitemap: .sitemap
         case .amazon, .uber, .wolverine, .optiver, .twosigma, .simplify,
              .janestreet: .query
@@ -124,7 +128,9 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
     var isConfigured: Bool {
         switch ats {
         case .eightfold: !(host ?? "").isEmpty && !(tenant ?? "").isEmpty
-        case .jibe, .citadel, .deshaw, .gresearch, .google, .apple:
+        case .jibe, .citadel, .deshaw, .gresearch, .google, .apple, .oracle:
+            // Oracle defaults the site to CX_1001, which is the only one most
+            // tenants have, so a host on its own is enough.
             !(host ?? "").isEmpty
         case .sitemap: !(host ?? "").isEmpty && !(sitemap ?? "").isEmpty
         default:
