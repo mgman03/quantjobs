@@ -93,8 +93,12 @@ enum WebExport {
         let age = Dates.compact(j.effectiveDate)
             .map { (j.dateIsInferred ? "~ " : "") + $0 } ?? ""
         let year = j.intakeYear.map { "’" + String(String($0).suffix(2)) } ?? ""
-        let bits = (j.company + " " + j.shortTitle + " " + j.locationDisplay
-                    + " " + j.department).lowercased()
+        // The same fields ScrapeQuery.matchesSearch uses, in the same order.
+        // It was the *shortened* title and the display location, so a search for
+        // a word the tidier had trimmed, or for a country as the board wrote it,
+        // found nothing here and everything in the app.
+        let bits = (j.title + " " + j.company + " " + j.location + " "
+                    + j.locationDisplay + " " + j.department).lowercased()
         // "Applied,2026-08-01,;OA,2026-08-05,2026-08-09" — stage, arrival, and the
         // date it was sat where that applies. One string keeps the whole history on
         // the row so the sheet can render and edit it.
@@ -502,24 +506,29 @@ enum WebExport {
           // firms before any row is judged.
           const appliedFirms = new Set(rows().filter(li => li.dataset.stage !== '')
                                              .map(li => li.dataset.firm));
+          // Saved, Applied and Hidden honour the search box and nothing else —
+          // the same rule the app has. Category, level and date narrow a scrape;
+          // applying them to a list of things you are tracking hides the
+          // applications you opened the list to find.
+          const narrow = tab === 'all';
           let shown = 0;
           for (const li of rows()) {
             const d = li.dataset;
             const ok = inList(li)
               && (!q || d.find.includes(q))
-              && (!level || (d.levels || d.level || '').split('|').includes(level))
-              && (!days || Number(d.days) <= Number(days))
+              && (!narrow || !level || (d.levels || d.level || '').split('|').includes(level))
+              && (!narrow || (!days || Number(d.days) <= Number(days)))
               // A posting naming no year is kept, as in the app: most name none.
-              && (!year || !d.year || d.year === year)
-              && (!region || anyOf(region, d.region))
+              && (!narrow || (!year || !d.year || d.year === year))
+              && (!narrow || (!region || anyOf(region, d.region)))
               // Stack is an exclusion, so it drops rows that name it.
-              && (!stack || !anyOf(stack, d.stacks))
-              && (!phd || d.phd !== '1')
-              && (!cat || (d.cat || '').split('|').includes(cat))
-              && (!city || anyOf(city, d.city))
-              && (!firm || d.firm === firm)
-              && (applied !== 'roles' || d.stage === '')
-              && (applied !== 'firms' || !appliedFirms.has(d.firm));
+              && (!narrow || (!stack || !anyOf(stack, d.stacks)))
+              && (!narrow || (!phd || d.phd !== '1'))
+              && (!narrow || (!cat || (d.cat || '').split('|').includes(cat)))
+              && (!narrow || (!city || anyOf(city, d.city)))
+              && (!narrow || (!firm || d.firm === firm))
+              && (!narrow || (applied !== 'roles' || d.stage === ''))
+              && (!narrow || (applied !== 'firms' || !appliedFirms.has(d.firm)));
             if (ok) { li.removeAttribute('data-local-hide'); shown++; }
             else { li.setAttribute('data-local-hide', '1'); }
           }
