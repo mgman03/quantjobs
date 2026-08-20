@@ -107,7 +107,8 @@ jobs:
       #   2. Account ID from the dashboard URL: dash.cloudflare.com/<id>/...
       #   3. this repo -> Settings -> Secrets and variables -> Actions -> add
       #      CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
-      #   4. add a SITE_PASSWORD secret in the same place. That is the password
+      #   4. add SITE_PASSWORD, and REFRESH_TOKEN if you want the page's
+      #      refresh button to work, in the same place. That is the password
       #      the page asks for; without it the site answers 503 and says so.
       #      (Not the Pages "Access policy" toggle — that one covers preview
       #      deployments only and leaves quantjobs.pages.dev itself open.)
@@ -194,6 +195,22 @@ jobs:
             fi
           } > wrangler.toml
           cat wrangler.toml
+
+      # Lets the page's refresh button start this workflow. A fine-grained PAT
+      # with Actions: read and write on this repository, added as REFRESH_TOKEN
+      # alongside the others. Without it the button says so and nothing else
+      # changes — the schedule still runs.
+      - name: Give Cloudflare the refresh token
+        if: env.CF_TOKEN != '' && env.REFRESH_TOKEN != ''
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          printf '%s' "$REFRESH_TOKEN" \
+            | npx --yes wrangler@4 pages secret put REFRESH_TOKEN \
+                --project-name=quantjobs
 
       - name: Publish to Cloudflare Pages
         if: env.CF_TOKEN != ''

@@ -72,11 +72,27 @@ enum WebExport {
         return 0
     }
 
+    /// An ISO instant, formatted in the reader's own timezone by the page.
+    ///
+    /// It used to be formatted here, which meant a page built on a runner in
+    /// UTC told a reader in Zurich the wrong time by two hours — and labelled
+    /// it "from the Mac", which stopped being true the day the scheduled fetch
+    /// started building it.
     private static func stamp() -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "d MMM, HH:mm"
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
         return f.string(from: Date())
+    }
+
+    /// Where this copy was built, which is not always the same place.
+    private static var builtBy: String {
+        #if canImport(SwiftUI)
+        "from the Mac"
+        #else
+        "fetched"
+        #endif
     }
 
     private static func esc(_ s: String) -> String {
@@ -192,6 +208,12 @@ enum WebExport {
         }
         .top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 9px; }
         .top h1 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.01em; }
+        #refresh { font-size: 15px; line-height: 1; background: none; border: 0;
+          color: var(--dim); cursor: pointer; padding: 2px 4px; }
+        #refresh:hover { color: var(--fg); }
+        #refresh[disabled] { cursor: default; opacity: .5; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #refresh.busy { animation: spin 1.1s linear infinite; color: var(--accent); }
         .made { font-size: 11px; color: var(--dim); margin-left: auto;
                 font-variant-numeric: tabular-nums; }
         /* The app's Lists sidebar, folded flat because a phone has no room for it. */
@@ -335,7 +357,8 @@ enum WebExport {
         <header>
           <div class="top">
             <h1>Quant Jobs</h1>
-            <span class="made">from the Mac · \(made)</span>
+            <span class="made" id="made" data-at="\(made)">\(Self.builtBy)</span>
+            <button id="refresh" title="Fetch every board again">⟳</button>
           </div>
           <div class="lists" role="tablist">
             <button role="tab" data-list="all" aria-selected="true">All <span class="n" id="n-all"></span></button>
@@ -868,6 +891,69 @@ enum WebExport {
           dirtyFilters = true;
           schedulePush();
         });
+
+        // ---- when this was fetched, in the reader's own timezone ----
+        //
+        // The page is built wherever the fetch runs, which is a runner in UTC,
+        // so formatting the time there told everyone else the wrong one.
+        const made = document.getElementById('made');
+        (function () {
+          const at = new Date(made.dataset.at);
+          if (isNaN(at)) return;
+          made.textContent = made.textContent + ' ' + at.toLocaleString(undefined,
+            {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
+          made.title = at.toString();
+        })();
+
+        // ---- refresh: ask the scheduled fetch to run now ----
+        //
+        // The page cannot scrape — it is a file — so the button asks the thing
+        // that builds it to build it again, and reloads when a newer copy
+        // exists. Several minutes, mostly Meta.
+        const refresh = document.getElementById('refresh');
+        const startedAt = new Date(made.dataset.at).getTime();
+
+        function say(text, busy) {
+          made.textContent = text;
+          refresh.classList.toggle('busy', !!busy);
+          refresh.disabled = !!busy;
+        }
+
+        async function waitForBuild() {
+          for (let i = 0; i < 90; i++) {           // ~15 minutes, then give up
+            await new Promise(r => setTimeout(r, 10000));
+            let s;
+            try { s = await (await fetch('/refresh')).json(); } catch { continue; }
+            if (s.status === 'completed' && s.finished
+                && new Date(s.finished).getTime() > startedAt) {
+              say('fetched — reloading', true);
+              location.reload();
+              return;
+            }
+            say('fetching' + '.'.repeat(1 + i % 3), true);
+          }
+          say('still fetching — reload in a minute', false);
+        }
+
+        refresh.onclick = async () => {
+          say('asking for a fetch', true);
+          let r;
+          try {
+            r = await fetch('/refresh', {method: 'POST'});
+          } catch {
+            say('offline', false);
+            return;
+          }
+          if (r.status === 501) {
+            say('refreshing is not set up — see the README', false);
+            return;
+          }
+          if (!r.ok) {
+            say('could not start a fetch (' + r.status + ')', false);
+            return;
+          }
+          waitForBuild();
+        };
 
         rows().forEach(paint);
         apply();

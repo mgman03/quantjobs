@@ -37,6 +37,7 @@ export default {
 
     const url = new URL(request.url);
     if (url.pathname === '/state') return state(request, env);
+    if (url.pathname === '/refresh') return refresh(request, env);
 
     const response = await env.ASSETS.fetch(request);
     // The response is per-viewer now, so nothing in between may keep a copy.
@@ -45,6 +46,61 @@ export default {
     return out;
   },
 };
+
+// ---- /refresh: ask the scheduled fetch to run now ----
+//
+// The page is a file. It cannot scrape, and the phone has no business holding a
+// token that could — so the button asks the thing that *does* build it, and the
+// token stays here, where only this worker can reach it.
+//
+// GET reports the newest run so the page can tell when a fresh copy exists.
+// POST starts one. Both need the same password as the page.
+
+const REPO = 'mgman03/quantjobs';
+const WORKFLOW = 'fetch.yml';
+
+async function refresh(request, env) {
+  if (!env.REFRESH_TOKEN) {
+    return json({ error: 'no token bound; refreshing is not set up' }, 501);
+  }
+  const api = (path, init) => fetch(`https://api.github.com/repos/${REPO}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${env.REFRESH_TOKEN}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      // GitHub rejects an API request with no user agent.
+      'User-Agent': 'quantjobs-worker',
+      ...(init?.headers || {}),
+    },
+  });
+
+  if (request.method === 'GET') {
+    const r = await api(`/actions/workflows/${WORKFLOW}/runs?per_page=1`);
+    if (!r.ok) return json({ error: `github answered ${r.status}` }, 502);
+    const run = (await r.json()).workflow_runs?.[0];
+    return json(run
+      ? { status: run.status, conclusion: run.conclusion, finished: run.updated_at }
+      : { status: 'none' });
+  }
+
+  if (request.method !== 'POST') {
+    return json({ error: 'GET or POST' }, 405, { Allow: 'GET, POST' });
+  }
+
+  const r = await api(`/actions/workflows/${WORKFLOW}/dispatches`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ref: 'main' }),
+  });
+  // 204 is the success here; anything else is worth passing on rather than
+  // swallowing, because "nothing happened" is the confusing failure.
+  if (r.status !== 204) {
+    return json({ error: `github answered ${r.status}`,
+                  detail: (await r.text()).slice(0, 300) }, 502);
+  }
+  return json({ started: true }, 202);
+}
 
 // ---- /state: the marks and filters, shared between the phone and the Mac ----
 //

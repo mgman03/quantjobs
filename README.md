@@ -397,6 +397,7 @@ keeps working with the Mac shut. Turning it on takes three secrets in
 | `CLOUDFLARE_API_TOKEN` | My Profile → API Tokens → Create Token, with *Cloudflare Pages: Edit* |
 | `CLOUDFLARE_ACCOUNT_ID` | the id in the dashboard URL, `dash.cloudflare.com/<id>/…` |
 | `SITE_PASSWORD` | whatever you want the page to ask for |
+| `REFRESH_TOKEN` | optional — a fine-grained PAT with *Actions: read and write* on this repo, which is what lets the page's ⟳ button start a fetch |
 
 The page lists what you applied to and were turned down for, so it is not
 published open. `site/_worker.js` runs on every request and asks for
@@ -409,6 +410,21 @@ dashboard: that one covers preview deployments only and leaves the real
 `<project>.pages.dev` URL open to anyone with the link. Protecting that through
 Cloudflare instead means onboarding Zero Trust, which is a lot of account setup
 for one page.
+
+### Fetching on demand
+
+The page cannot scrape — it is a file — so its ⟳ button asks the workflow that
+builds it to run again, and reloads when a newer copy exists. Several minutes,
+mostly Meta. The token lives in the worker, never in the page: the phone has no
+business holding something that could start a build.
+
+Without `REFRESH_TOKEN` the button says refreshing is not set up and nothing
+else changes; the twice-daily schedule is unaffected. `node
+site/refresh.test.mjs` checks it.
+
+The timestamp beside the title is when the page was fetched, rendered in your
+own timezone — it used to be formatted wherever the fetch ran, which is a runner
+in UTC, and labelled "from the Mac" long after that stopped being true.
 
 With no `SITE_PASSWORD` set the site answers 503 and says so, rather than
 serving the history to whoever asks. `node site/_worker.test.mjs` checks the
