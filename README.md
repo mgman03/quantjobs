@@ -411,6 +411,21 @@ dashboard: that one covers preview deployments only and leaves the real
 Cloudflare instead means onboarding Zero Trust, which is a lot of account setup
 for one page.
 
+### The same tools as the app
+
+**Merge** folds a role posted in several cities into one row, as the app does —
+same grouping, and the same choice of which posting leads (the most recently
+posted), so the date on the row is right. It runs after the filters rather than
+before: narrowing to Zurich should not leave a row claiming four cities. It is a
+filter like any other, so it syncs with the app's own Merge setting.
+`node site/merge.test.mjs` checks it.
+
+The search box matches what the app's does — the full title, the firm, the
+location as the board wrote it and as the app shows it, and the team. Saved,
+Applied and Hidden honour the search box and nothing else, again as in the app:
+an application in Asia should not vanish from the list because the results
+filter is set to Europe.
+
 ### Fetching on demand
 
 The page cannot scrape — it is a file — so its ⟳ button asks the workflow that

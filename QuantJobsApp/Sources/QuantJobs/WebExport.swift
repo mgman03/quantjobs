@@ -131,7 +131,7 @@ enum WebExport {
             return String(max(0, Int(Date().timeIntervalSince(d) / 86400)))
         }()
         return """
-          <li class="row" data-key="\(esc(j.key))" data-saved="\(e?.saved == true ? 1 : 0)" \
+          <li class="row" data-key="\(esc(j.key))" data-role="\(esc(j.roleKey))" data-saved="\(e?.saved == true ? 1 : 0)" \
         data-hidden="\(e?.hidden == true ? 1 : 0)" \
         data-stage="\(esc(stage?.stage.short ?? ""))" \
         data-owed="\(e?.isAwaitingYou == true ? 1 : 0)" \
@@ -208,6 +208,11 @@ enum WebExport {
         }
         .top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 9px; }
         .top h1 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.01em; }
+        #merge-wrap { display: inline-flex; align-items: center; gap: 4px;
+          font-size: 12px; color: var(--dim); cursor: pointer;
+          padding: 4px 8px; border: 1px solid var(--line); border-radius: 7px; }
+        #merge-wrap:has(:checked) { color: var(--fg); border-color: var(--accent); }
+        .plus { font-size: 11px; color: var(--dim); margin-left: 5px; }
         #refresh { font-size: 15px; line-height: 1; background: none; border: 0;
           color: var(--dim); cursor: pointer; padding: 2px 4px; }
         #refresh:hover { color: var(--fg); }
@@ -401,6 +406,9 @@ enum WebExport {
               <option value="firm">By firm</option>
               <option value="role">By role</option>
             </select>
+            <label id="merge-wrap" title="One row per role, with its locations folded in">
+              <input type="checkbox" id="f-merge" checked>Merge
+            </label>
             <button id="clear" hidden>Clear</button>
           </div>
         </header>
@@ -519,6 +527,58 @@ enum WebExport {
                           'f-sort'];
         const val = id => document.getElementById(id).value;
 
+        // Restores what a row said before any merge folded others into it.
+        function unmerge(li) {
+          const me = li.querySelector('.me');
+          if (me.dataset.plain !== undefined) {
+            me.firstChild.textContent = me.dataset.plain;
+            delete me.dataset.plain;
+          }
+          const plus = li.querySelector('.plus');
+          if (plus) plus.remove();
+        }
+
+        function mergeRows(shown) {
+          const visible = rows().filter(li => !li.hasAttribute('data-local-hide'));
+          visible.forEach(unmerge);
+          if (!document.getElementById('f-merge').checked) return shown;
+
+          const groups = new Map();
+          for (const li of visible) {
+            const key = li.dataset.role || li.dataset.key;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(li);
+          }
+          let folded = 0;
+          for (const members of groups.values()) {
+            if (members.length < 2) continue;
+            // Dated first, newest first — the app's rule for which one leads.
+            members.sort((a, b) => (b.dataset.posted || '').localeCompare(a.dataset.posted || ''));
+            const [primary, ...rest] = members;
+            // Each row's location as a whole. Not split on commas: a single
+            // place is already written "Valencia, ES", and splitting turned one
+            // Spanish city into two places called Valencia and ES.
+            const places = [];
+            for (const li of members) {
+              const one = (li.querySelector('.me').dataset.plain
+                           ?? li.querySelector('.me').firstChild.textContent).trim();
+              if (one && !places.includes(one)) places.push(one);
+            }
+            const me = primary.querySelector('.me');
+            if (me.dataset.plain === undefined) me.dataset.plain = me.firstChild.textContent;
+            me.firstChild.textContent = places.slice(0, 2).join(' · ');
+            const extra = places.length - 2;
+            const plus = document.createElement('span');
+            plus.className = 'plus';
+            // The count is of places, not of rows: two postings in one city are
+            // one place, and "+1 more" pointing at a duplicate reads as a bug.
+            plus.textContent = extra > 0 ? '+' + extra + ' more' : '';
+            if (extra > 0) me.insertBefore(plus, me.querySelector('.age'));
+            for (const li of rest) { li.setAttribute('data-local-hide', '1'); folded++; }
+          }
+          return shown - folded;
+        }
+
         function apply() {
           const q = val('q').trim().toLowerCase();
           const level = val('f-level'), days = val('f-days'), year = val('f-year');
@@ -555,6 +615,15 @@ enum WebExport {
             if (ok) { li.removeAttribute('data-local-hide'); shown++; }
             else { li.setAttribute('data-local-hide', '1'); }
           }
+
+          // One row per role, its other locations folded in — the app's
+          // mergeRoles. After filtering, not before, because that is the order
+          // the app does it in: a role is merged out of what survived, so
+          // narrowing to Zurich does not leave a row claiming four cities.
+          //
+          // The primary is the most recently posted of the group, so the date
+          // on the surviving row is the right one.
+          shown = mergeRows(shown);
           document.getElementById('empty').hidden = shown > 0;
 
           const by = val('f-sort');
@@ -627,6 +696,11 @@ enum WebExport {
           const el = document.getElementById(id);
           el.addEventListener(id === 'q' ? 'input' : 'change', apply);
         }
+        document.getElementById('f-merge').addEventListener('change', () => {
+          dirtyFilters = true;
+          schedulePush();
+          apply();
+        });
         document.getElementById('clear').onclick = () => {
           for (const id of controls) document.getElementById(id).value = '';
           apply();
@@ -777,7 +851,7 @@ enum WebExport {
         }
 
         function filterState() {
-          const o = {tab};
+          const o = {tab, 'f-merge': document.getElementById('f-merge').checked ? '1' : ''};
           for (const id of controls) o[id] = document.getElementById(id).value;
           return o;
         }
@@ -792,6 +866,9 @@ enum WebExport {
             if (li) applyMarks(li, t);
           }
           if (d.filters) {
+            if ('f-merge' in d.filters) {
+              document.getElementById('f-merge').checked = d.filters['f-merge'] === '1';
+            }
             for (const id of controls) {
               if (!(id in d.filters)) continue;
               offer(id, d.filters[id]);

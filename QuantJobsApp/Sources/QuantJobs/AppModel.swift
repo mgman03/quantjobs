@@ -1551,6 +1551,7 @@ final class AppModel {
             "f-phd": excludePhD ? "1" : "",
             "f-applied": appliedFilter == .show ? "" : appliedFilter.rawValue,
             "tab": Self.pageTab[list] ?? "all",
+            "f-merge": mergeRoles ? "1" : "",
         ]
     }
 
@@ -1581,6 +1582,7 @@ final class AppModel {
         if let v = f["f-applied"] {
             appliedFilter = v.isEmpty ? .show : (AppliedFilter(rawValue: v) ?? .show)
         }
+        if let v = f["f-merge"] { mergeRoles = v == "1" }
         if let v = f["tab"],
            let l = Self.pageTab.first(where: { $0.value == v })?.key { list = l }
     }
