@@ -2255,6 +2255,7 @@
       "host" : "jpmc.fa.oraclecloud.com",
       "name" : "JPMorgan Chase",
       "note" : "Oracle Cloud. 'internship' rather than 'intern': the keyword matches descriptions too, so 'intern' returns 3,784 of the tenant's 7,388 roles and buries the programmes, while 'internship' returns 338 and nearly all of them are early-career.",
+      "query" : "internship",
       "segment" : "Tier 1",
       "site" : "CX_1001",
       "tags" : [

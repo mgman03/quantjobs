@@ -839,6 +839,7 @@ final class AppModel {
         }.value
 
         companies = loaded.companies
+        loadedCompanies = loaded.companies
         fileComment = loaded.comment
         rebuildFirmIndex()
         categories = loaded.categories
@@ -888,6 +889,16 @@ final class AppModel {
     /// save just to recover the comment block made each checkbox click do a
     /// full parse of 147 entries before writing.
     private var fileComment: [String]?
+
+    /// Exactly what was last read from `companies.json`.
+    ///
+    /// The window is not the only thing that writes that file — the CLI does,
+    /// and so does anyone editing it by hand — and the app held its own copy in
+    /// memory and wrote it back whole. An edit made on disk while the window was
+    /// open was therefore reverted by the next checkbox click, silently, which
+    /// is how a firm's keyword came to be dropped twice in one afternoon.
+    /// Keeping the loaded copy is what makes "did *we* change this?" answerable.
+    private var loadedCompanies: [Company] = []
     private var saveTask: Task<Void, Never>?
 
     /// Coalesced write. Clicking through the tree fires a burst of changes and
@@ -924,14 +935,43 @@ final class AppModel {
             jobs.removeAll { $0.company == name }
         }
         companies = onDisk.companies
+        loadedCompanies = onDisk.companies
         fileComment = onDisk.comment
         rebuildFirmIndex()
         resultsVersion += 1
     }
 
+    /// This machine's roster, with anything changed on disk since it was read
+    /// kept rather than overwritten.
+    ///
+    /// Per firm: if the file now differs from what we loaded, someone else
+    /// edited it — and if *we* did not touch that firm, theirs wins. A firm
+    /// edited on both sides keeps ours, because that is the click the user just
+    /// made and it is the one they are looking at.
+    private func merged() -> [Company] {
+        guard let onDisk = try? ConfigStore.loadCompanies() else { return companies }
+        let loaded = Dictionary(loadedCompanies.map { ($0.id, $0) },
+                                uniquingKeysWith: { a, _ in a })
+        let current = Dictionary(onDisk.companies.map { ($0.id, $0) },
+                                 uniquingKeysWith: { a, _ in a })
+        var out = companies.map { mine -> Company in
+            guard let was = loaded[mine.id], let theirs = current[mine.id],
+                  theirs != was, mine == was
+            else { return mine }
+            return theirs
+        }
+        // A firm added to the file while the window was open. Re-pointing an
+        // existing one changes its id, so this catches that too.
+        let known = Set(out.map(\.id))
+        out += onDisk.companies.filter { !known.contains($0.id) && loaded[$0.id] == nil }
+        return out
+    }
+
     func saveCompanies() {
         rebuildFirmIndex()
-        let snapshot = CompanyFile(comment: fileComment, companies: companies)
+        let snapshot = CompanyFile(comment: fileComment, companies: merged())
+        companies = snapshot.companies
+        loadedCompanies = snapshot.companies
         saveTask?.cancel()
         saveTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(250))

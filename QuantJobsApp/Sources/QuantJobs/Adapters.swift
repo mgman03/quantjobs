@@ -100,8 +100,16 @@ enum Adapters {
     /// — the same block Google reads to put these in its jobs results.
     ///
     /// The cost is one request per posting, which is why this is the only
-    /// adapter here that works that way. It is bounded by `metaCap` and runs
-    /// eight at a time.
+    /// adapter here that works that way — around 850 of them, three or four
+    /// minutes, and it is most of what a full run now spends its time on.
+    ///
+    /// Two things that look like they would fix that do not. The sitemap's
+    /// lastmod is useless as a recency signal: Meta touches every posting
+    /// weekly, so all 859 are "modified this week" and there is no newest slice
+    /// to take. And reading only the first two kilobytes of each page — the
+    /// structured data sits at byte 1,220 of 530 KB — buys nothing, because
+    /// the server sends no Accept-Ranges and URLSession's byte stream awaits
+    /// per byte, which costs more than the transfer it saves.
     static func meta(_ c: Company, deep: Bool) async throws -> [RawJob] {
         let host = c.host ?? "www.metacareers.com"
         let raw = try await HTTP.data("https://\(host)/jobsearch/sitemap.xml",
