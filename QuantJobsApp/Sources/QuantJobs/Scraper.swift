@@ -5,6 +5,10 @@ struct BoardResult: Sendable {
     var company: Company
     var jobs: [Job]
     var failure: String?
+    /// How long the board took. Only read by `--check --timing`, but measured
+    /// always: the cost of a Date() either side of a network call is nothing,
+    /// and a scheduler that guesses at costs deserves a way to check itself.
+    var seconds: Double = 0
 }
 
 /// Fetches many boards at once. A board that fails is reported and never
@@ -13,6 +17,8 @@ enum Scraper {
 
     /// Hit one board and stamp the company's details onto everything it returns.
     static func one(_ c: Company, deep: Bool) async -> BoardResult {
+        let started = Date()
+        func elapsed() -> Double { Date().timeIntervalSince(started) }
         do {
             let raw = try await Adapters.fetch(c, deep: deep)
             let jobs = raw.map { r in
@@ -23,14 +29,18 @@ enum Scraper {
                     places: LocationParser.parse(r.location),
                     linkStatus: r.linkStatus)
             }
-            return BoardResult(company: c, jobs: jobs, failure: nil)
+            return BoardResult(company: c, jobs: jobs, failure: nil,
+                               seconds: elapsed())
         } catch let e as FetchError {
             return BoardResult(company: c, jobs: [],
-                               failure: e.errorDescription ?? "failed")
+                               failure: e.errorDescription ?? "failed",
+                               seconds: elapsed())
         } catch is CancellationError {
-            return BoardResult(company: c, jobs: [], failure: "cancelled")
+            return BoardResult(company: c, jobs: [], failure: "cancelled",
+                               seconds: elapsed())
         } catch {
-            return BoardResult(company: c, jobs: [], failure: error.localizedDescription)
+            return BoardResult(company: c, jobs: [], failure: error.localizedDescription,
+                               seconds: elapsed())
         }
     }
 
@@ -39,11 +49,16 @@ enum Scraper {
     /// everything else waits on them.
     static func expectedCost(_ ats: ATS) -> Int {
         switch ats {
+        // A request per posting, eight hundred and fifty of them. Nothing else
+        // here is in the same bracket, and starting it last leaves the whole
+        // run waiting on one board with everything else long finished.
+        case .meta: 1000
         case .citadel: 100
         case .twosigma: 90
         case .eightfold: 80
         case .jibe: 40
         case .workday: 30
+        case .oracle: 25          // pages 200 at a time; a big tenant is several
         case .optiver, .amazon: 20
         case .simplify: 15
         case .uber: 10

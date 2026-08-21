@@ -157,6 +157,7 @@ enum HeadlessCheck {
 
         let stackMatchers = categories.filter { $0.parent != nil }.map { CategoryMatcher($0) }
         let collector = Collector()
+        let startedAt = Date()
         await Scraper.run(firms, deep: deep) { result in
             let kept = result.jobs.filter { job in
                 guard query.keep(job, matcher: matcher) else { return false }
@@ -169,7 +170,9 @@ enum HeadlessCheck {
                     .map { (m: CategoryMatcher) in m.name })
                 return named.isDisjoint(with: stacks)
             }
-            await collector.add(kept, failure: result.failure, company: result.company.displayName)
+            await collector.add(kept, failure: result.failure,
+                                company: result.company.displayName,
+                                seconds: result.seconds, fetched: result.jobs.count)
         }
 
         let jobs = await collector.jobs.deduplicated().sortedByRecency()
@@ -181,6 +184,19 @@ enum HeadlessCheck {
             }
         } else {
             print(table(jobs))
+        }
+        if CommandLine.arguments.contains("--timing") {
+            let timings = await collector.timings.sorted { $0.1 > $1.1 }
+            let wall = Date().timeIntervalSince(startedAt)
+            let total = timings.reduce(0) { $0 + $1.1 }
+            print("\nslowest boards (of \(timings.count)):")
+            for (name, seconds, rows) in timings.prefix(15) {
+                let share = wall > 0 ? seconds / wall * 100 : 0
+                print(String(format: "  %6.1fs  %4d rows  %4.0f%% of wall  %@",
+                             seconds, rows, share, name))
+            }
+            print(String(format: "\n  wall %.1fs · summed board time %.1fs · "
+                         + "overlap %.1f×", wall, total, total / max(wall, 0.001)))
         }
         print("\n\(jobs.count) roles across \(Set(jobs.map(\.company)).count) firms")
         if !failures.isEmpty {
@@ -1223,9 +1239,14 @@ enum HeadlessCheck {
     private actor Collector {
         var jobs: [Job] = []
         var failures: [ScrapeFailure] = []
+        /// Firm, seconds, rows — what `--timing` prints. Kept for every run
+        /// because the cost of holding three fields per board is nothing.
+        var timings: [(String, Double, Int)] = []
 
-        func add(_ batch: [Job], failure: String?, company: String) {
+        func add(_ batch: [Job], failure: String?, company: String,
+                 seconds: Double = 0, fetched: Int = 0) {
             jobs.append(contentsOf: batch)
+            timings.append((company, seconds, fetched))
             if let failure {
                 failures.append(ScrapeFailure(company: company, reason: failure))
             }

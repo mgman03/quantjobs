@@ -37,6 +37,13 @@ jobs:
           cp .seen.json .seen.json.restored
           echo "restored $(wc -c < .seen.json) bytes"
 
+          # Meta costs a request per posting, so the run reads only the ones it
+          # has not seen. Without carrying that across runs the server pays the
+          # full price every time — a minute, against a few seconds.
+          git show FETCH_HEAD:meta-cache.json > .meta-cache.json 2>/dev/null \
+            || echo '{}' > .meta-cache.json
+          echo "meta cache $(wc -c < .meta-cache.json) bytes"
+
       - name: Build the scraper
         run: swift build -c release --package-path QuantJobsApp
 
@@ -79,9 +86,10 @@ jobs:
             exit 1
           fi
           cp .seen.json first-seen.json
+          cp .meta-cache.json meta-cache.json
           git checkout --orphan state-new
           git reset
-          git add -f first-seen.json
+          git add -f first-seen.json meta-cache.json
           git -c user.name="quantjobs" \
               -c user.email="quantjobs@users.noreply.github.com" \
               commit -q -m "first-seen ledger $(date -u +%F) ($(date -u +%R) UTC)"

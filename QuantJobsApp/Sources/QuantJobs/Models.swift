@@ -659,6 +659,18 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
 
 // MARK: - Dates
 
+/// One Meta posting as it last read, so a run only has to fetch the new ones.
+/// See `Adapters.meta`.
+struct MetaPosting: Codable, Sendable {
+    var title: String
+    var location: String
+    var posted: String
+    var department: String
+    /// When this was last read from the site, which is what picks the slice to
+    /// re-read on any given run.
+    var read: String
+}
+
 enum Dates {
 
     static let iso: DateFormatter = Job.dateFormatter

@@ -90,6 +90,7 @@ enum ConfigStore {
     static var trackedURL: URL { directory.appendingPathComponent(".tracked.json") }
     static var cacheURL: URL { directory.appendingPathComponent(".cache.json") }
     static var syncURL: URL { directory.appendingPathComponent(".sync.json") }
+    static var metaCacheURL: URL { directory.appendingPathComponent(".meta-cache.json") }
 
     // MARK: seeding
 
@@ -306,6 +307,24 @@ enum ConfigStore {
         let enc = JSONEncoder()
         enc.outputFormatting = [.sortedKeys]
         try? enc.encode(seen).write(to: seenURL, options: .atomic)
+    }
+
+    // MARK: Meta's postings
+
+    /// What Meta's postings said last time. See `Adapters.meta` — it is the one
+    /// board that costs a request each, so not re-reading the unchanged ones is
+    /// the difference between a minute and a few seconds.
+    static func loadMetaCache() -> [String: MetaPosting] {
+        guard let data = try? Data(contentsOf: metaCacheURL),
+              let d = try? JSONDecoder().decode([String: MetaPosting].self, from: data)
+        else { return [:] }
+        return d
+    }
+
+    static func saveMetaCache(_ cache: [String: MetaPosting]) {
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.sortedKeys]
+        try? enc.encode(cache).write(to: metaCacheURL, options: .atomic)
     }
 
     // MARK: sync

@@ -3,6 +3,7 @@ __pycache__/
 .build/
 .cache.json
 .DS_Store
+.meta-cache.json
 .seed-version
 .seen.json
 .sync.json

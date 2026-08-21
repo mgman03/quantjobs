@@ -24,9 +24,31 @@ enum HTTP {
         return URLSession(configuration: cfg)
     }()
 
+    /// A second session for the one adapter that makes hundreds of requests to
+    /// a single host.
+    ///
+    /// The shared session allows six connections per host, which is polite for
+    /// a board that answers in one request and is the entire bottleneck for one
+    /// that needs eight hundred and fifty. Measured against Meta, same postings
+    /// every time: six connections 92s, twelve 65s, twenty 39s. Kept separate
+    /// rather than raising the shared cap, because every other board here wants
+    /// one request and none of them should hit a host twenty ways at once.
+    static let bulkSession: URLSession = {
+        let cfg = URLSessionConfiguration.ephemeral
+        cfg.timeoutIntervalForRequest = 25
+        cfg.timeoutIntervalForResource = 60
+        cfg.httpAdditionalHeaders = [
+            "User-Agent": userAgent,
+            "Accept": "application/json, text/html;q=0.9",
+        ]
+        cfg.httpMaximumConnectionsPerHost = 20
+        return URLSession(configuration: cfg)
+    }()
+
     static func data(_ urlString: String, method: String? = nil, body: Data? = nil,
                      headers: [String: String] = [:],
-                     retries: Int = 2) async throws -> Data {
+                     retries: Int = 2,
+                     using session: URLSession? = nil) async throws -> Data {
         guard let url = URL(string: urlString) else {
             throw FetchError.misconfigured("bad URL: \(urlString)")
         }
@@ -48,7 +70,7 @@ enum HTTP {
             }
 
             do {
-                let (data, response) = try await session.data(for: req)
+                let (data, response) = try await (session ?? Self.session).data(for: req)
                 let code = (response as? HTTPURLResponse)?.statusCode ?? 200
                 if (400..<500).contains(code) { throw FetchError.http(code) }
                 if code >= 500 {
@@ -72,8 +94,10 @@ enum HTTP {
     }
 
     static func json(_ urlString: String, body: Data? = nil,
-                     headers: [String: String] = [:]) async throws -> Any {
-        let raw = try await data(urlString, body: body, headers: headers)
+                     headers: [String: String] = [:],
+                     using session: URLSession? = nil) async throws -> Any {
+        let raw = try await data(urlString, body: body, headers: headers,
+                                 using: session)
         do {
             return try JSONSerialization.jsonObject(with: raw, options: [.fragmentsAllowed])
         } catch {
@@ -82,9 +106,10 @@ enum HTTP {
     }
 
     static func object(_ urlString: String, body: Data? = nil,
-                       headers: [String: String] = [:]) async throws -> [String: Any] {
-        guard let d = try await json(urlString, body: body,
-                                     headers: headers) as? [String: Any] else {
+                       headers: [String: String] = [:],
+                       using session: URLSession? = nil) async throws -> [String: Any] {
+        guard let d = try await json(urlString, body: body, headers: headers,
+                                     using: session) as? [String: Any] else {
             throw FetchError.badPayload("expected a JSON object")
         }
         return d

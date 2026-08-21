@@ -130,25 +130,42 @@ enum Adapters {
             throw FetchError.badPayload("no postings in Meta's sitemap")
         }
         entries.sort { $0.modified > $1.modified }
-        let wanted = Array(entries.prefix(Self.metaCap))
+        let listed = Array(entries.prefix(Self.metaCap))
+
+        // Only the ones we have not already read. A posting's title and offices
+        // do not change — a role is taken down rather than renamed — so the
+        // cheapest correct thing is to remember them and read the new ones.
+        //
+        // The sitemap's lastmod cannot be the key: Meta touches every posting
+        // weekly, so it would invalidate the lot every seven days for nothing.
+        // Instead a slice of the oldest-read entries is refreshed each run, so
+        // everything is re-read eventually and a stale one cannot last.
+        var cache = ConfigStore.loadMetaCache()
+        let known = listed.filter { cache[$0.url] != nil }
+        let refresh = known
+            .sorted { (cache[$0.url]?.read ?? "") < (cache[$1.url]?.read ?? "") }
+            .prefix(max(40, known.count / 10))
+        let wanted = listed.filter { cache[$0.url] == nil }
+            + refresh.map { (url: $0.url, modified: $0.modified) }
 
         // Bounded, and gathered as they land. A firm that answers slowly must
         // not hold up the rest of the run, which is why this is a group and not
         // a loop.
-        // Four at a time, not eight. A thousand requests to one host is the
-        // shape of thing that gets throttled, and it did: eight was fine when
-        // Meta was the only board running and lost a fifth of the postings when
-        // it was competing with every other firm in a full run.
+        // Twenty at a time, on a session that will actually open twenty
+        // connections — the shared one caps a host at six, so a wider gate on
+        // it bought nothing. Measured: six 92s, twelve 65s, twenty 39s, the
+        // same 866 postings each time.
         func gather(_ urls: [(url: String, modified: String)])
             async -> [(RawJob?, String)] {
             await withTaskGroup(of: (RawJob?, String).self) { group in
-                let gate = RequestGate(limit: 8)
+                let gate = RequestGate(limit: 20)
                 for entry in urls {
                     group.addTask {
                         let job = try? await gate.run {
                             let page = try await HTTP.data(entry.url,
                                                            headers: Self.browserHeaders,
-                                                           retries: 2)
+                                                           retries: 2,
+                                                           using: HTTP.bulkSession)
                             return Self.metaPosting(String(decoding: page, as: UTF8.self),
                                                     url: entry.url, deep: deep)
                         }
@@ -171,15 +188,37 @@ enum Adapters {
         }
         let results = answered.compactMap(\.0)
 
-        // A thousand requests to one host is exactly the shape of thing that
+        // Hundreds of requests to one host is exactly the shape of thing that
         // gets throttled, and a throttled run reads as a firm with six jobs
         // rather than as a firm that failed. Say so instead: better an error in
         // the status bar than a board that quietly shrank.
-        guard results.count * 4 >= wanted.count * 3 else {
+        //
+        // Judged against what was asked for this run, not the whole board — most
+        // runs ask for a handful, and comparing those to eight hundred would
+        // fail every time.
+        guard wanted.isEmpty || results.count * 4 >= wanted.count * 3 else {
             throw FetchError.badPayload(
                 "only \(results.count) of \(wanted.count) Meta postings answered")
         }
-        return results
+
+        let today = Dates.today
+        for job in results {
+            cache[job.url] = MetaPosting(title: job.title, location: job.location,
+                                         posted: job.posted,
+                                         department: job.department, read: today)
+        }
+        // Anything the sitemap no longer lists is gone; keeping it would serve a
+        // posting that does not exist.
+        let live = Set(listed.map(\.url))
+        cache = cache.filter { live.contains($0.key) }
+        ConfigStore.saveMetaCache(cache)
+
+        return listed.compactMap { entry in
+            guard let c = cache[entry.url] else { return nil }
+            return RawJob(title: c.title, location: c.location, url: entry.url,
+                          posted: c.posted, department: c.department,
+                          description: "")
+        }
     }
 
     /// How many postings to read. Meta lists around nine hundred; this is not a
@@ -459,7 +498,7 @@ enum Adapters {
 
     /// Shared by every Workday board, so the cap is on the platform as a whole
     /// rather than per firm.
-    static let workdayGate = RequestGate(limit: 8)
+    static let workdayGate = RequestGate(limit: 16)
 
     /// Workday CXS. Config needs host (tenant.wdN.myworkdayjobs.com), tenant, site.
     static func workday(_ c: Company, deep: Bool) async throws -> [RawJob] {
@@ -478,7 +517,7 @@ enum Adapters {
                 "limit": pageSize, "offset": offset, "searchText": c.query ?? "",
             ])
             let payload = try await workdayGate.run {
-                try await HTTP.object(endpoint, body: body)
+                try await HTTP.object(endpoint, body: body, using: HTTP.bulkSession)
             }
             return (payload["jobPostings"] as? [[String: Any]] ?? []).map { j in
                 let path = j["externalPath"] as? String ?? ""
@@ -500,7 +539,7 @@ enum Adapters {
             "limit": pageSize, "offset": 0, "searchText": c.query ?? "",
         ])
         let head = try await workdayGate.run {
-            try await HTTP.object(endpoint, body: body)
+            try await HTTP.object(endpoint, body: body, using: HTTP.bulkSession)
         }
         let total = min((head["total"] as? Int) ?? 0, cap)
         var out = (head["jobPostings"] as? [[String: Any]] ?? []).map { j -> RawJob in
@@ -532,10 +571,16 @@ enum Adapters {
         guard total > out.count else { return out }
 
         // 20 rows a page makes a large board dozens of round trips, so fetch
-        // the rest a few at a time instead of walking them one by one.
+        // the rest several at a time instead of walking them one by one.
+        //
+        // Twelve, not five. Five was below both the platform gate and the
+        // session's per-host connection limit, so it — not either of those —
+        // was what set the pace: Nvidia's two thousand rows took 21s at five
+        // lanes, 10s at twelve, and 9s at twenty. Twelve is where the curve
+        // flattens.
         let offsets = Array(stride(from: pageSize, to: total, by: pageSize))
         var pages: [Int: [RawJob]] = [:]
-        let lanes = 5
+        let lanes = 12
 
         try await withThrowingTaskGroup(of: (Int, [RawJob]).self) { group in
             var next = 0
