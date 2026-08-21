@@ -142,7 +142,7 @@ enum Adapters {
         func gather(_ urls: [(url: String, modified: String)])
             async -> [(RawJob?, String)] {
             await withTaskGroup(of: (RawJob?, String).self) { group in
-                let gate = RequestGate(limit: 4)
+                let gate = RequestGate(limit: 8)
                 for entry in urls {
                     group.addTask {
                         let job = try? await gate.run {

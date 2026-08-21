@@ -1183,6 +1183,20 @@ final class AppModel {
     /// firm's second board doesn't count as already visited because its first
     /// one was.
     private var fetchedFirms: Set<Company.ID> = []
+
+    /// Firms this run asked for, so the ones still outstanding can be named.
+    ///
+    /// "80 of 81 boards" for four minutes reads as a hang. It is one board —
+    /// Meta, which costs a request per posting — and saying so is the whole
+    /// difference between waiting and wondering.
+    private var requestedFirms: [Company] = []
+
+    /// The boards still to answer, once few enough to be worth naming.
+    var outstandingBoards: [String] {
+        let left = requestedFirms.filter { !fetchedFirms.contains($0.id) }
+        guard isScraping, !left.isEmpty, left.count <= 3 else { return [] }
+        return left.map(\.name).uniqued()
+    }
     private var fetchedDeep = false
 
     /// `full` forces every selected board to be refetched — what ⌘R means.
@@ -1250,6 +1264,7 @@ final class AppModel {
         replacingCache = showingCache
         fetchedDeep = q.deep
         fetchedFirms = keep
+        requestedFirms = firms
 
         task = Task { [weak self] in
             guard let self else { return }

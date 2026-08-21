@@ -741,6 +741,13 @@ struct ContentView: View {
         } description: {
             if model.isScraping {
                 Text("\(model.scanned) of \(model.total) boards")
+                // Which one, once it is down to a few. Meta alone is a request
+                // per posting and takes minutes; without a name on it, the last
+                // board looks like a stall rather than a slow one.
+                if !model.outstandingBoards.isEmpty {
+                    Text("· waiting on \(model.outstandingBoards.joined(separator: ", "))")
+                        .foregroundStyle(.secondary)
+                }
             } else if !model.isLoaded {
                 Text("Loading the board list…")
             } else if model.lastRun == nil {
@@ -761,7 +768,9 @@ struct ContentView: View {
                 ProgressView(value: Double(model.scanned), total: Double(max(model.total, 1)))
                     .progressViewStyle(.linear)
                     .frame(width: 130)
-                Text("\(model.scanned)/\(model.total) boards")
+                Text(model.outstandingBoards.isEmpty
+                     ? "\(model.scanned)/\(model.total) boards"
+                     : "\(model.scanned)/\(model.total) · \(model.outstandingBoards[0])")
             } else {
                 HStack(spacing: 4) {
                     Text("\(rows.count)").fontWeight(.medium)
