@@ -426,6 +426,56 @@ Applied and Hidden honour the search box and nothing else, again as in the app:
 an application in Asia should not vanish from the list because the results
 filter is set to Europe.
 
+### Built for a thumb
+
+The page is meant to be read one-handed on a train, so the sizes are the ones a
+phone needs rather than the ones a trackpad can get away with.
+
+It was not, for a while, and nothing said so: the page carried no viewport tag,
+which means a phone lays it out 980px wide and scales the result down. Every
+size below was being read at about 40% — 11px rows, marks a third of the width
+of a fingertip — and the mobile stylesheet underneath was correct the whole
+time. The tag is also what makes `env(safe-area-inset-*)` non-zero, so the
+header and the sheet only started clearing the notch once it was there.
+
+- **Nothing under 16px that you can focus.** Safari zooms the page in on a
+  smaller field and does not zoom back out, so one tap on the search box used to
+  leave the list half off the side of the screen.
+- **The marks moved off the side of the row and onto the bottom of it.** Stacked
+  in a column they were 28×24 and 24px apart, next to text twice as short — a
+  row two thirds empty, with three targets a thumb could not separate, one of
+  which makes the row disappear. Along the location line they are 44×40, the
+  titles read 130px wider, and the row is 5px taller than it was.
+- **Undo.** Any mark made from the list can be taken back for six seconds, which
+  is the answer to a near miss that does not involve going to find the row in
+  the Hidden tab.
+- **The header folds while you read.** Four rows of controls is a fifth of a
+  phone screen held permanently; scrolling down folds away the title line and
+  the search box and scrolling up brings them back, never while the search box
+  has something in it. It is worth 84px, and the fold ignores the scroll its own
+  reflow causes — without that, the browser's answer to the page getting shorter
+  read as a change of direction and folded it straight back open.
+- **The filter rail says that it is a rail.** Eleven controls of which three fit,
+  ending flush at the edge of the screen, which reads as the end of the row. It
+  now fades on whichever side it can still go, and **Clear** sits at the near end
+  with the number of filters on it rather than at the far end where it could only
+  be found by scrolling past the ten that were hiding things.
+- **An empty list says which filter emptied it** and offers to clear them.
+- **The sheet behaves like a sheet.** Back and Escape close it, it can be pulled
+  down by the grip, the list behind it stops scrolling, its title and its close
+  button stay put while the description scrolls under them, and it is measured in
+  `dvh` so the browser's own toolbar cannot cover the last line.
+
+One fix in there is not cosmetic. The list's ➤ used to set the row's stage
+attribute and nothing else, and only the steps are sent to the store — so the
+tap went up as an empty history and the next pull erased it. It writes the step
+now, the way the sheet's **Add step** does, which is also what the app reads.
+
+`npm i jsdom && node site/mobile.test.mjs /tmp/page.html` checks the two that are
+silent when they break — the viewport tag and the 16px floor — along with the
+mark surviving a round trip through the store, undo, and what **Clear** goes
+back to.
+
 ### Fetching on demand
 
 The page cannot scrape — it is a file — so its ⟳ button asks the workflow that
