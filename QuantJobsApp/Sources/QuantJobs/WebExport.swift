@@ -701,8 +701,22 @@ enum WebExport {
           schedulePush();
           apply();
         });
+        // What "no filter" means for each control.
+        //
+        // Empty, for the ten that have an empty option — "Anywhere", "Any city",
+        // "Both". Not for the sort, whose options are date/firm/role: handed ""
+        // a <select> reports selectedIndex -1 and draws nothing, and Clear was
+        // doing exactly that. Worse, the filters sync, so the blank was written
+        // to the store, came back on every load, and reached the app — a broken
+        // control that pressing Clear could not fix, because Clear caused it.
+        function defaultOf(id) {
+          const el = document.getElementById(id);
+          if (el.tagName !== 'SELECT') return '';
+          return [...el.options].some(o => o.value === '') ? '' : el.options[0].value;
+        }
+
         document.getElementById('clear').onclick = () => {
-          for (const id of controls) document.getElementById(id).value = '';
+          for (const id of controls) document.getElementById(id).value = defaultOf(id);
           apply();
         };
 
@@ -858,6 +872,7 @@ enum WebExport {
 
         function applyState(d) {
           syncing = true;
+          let healed = false;
           const byKey = new Map(rows().map(li => [keyOf(li), li]));
           for (const [key, t] of Object.entries(d.tracked || {})) {
             const li = byKey.get(key);
@@ -871,8 +886,20 @@ enum WebExport {
             }
             for (const id of controls) {
               if (!(id in d.filters)) continue;
+              // After offer(), so a set the app sent — "Europe|North America" —
+              // is a real option by the time it is judged, and never mistaken
+              // for damage.
               offer(id, d.filters[id]);
-              document.getElementById(id).value = d.filters[id];
+              const el = document.getElementById(id);
+              el.value = d.filters[id];
+              // A value the control cannot hold leaves it blank and unusable.
+              // Fixing it here is not enough on its own: the store keeps the bad
+              // value and hands it back on the next load, so the repair is
+              // pushed as well.
+              if (el.tagName === 'SELECT' && el.selectedIndex < 0) {
+                el.value = defaultOf(id);
+                healed = true;
+              }
             }
             if (d.filters.tab) {
               tab = d.filters.tab;
@@ -883,6 +910,9 @@ enum WebExport {
           }
           syncing = false;
           apply();
+          // Written back outside the syncing flag, or the observer would ignore
+          // it and the store would stay broken for the other client too.
+          if (healed) { dirtyFilters = true; schedulePush(); }
         }
 
         async function pull() {

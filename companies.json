@@ -9,7 +9,7 @@
   "companies" : [
     {
       "ats" : "amazon",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Amazon",
       "query" : "intern",
       "segment" : "FAANG+",
@@ -1188,7 +1188,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Perplexity",
       "segment" : "Frontier AI",
       "tags" : [
@@ -1359,7 +1359,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Scale AI",
       "segment" : "Frontier AI",
       "tags" : [
@@ -1580,7 +1580,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Aurora",
       "note" : "Ashby under 'aurora-operations-inc'. The board renders client-side, but the page config carries the slug as ashbyOrgSlug. 70 roles.",
       "segment" : "Frontier AI",
@@ -2146,7 +2146,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Cursor",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2305,7 +2305,7 @@
     },
     {
       "ats" : "sitemap",
-      "enabled" : true,
+      "enabled" : false,
       "host" : "plaid.com",
       "name" : "Plaid",
       "note" : "Its board is RippleMatch, which exposes no readable API — but plaid.com's own sitemap lists every opening as a page under /careers/openings/.",
@@ -2331,7 +2331,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Sierra",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2440,7 +2440,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "xAI",
       "segment" : "Frontier AI",
       "tags" : [
