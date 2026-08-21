@@ -154,27 +154,39 @@ enum WebExport {
         data-steps="\(esc(steps))" \
         data-note="\(esc(e?.note ?? ""))" \
         data-find="\(esc(bits))">
-            <div class="marks">
-              <button class="mk save" data-act="save" aria-label="Save">★</button>
-              <button class="mk apply" data-act="apply" aria-label="Advance stage">➤</button>
-              <button class="mk hide" data-act="hide" aria-label="Hide">◍</button>
-            </div>
             <div class="cell">
               <div class="co"><span class="firm">\(esc(j.company))</span>\
         <span class="pill stage"></span><span class="pill owed">to do</span>\
         <span class="pill yr">\(esc(year))</span></div>
               <div class="ti">\(esc(j.shortTitle))</div>
-              <div class="me">\(esc(j.locationDisplay))<span class="age">\
-        \(age.isEmpty ? "" : " · " + esc(age))</span></div>
             </div>
             <a class="go" href="\(esc(j.url))" target="_blank" rel="noopener"
                aria-label="Open posting">↗</a>
+            <div class="me">\(esc(j.locationDisplay))<span class="age">\
+        \(age.isEmpty ? "" : " · " + esc(age))</span></div>
+            <div class="marks">
+              <button class="mk save" data-act="save" aria-label="Save">★</button>
+              <button class="mk apply" data-act="apply" aria-label="Advance stage">➤</button>
+              <button class="mk hide" data-act="hide" aria-label="Hide">◍</button>
+            </div>
           </li>
         """
     }
 
     private static func page(rows: String, made: String) -> String {
         """
+        <meta charset="utf-8">
+        <!-- Without this a phone lays the page out 980px wide and scales the
+             result down, so every size below was being read at about 40% —
+             11px rows, and marks too small to hit. It is also what makes the
+             safe-area insets below non-zero, so viewport-fit=cover rather than
+             the default: the header and the sheet already ask for them. -->
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+        <!-- Tells the browser its own furniture — form controls, the scrollbar,
+             the address bar — which way round this page is. -->
+        <meta name="color-scheme" content="dark light">
+        <meta name="theme-color" content="#1c1c1e" media="(prefers-color-scheme: dark)">
+        <meta name="theme-color" content="#f6f5f3" media="(prefers-color-scheme: light)">
         <title>Quant Jobs</title>
         <style>
         /* The app's own palette: near-black panels, one blue accent, amber only
@@ -197,6 +209,9 @@ enum WebExport {
           }
         }
         * { box-sizing: border-box; -webkit-text-size-adjust: 100%; }
+        /* Several things here are laid out with flex and start out hidden; the
+           attribute has to beat the display that gives them. */
+        [hidden] { display: none !important; }
         body {
           margin: 0; background: var(--bg); color: var(--fg);
           font: 15px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
@@ -204,17 +219,42 @@ enum WebExport {
         header {
           position: sticky; top: 0; z-index: 5; background: var(--bg);
           border-bottom: 1px solid var(--line);
-          padding: max(10px, env(safe-area-inset-top)) 12px 10px;
+          padding: max(10px, env(safe-area-inset-top))
+                   max(12px, env(safe-area-inset-right)) 10px
+                   max(12px, env(safe-area-inset-left));
         }
-        .top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 9px; }
+        /* Four rows of controls is a fifth of a phone screen held permanently.
+           So scrolling down folds away the two that are not being used while
+           reading — the title line and the search box — and scrolling up brings
+           them back, the way a phone's own lists do. The tabs and the filters
+           stay, because those are what a glance at the header is for. */
+        .top, header #q {
+          overflow: hidden;
+          transition: height .18s ease, opacity .18s ease, margin .18s ease,
+                      padding .18s ease;
+        }
+        .top { display: flex; align-items: baseline; gap: 8px; height: 22px;
+               margin-bottom: 9px; }
+        header.tight .top { height: 0; margin-bottom: 0; opacity: 0; }
+        header.tight #q {
+          height: 0; min-height: 0; margin-top: 0; padding-top: 0;
+          padding-bottom: 0; border-width: 0; opacity: 0;
+        }
         .top h1 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.01em; }
-        #merge-wrap { display: inline-flex; align-items: center; gap: 4px;
-          font-size: 12px; color: var(--dim); cursor: pointer;
-          padding: 4px 8px; border: 1px solid var(--line); border-radius: 7px; }
+        #merge-wrap { flex: 0 0 auto; display: inline-flex; align-items: center;
+          gap: 6px; font-size: 15px; color: var(--dim); cursor: pointer;
+          min-height: 40px; padding: 6px 13px; border: 1px solid var(--line);
+          border-radius: 99px; touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent; white-space: nowrap; }
+        #merge-wrap input { width: 17px; height: 17px; margin: 0;
+          accent-color: var(--accent); }
         #merge-wrap:has(:checked) { color: var(--fg); border-color: var(--accent); }
         .plus { font-size: 11px; color: var(--dim); margin-left: 5px; }
-        #refresh { font-size: 15px; line-height: 1; background: none; border: 0;
-          color: var(--dim); cursor: pointer; padding: 2px 4px; }
+        #refresh { font-size: 18px; line-height: 1; background: none; border: 0;
+          color: var(--dim); cursor: pointer; padding: 0;
+          width: 44px; height: 44px; margin: -12px -12px -12px 0;
+          display: flex; align-items: center; justify-content: center;
+          touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         #refresh:hover { color: var(--fg); }
         #refresh[disabled] { cursor: default; opacity: .5; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -224,39 +264,64 @@ enum WebExport {
         /* The app's Lists sidebar, folded flat because a phone has no room for it. */
         .lists { display: flex; gap: 5px; }
         .lists button {
-          flex: 1; padding: 7px 4px; border: 0; border-radius: 7px; cursor: pointer;
-          background: var(--chip); color: var(--fg); font: inherit; font-size: 12.5px;
+          flex: 1; padding: 7px 4px; min-height: 44px; border: 0; border-radius: 9px;
+          cursor: pointer;
+          background: var(--chip); color: var(--fg); font: inherit; font-size: 14px;
           display: flex; align-items: center; justify-content: center; gap: 5px;
-          -webkit-tap-highlight-color: transparent;
+          -webkit-tap-highlight-color: transparent; touch-action: manipulation;
         }
+        .lists button:active { transform: scale(.97); }
         .lists button[aria-selected="true"] { background: var(--accent); color: #fff; }
         .n { font-variant-numeric: tabular-nums; opacity: .8; font-size: 11px; }
+        /* 16px, not the 14px this used to be, and the same for every control
+           below: Safari zooms the page in when a field smaller than that takes
+           focus, and does not zoom back out — so one tap on the search box left
+           the list half off the side of the screen. */
         input[type=search] {
-          width: 100%; margin-top: 8px; padding: 8px 10px; font: inherit; font-size: 14px;
+          width: 100%; margin-top: 8px; padding: 10px 12px; font: inherit;
+          font-size: 16px; min-height: 44px;
           background: var(--chip); color: var(--fg);
-          border: 1px solid var(--line); border-radius: 8px;
+          border: 1px solid var(--line); border-radius: 10px;
         }
-        /* One scrollable rail of controls, so six filters fit a phone without
-           stacking into a wall the list has to scroll past. */
+        /* One scrollable rail with eleven controls on it, of which three fit.
+           Nothing said so: it ended flush at the edge of the screen, which reads
+           as the end of the row. The fade is the only thing that says there is
+           more, so it follows the scroll — right edge only at the start, both in
+           the middle, left only at the end. */
         .filters {
           display: flex; gap: 6px; margin-top: 8px; overflow-x: auto;
           scrollbar-width: none; -webkit-overflow-scrolling: touch;
-          padding-bottom: 2px;
+          padding-bottom: 2px; scroll-padding: 0 12px;
+          overscroll-behavior-x: contain;
         }
         .filters::-webkit-scrollbar { display: none; }
+        .filters[data-more="right"] {
+          -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent);
+                  mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent);
+        }
+        .filters[data-more="both"] {
+          -webkit-mask-image: linear-gradient(to right, transparent, #000 26px,
+                                              #000 calc(100% - 34px), transparent);
+                  mask-image: linear-gradient(to right, transparent, #000 26px,
+                                              #000 calc(100% - 34px), transparent);
+        }
+        .filters[data-more="left"] {
+          -webkit-mask-image: linear-gradient(to right, transparent, #000 26px);
+                  mask-image: linear-gradient(to right, transparent, #000 26px);
+        }
         .filters select, .filters button {
-          flex: 0 0 auto; font: inherit; font-size: 12.5px; padding: 6px 26px 6px 10px;
-          border: 1px solid var(--line); border-radius: 99px;
+          flex: 0 0 auto; font: inherit; font-size: 16px; padding: 8px 30px 8px 13px;
+          min-height: 40px; border: 1px solid var(--line); border-radius: 99px;
           background: var(--chip); color: var(--fg); cursor: pointer;
-          appearance: none;
+          appearance: none; touch-action: manipulation;
           background-image: linear-gradient(45deg, transparent 50%, var(--dim) 50%),
                             linear-gradient(135deg, var(--dim) 50%, transparent 50%);
-          background-position: right 12px center, right 7px center;
-          background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+          background-position: right 14px center, right 9px center;
+          background-size: 6px 6px, 6px 6px; background-repeat: no-repeat;
         }
         .filters button {
-          padding: 6px 12px; background-image: none; color: var(--accent);
-          border-color: transparent;
+          padding: 8px 14px; background-image: none; color: var(--accent);
+          border-color: transparent; font-weight: 600;
         }
         /* A control that is doing something says so, the way the app's do. */
         .filters select.on {
@@ -265,22 +330,43 @@ enum WebExport {
           color: var(--fg);
         }
         ul { list-style: none; margin: 0; padding: 0; }
+        /* Firm and title across the top with the link beside them, and the
+           marks on the last line where the location leaves room for them.
+           Stacked in a column beside the text, three targets a thumb can hit
+           are taller than everything they sit next to, so the row was two
+           thirds empty space; along the bottom they cost nothing at all. */
         .row {
-          display: flex; align-items: flex-start; gap: 8px; padding: 9px 12px;
+          display: grid; grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-areas: "cell cell" "me marks";
+          align-items: center; column-gap: 6px;
+          padding: 7px max(12px, env(safe-area-inset-right))
+                   7px max(12px, env(safe-area-inset-left));
           border-bottom: 1px solid var(--line); background: var(--panel);
+          touch-action: manipulation;
         }
-        .marks { display: flex; flex-direction: column; gap: 2px; }
+        /* The link shares the title's area rather than taking a column of its
+           own: a column would be as wide as the three marks below it, and the
+           titles would be reading 130px narrower to make room for one arrow. */
+        .cell { grid-area: cell; min-width: 0; padding-right: 42px; }
+        .go { grid-area: cell; justify-self: end; align-self: start; }
+        .me { grid-area: me; }
+        .marks { grid-area: marks; display: flex; margin-right: -6px; }
+        .row:active { background: color-mix(in srgb, var(--fg) 7%, var(--panel)); }
+        /* 44 by 40 rather than 28 by 24, and side by side. One of these three
+           makes the row disappear and its neighbour advances an application, so
+           a near miss is expensive; 24px apart, up a narrow column, is not
+           enough separation for a thumb. */
         .mk {
-          width: 28px; height: 24px; border: 0; border-radius: 6px; cursor: pointer;
-          background: transparent; color: var(--dim); font-size: 13px; line-height: 1;
-          -webkit-tap-highlight-color: transparent;
+          width: 44px; height: 40px; border: 0; border-radius: 8px; cursor: pointer;
+          background: transparent; color: var(--dim); font-size: 15px; line-height: 1;
+          -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+          -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
         }
         .mk:active { background: var(--chip); }
         .row[data-saved="1"] .save { color: var(--star); }
         .row:not([data-stage=""]) .apply { color: var(--accent); }
         .row[data-hidden="1"] .hide { color: var(--fg); }
-        .row[data-hidden="1"] .cell { opacity: .45; }
-        .cell { flex: 1; min-width: 0; }
+        .row[data-hidden="1"] .cell, .row[data-hidden="1"] .me { opacity: .45; }
         .co { display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
               font-size: 11.5px; color: var(--dim); }
         .firm { font-weight: 600; color: var(--fg); font-size: 12.5px; }
@@ -292,37 +378,71 @@ enum WebExport {
         .pill.owed { color: var(--owed); font-weight: 600; }
         .pill:empty { display: none; }
         .row[data-owed="0"] .pill.owed { display: none; }
-        .go { color: var(--dim); text-decoration: none; font-size: 15px;
-              padding: 4px 2px 4px 6px; }
+        .go { color: var(--dim); text-decoration: none; font-size: 17px;
+              width: 44px; min-height: 44px; margin-right: -8px;
+              display: flex; align-items: center; justify-content: center;
+              touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        .go:active { background: var(--chip); border-radius: 8px; }
         [data-local-hide] { display: none !important; }
         /* Detail sheet: the app's panel, as a sheet because a phone has no room
            for a third column. */
         #sheet { position: fixed; inset: 0; z-index: 20; }
-        .sheet-bg { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
+        .sheet-bg { position: absolute; inset: 0; background: rgba(0,0,0,.45);
+                    touch-action: none; }
         .sheet-card {
-          position: absolute; left: 0; right: 0; bottom: 0; max-height: 88vh;
-          overflow-y: auto; background: var(--panel); color: var(--fg);
-          border-radius: 14px 14px 0 0; padding: 16px 15px
-          calc(20px + env(safe-area-inset-bottom));
+          position: absolute; left: 0; right: 0; bottom: 0;
+          /* dvh, not vh: vh on a phone is the height with the address bar
+             retracted, so the last line of a long description sat under the
+             browser's own toolbar with nothing to scroll. */
+          max-height: 88vh; max-height: 88dvh;
+          overflow-y: auto; overscroll-behavior: contain;
+          background: var(--panel); color: var(--fg);
+          border-radius: 16px 16px 0 0;
+          padding: 0 max(15px, env(safe-area-inset-right))
+                   calc(20px + env(safe-area-inset-bottom))
+                   max(15px, env(safe-area-inset-left));
           box-shadow: 0 -8px 30px rgba(0,0,0,.35);
+          transition: transform .22s cubic-bezier(.2,.8,.2,1);
         }
+        #sheet.dragging .sheet-card { transition: none; }
+        /* The title and the way out ride along with the scroll, so a long
+           description cannot carry the close button off the top of the sheet. */
+        .sheet-head {
+          position: sticky; top: 0; z-index: 1; background: var(--panel);
+          padding: 8px 0 10px; margin-bottom: 2px;
+          border-bottom: 1px solid transparent;
+          touch-action: none;                 /* the drag-to-dismiss handle */
+        }
+        .sheet-card.scrolled .sheet-head { border-bottom-color: var(--line); }
+        /* The grip: what says this sheet can be pulled down. */
+        .grab { width: 36px; height: 4px; border-radius: 99px; background: var(--line);
+                margin: 0 auto 10px; }
         .sheet-x {
-          position: absolute; top: 12px; right: 12px; width: 28px; height: 28px;
-          border: 0; border-radius: 99px; background: var(--chip); color: var(--dim);
-          font-size: 13px; cursor: pointer;
+          position: absolute; top: 4px; right: -6px; width: 44px; height: 44px;
+          border: 0; border-radius: 99px; background: transparent; color: var(--dim);
+          font-size: 15px; cursor: pointer; touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
         }
-        .sheet-card h2 { margin: 0 34px 2px 0; font-size: 17px; line-height: 1.25;
+        .sheet-x:active { background: var(--chip); }
+        .sheet-card h2 { margin: 0 44px 2px 0; font-size: 17px; line-height: 1.25;
                          text-wrap: balance; }
         .sheet-card h3 { margin: 16px 0 7px; font-size: 12px; color: var(--dim);
                          text-transform: uppercase; letter-spacing: .06em; }
-        .s-sub { font-size: 12.5px; color: var(--dim); margin-bottom: 12px; }
-        .s-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+        .s-sub { font-size: 12.5px; color: var(--dim); margin: 0 44px 0 0; }
+        .s-acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+        /* Whatever is behind the sheet stays where it was; without this, dragging
+           a sheet that is already at its top scrolls the list underneath it. */
+        body.sheet-open { overflow: hidden; }
         .btn {
-          flex: 1 1 auto; text-align: center; padding: 9px 12px; font: inherit;
-          font-size: 13.5px; border-radius: 8px; border: 1px solid var(--line);
+          flex: 1 1 auto; padding: 11px 14px; font: inherit;
+          font-size: 15px; min-height: 44px; border-radius: 10px;
+          border: 1px solid var(--line);
           background: var(--chip); color: var(--fg); cursor: pointer;
-          text-decoration: none;
+          text-decoration: none; touch-action: manipulation;
+          display: flex; align-items: center; justify-content: center;
+          -webkit-tap-highlight-color: transparent;
         }
+        .btn:active { transform: scale(.98); }
         .btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
         .btn.on { background: color-mix(in srgb, var(--accent) 25%, var(--chip)); }
         .s-grid { display: grid; grid-template-columns: 86px 1fr; gap: 5px 10px;
@@ -336,21 +456,44 @@ enum WebExport {
         .step .when { color: var(--dim); font-variant-numeric: tabular-nums;
                       margin-left: auto; font-size: 12px; }
         .step button { border: 0; background: var(--chip); color: var(--dim);
-                       border-radius: 6px; padding: 3px 7px; font-size: 11px;
-                       cursor: pointer; }
+                       border-radius: 7px; padding: 8px 11px; font-size: 12px;
+                       min-height: 36px; cursor: pointer;
+                       touch-action: manipulation; }
         .s-add { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
         .s-add select, .s-add input {
-          flex: 1 1 40%; font: inherit; font-size: 13px; padding: 7px 9px;
-          border: 1px solid var(--line); border-radius: 8px;
+          flex: 1 1 40%; font: inherit; font-size: 16px; padding: 10px 11px;
+          min-height: 44px;
+          border: 1px solid var(--line); border-radius: 9px;
           background: var(--chip); color: var(--fg);
         }
-        #s-note { width: 100%; font: inherit; font-size: 13.5px; padding: 9px;
-                  border: 1px solid var(--line); border-radius: 8px;
+        #s-note { width: 100%; font: inherit; font-size: 16px; padding: 11px;
+                  border: 1px solid var(--line); border-radius: 9px;
                   background: var(--chip); color: var(--fg); resize: vertical; }
         .s-desc { margin-top: 14px; font-size: 13px; color: var(--dim);
                   white-space: pre-wrap; }
         .empty { padding: 44px 18px; text-align: center; color: var(--dim); }
-        footer { padding: 14px 12px calc(20px + env(safe-area-inset-bottom));
+        .empty p { margin: 0 0 16px; }
+        .empty .btn { display: inline-flex; flex: 0 0 auto; }
+        /* Undo, because one of the three marks makes the row disappear and it
+           is 44px from the two that do not. */
+        #toast {
+          position: fixed; left: 50%; transform: translateX(-50%); z-index: 30;
+          bottom: calc(16px + env(safe-area-inset-bottom));
+          display: flex; align-items: center; gap: 10px;
+          max-width: min(92vw, 420px); padding: 4px 6px 4px 16px;
+          border-radius: 99px; font-size: 14px;
+          background: var(--chip); color: var(--fg);
+          border: 1px solid var(--line); box-shadow: 0 6px 24px rgba(0,0,0,.4);
+        }
+        #toast button {
+          border: 0; background: transparent; color: var(--accent); font: inherit;
+          font-weight: 650; padding: 9px 14px; min-height: 40px; border-radius: 99px;
+          cursor: pointer; touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
+        }
+        footer { padding: 14px max(12px, env(safe-area-inset-right))
+                          calc(20px + env(safe-area-inset-bottom))
+                          max(12px, env(safe-area-inset-left));
                  color: var(--dim); font-size: 11.5px; }
         .mk:focus-visible, .lists button:focus-visible, .go:focus-visible,
         input:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -374,6 +517,7 @@ enum WebExport {
           <input type="search" id="q" placeholder="Filter by role, firm or place"
                  autocomplete="off" autocapitalize="off" spellcheck="false">
           <div class="filters">
+            <button id="clear" hidden>✕ Clear</button>
             <select id="f-cat" aria-label="Category"></select>
             <select id="f-level" aria-label="Level">
               <option value="">Both</option>
@@ -409,24 +553,32 @@ enum WebExport {
             <label id="merge-wrap" title="One row per role, with its locations folded in">
               <input type="checkbox" id="f-merge" checked>Merge
             </label>
-            <button id="clear" hidden>Clear</button>
           </div>
         </header>
 
         <ul artifact-sync id="list">
         \(rows)
         </ul>
-        <div class="empty" id="empty" hidden>Nothing in this list.</div>
+        <div class="empty" id="empty" hidden>
+          <p id="empty-why">Nothing in this list.</p>
+          <button id="empty-clear" class="btn" hidden>Clear the filters</button>
+        </div>
 
         <!-- Local scratch UI: the sheet is a view onto a row, never part of the
              saved document, so it lives outside the synced list. -->
         <artifact-local>
+        <div id="toast" hidden role="status" aria-live="polite">
+          <span id="toast-say"></span><button id="toast-undo">Undo</button>
+        </div>
         <div id="sheet" hidden>
           <div class="sheet-bg" data-close></div>
           <div class="sheet-card" role="dialog" aria-modal="true" aria-label="Role">
-            <button class="sheet-x" data-close aria-label="Close">✕</button>
-            <h2 id="s-title"></h2>
-            <div class="s-sub" id="s-sub"></div>
+            <div class="sheet-head">
+              <div class="grab"></div>
+              <button class="sheet-x" data-close aria-label="Close">✕</button>
+              <h2 id="s-title"></h2>
+              <div class="s-sub" id="s-sub"></div>
+            </div>
             <div class="s-acts">
               <a id="s-open" class="btn primary" target="_blank" rel="noopener">Open Posting</a>
               <button id="s-save" class="btn">Save</button>
@@ -459,9 +611,9 @@ enum WebExport {
 
         <script>
         // The app's pipeline. Tapping ➤ walks it, so an application can move on
-        // without the laptop; the attribute is what gets saved, the pill just shows it.
+        // without the laptop; each tap writes a step, which is what gets saved —
+        // the stage attribute and the pill are both read back off those.
         const STAGES = ["", "Applied", "OA", "Interview", "Final", "Offer", "Rejected"];
-        const SAT = ["OA", "Interview", "Final"];
         const list = document.getElementById('list');
         const rows = () => [...list.querySelectorAll('.row')];
         let tab = 'all';
@@ -579,6 +731,61 @@ enum WebExport {
           return shown - folded;
         }
 
+        const head = document.querySelector('header');
+        const rail = document.querySelector('.filters');
+        const search = document.getElementById('q');
+
+        // scrollTo with options is not everywhere, and neither is smooth.
+        const glide = (el, to) => {
+          try { el.scrollTo({[to.left === undefined ? 'top' : 'left']:
+                             to.left === undefined ? to.top : to.left,
+                             behavior: 'smooth'}); }
+          catch (e) { try { el.scrollLeft = to.left || 0; el.scrollTop = to.top || 0; }
+                      catch (e2) {} }
+        };
+        // Changing what the list contains while parked halfway down it leaves you
+        // reading a different list from wherever the old one happened to reach.
+        const toTop = () => { if (window.scrollY > 0) glide(window, {top: 0}); };
+
+        // Which way the rail can still go, so the fade can say so.
+        function railFade() {
+          const room = rail.scrollWidth - rail.clientWidth;
+          if (room < 8) { rail.removeAttribute('data-more'); return; }
+          const l = rail.scrollLeft > 4, r = rail.scrollLeft < room - 4;
+          rail.dataset.more = l && r ? 'both' : r ? 'right' : 'left';
+        }
+        rail.addEventListener('scroll', railFade, {passive: true});
+        window.addEventListener('resize', railFade);
+
+        // The header is four rows of controls, a fifth of the screen, and two of
+        // them are of no use while reading. So they fold away on the way down and
+        // come back on the way up — never while the search box is in use, because
+        // hiding what is narrowing the list is how a list turns into a mystery.
+        let lastY = 0, settling = 0;
+        const fold = want => {
+          if (want === head.classList.contains('tight')) return;
+          head.classList.toggle('tight', want);
+          // Folding shortens the page, and the browser answers by moving the
+          // scroll to keep what you were reading in place. That arrives as a
+          // scroll of its own, which read as a change of direction and folded
+          // the header straight back — so its own after-effects are ignored.
+          settling = Date.now() + 350;
+        };
+        window.addEventListener('scroll', () => {
+          const y = Math.max(0, window.scrollY);
+          if (Date.now() < settling) { lastY = y; return; }
+          const dy = y - lastY;
+          if (Math.abs(dy) < 8) return;
+          lastY = y;
+          if (search.value || document.activeElement === search) { fold(false); return; }
+          if (y <= 150) { fold(false); return; }
+          // Down folds it away at once; coming back takes a deliberate pull, so
+          // a thumb that wobbles mid-scroll does not make the header flicker.
+          if (dy > 0) fold(true);
+          else if (dy <= -24) fold(false);
+        }, {passive: true});
+        search.addEventListener('focus', () => fold(false));
+
         function apply() {
           const q = val('q').trim().toLowerCase();
           const level = val('f-level'), days = val('f-days'), year = val('f-year');
@@ -652,6 +859,21 @@ enum WebExport {
             if (on) active++;
           }
           document.getElementById('clear').hidden = active === 0;
+          document.getElementById('clear').textContent = '✕ Clear ' + active;
+          railFade();
+
+          // An empty list that says only "nothing here" is a dead end on a phone,
+          // where the filter doing the hiding is off the side of the screen.
+          if (shown === 0) {
+            document.getElementById('empty-why').textContent = active
+              ? (q ? 'Nothing matches “' + val('q').trim() + '” with these filters.'
+                   : 'Nothing matches these filters.')
+              : tab === 'all' ? 'Nothing in this snapshot yet.'
+              : tab === 'saved' ? 'Nothing saved yet. Tap ★ on a row.'
+              : tab === 'applied' ? 'No applications recorded yet. Tap ➤ on a row.'
+              : 'Nothing hidden.';
+            document.getElementById('empty-clear').hidden = active === 0;
+          }
 
           const all = rows();
           document.getElementById('n-all').textContent =
@@ -666,64 +888,126 @@ enum WebExport {
             + ' shown. ' + (syncNote || 'Marks and filters sync with the Mac app.');
         }
 
+        // Undo. ◍ takes the row out of the list and sits next to the two marks
+        // you reach for most, so a near miss costs something; without this the
+        // only way back was to go and find the row again in the Hidden tab.
+        let undoing = null, undoTimer = null;
+        function offerUndo(said, restore) {
+          undoing = restore;
+          document.getElementById('toast-say').textContent = said;
+          document.getElementById('toast').hidden = false;
+          clearTimeout(undoTimer);
+          undoTimer = setTimeout(hideToast, 6000);
+        }
+        function hideToast() { document.getElementById('toast').hidden = true;
+                               undoing = null; }
+        document.getElementById('toast-undo').onclick = () => {
+          const back = undoing;
+          hideToast();
+          if (back) back();
+        };
+
         list.addEventListener('click', e => {
           const b = e.target.closest('.mk');
           if (!b) return;
           const li = b.closest('.row');
+          const was = {saved: li.dataset.saved, hidden: li.dataset.hidden,
+                       stage: li.dataset.stage, owed: li.dataset.owed,
+                       steps: li.dataset.steps};
           if (b.dataset.act === 'save')
             li.dataset.saved = li.dataset.saved === '1' ? '0' : '1';
           if (b.dataset.act === 'hide')
             li.dataset.hidden = li.dataset.hidden === '1' ? '0' : '1';
-          if (b.dataset.act === 'apply') {
-            li.dataset.stage = STAGES[(STAGES.indexOf(li.dataset.stage || '') + 1)
-                                      % STAGES.length];
-            // Only a step you sit can be outstanding, and a fresh one is.
-            li.dataset.owed = SAT.includes(li.dataset.stage) ? '1' : '0';
+          if (b.dataset.act === 'apply') advance(li);
+          const said = b.dataset.act === 'save'
+              ? (li.dataset.saved === '1' ? 'Saved' : 'Removed from saved')
+            : b.dataset.act === 'hide'
+              ? (li.dataset.hidden === '1' ? 'Hidden' : 'Back in the list')
+            : (li.dataset.stage ? 'Marked ' + li.dataset.stage
+                                : 'Application cleared');
+          offerUndo(said, () => {
+            Object.assign(li.dataset, was);
             paint(li);
-          }
+            apply();
+          });
           apply();
         });
+
+        /// One tap of ➤ moves the row on one stage, and writes that as a step.
+        ///
+        /// It used to set data-stage alone. Only the steps are sent to the store,
+        /// so the tap went up as an empty history and came back erased by the
+        /// next pull — the phone's quickest mark was the one that did not last.
+        function advance(li) {
+          const next = STAGES[(STAGES.indexOf(li.dataset.stage || '') + 1)
+                              % STAGES.length];
+          if (!next) { writeSteps(li, []); return; }   // round the loop, and clear
+          const today = new Date().toISOString().slice(0, 10);
+          const arr = stepsOf(li);
+          arr.push({stage: next, at: today, done: ''});
+          // A later step on its own would leave a pipeline with no start, exactly
+          // as the sheet and the app reason about it.
+          if (!arr.some(x => x.stage === 'Applied'))
+            arr.push({stage: 'Applied', at: arr[0].at, done: ''});
+          writeSteps(li, arr);
+        }
 
         for (const b of document.querySelectorAll('[role=tab]')) {
           b.onclick = () => {
             tab = b.dataset.list;
             for (const o of document.querySelectorAll('[role=tab]'))
               o.setAttribute('aria-selected', String(o === b));
+            toTop();
             apply();
           };
         }
         for (const id of controls) {
           const el = document.getElementById(id);
           el.addEventListener(id === 'q' ? 'input' : 'change', apply);
+          // Not while typing: the search box is at the top already, and pulling
+          // the page about under the keyboard is worse than staying put.
+          if (id !== 'q') el.addEventListener('change', toTop);
         }
         document.getElementById('f-merge').addEventListener('change', () => {
           dirtyFilters = true;
           schedulePush();
           apply();
         });
-        // What "no filter" means for each control.
+        // Back to the defaults rather than to blank. Ten of the twelve controls
+        // have an empty option — "Anywhere", "Any city", "Both" — and for those
+        // empty is right. The sort does not: handed "" a <select> reports
+        // selectedIndex -1 and draws nothing, which is what Clear was doing.
+        // Worse, the filters sync, so the blank was written to the store, came
+        // back on every load and reached the app — a control left broken by the
+        // one button meant to fix filters.
         //
-        // Empty, for the ten that have an empty option — "Anywhere", "Any city",
-        // "Both". Not for the sort, whose options are date/firm/role: handed ""
-        // a <select> reports selectedIndex -1 and draws nothing, and Clear was
-        // doing exactly that. Worse, the filters sync, so the blank was written
-        // to the store, came back on every load, and reached the app — a broken
-        // control that pressing Clear could not fix, because Clear caused it.
+        // Named where the default is not simply empty, derived from the options
+        // otherwise, so a control added later cannot be blanked by someone
+        // forgetting to list it here.
+        const DEFAULTS = {'f-level': 'intern', 'f-sort': 'date'};
         function defaultOf(id) {
+          if (id in DEFAULTS) return DEFAULTS[id];
           const el = document.getElementById(id);
           if (el.tagName !== 'SELECT') return '';
           return [...el.options].some(o => o.value === '') ? '' : el.options[0].value;
         }
 
-        document.getElementById('clear').onclick = () => {
+        function clearFilters() {
           for (const id of controls) document.getElementById(id).value = defaultOf(id);
+          glide(rail, {left: 0});
+          toTop();
           apply();
-        };
+        }
+        document.getElementById('clear').onclick = clearFilters;
+        document.getElementById('empty-clear').onclick = clearFilters;
 
         // ---- detail sheet: the app's panel, reading and writing the row ----
         const SAT_FULL = {OA: 'submitted', Interview: 'done', Final: 'done'};
         let current = null;
+        let sheetPushed = false;
         const $ = id => document.getElementById(id);
+        const card = document.querySelector('.sheet-card');
+        const grip = document.querySelector('.sheet-head');
 
         function stepsOf(li) {
           return (li.dataset.steps || '').split(';').filter(Boolean)
@@ -746,7 +1030,10 @@ enum WebExport {
                : n < 365 ? Math.round(n / 30) + 'mo' : Math.round(n / 365) + 'y';
         }
 
+        // Reopened rather than opened when a button inside the sheet redraws it,
+        // which must not stack a second history entry or scroll it back to the top.
         function openSheet(li) {
+          const reopening = current === li && !$('sheet').hidden;
           current = li;
           const d = li.dataset;
           $('s-title').textContent = d.full || li.querySelector('.ti').textContent;
@@ -769,7 +1056,77 @@ enum WebExport {
           $('s-date').value = new Date().toISOString().slice(0, 10);
           drawSteps();
           $('sheet').hidden = false;
+          if (reopening) return;
+          card.scrollTop = 0;
+          card.classList.remove('scrolled');
+          card.style.transform = '';
+          // Whatever is behind stops scrolling, so a flick meant for the sheet
+          // does not carry the list away underneath it.
+          document.body.classList.add('sheet-open');
+          // Back is how you leave anything on a phone. Without an entry of its
+          // own the gesture left the page — and on a page behind a password
+          // that means the browser prompt again.
+          if (!sheetPushed) {
+            try { history.pushState({sheet: 1}, ''); sheetPushed = true; } catch (e) {}
+          }
         }
+
+        function closeSheet(fromHistory) {
+          $('sheet').hidden = true;
+          current = null;
+          card.style.transform = '';
+          document.body.classList.remove('sheet-open');
+          // Popping our own entry, unless the pop is what closed it.
+          if (sheetPushed && !fromHistory) { try { history.back(); } catch (e) {} }
+          sheetPushed = false;
+        }
+
+        window.addEventListener('popstate', () => {
+          if (!$('sheet').hidden) closeSheet(true);
+        });
+        document.addEventListener('keydown', e => {
+          if (e.key === 'Escape' && !$('sheet').hidden) closeSheet();
+        });
+
+        // A shadow under the title once there is something above it.
+        card.addEventListener('scroll', () => {
+          card.classList.toggle('scrolled', card.scrollTop > 2);
+        }, {passive: true});
+
+        // Pull the sheet down to put it away — the gesture the grip is promising.
+        // Only from the head, and only from the top of its scroll, so it can
+        // never fight the sheet's own scrolling.
+        let dragFrom = null;
+        grip.addEventListener('touchstart', e => {
+          if (card.scrollTop > 0 || e.touches.length !== 1) return;
+          dragFrom = e.touches[0].clientY;
+          $('sheet').classList.add('dragging');
+        }, {passive: true});
+        grip.addEventListener('touchmove', e => {
+          if (dragFrom === null) return;
+          card.style.transform =
+            'translateY(' + Math.max(0, e.touches[0].clientY - dragFrom) + 'px)';
+        }, {passive: true});
+        const endDrag = e => {
+          if (dragFrom === null) return;
+          const t = e.changedTouches && e.changedTouches[0];
+          const dy = Math.max(0, (t ? t.clientY : dragFrom) - dragFrom);
+          dragFrom = null;
+          $('sheet').classList.remove('dragging');
+          card.style.transform = '';
+          if (dy > 90) closeSheet();
+        };
+        grip.addEventListener('touchend', endDrag);
+        grip.addEventListener('touchcancel', endDrag);
+
+        // The keyboard covers the bottom half of the screen, which is where the
+        // notes box is.
+        $('s-note').addEventListener('focus', () => {
+          setTimeout(() => {
+            try { $('s-note').scrollIntoView({block: 'center', behavior: 'smooth'}); }
+            catch (e) {}
+          }, 300);
+        });
 
         function drawSteps() {
           const arr = stepsOf(current);
@@ -803,7 +1160,7 @@ enum WebExport {
           if (li) openSheet(li);
         });
         for (const el of document.querySelectorAll('[data-close]'))
-          el.onclick = () => { $('sheet').hidden = true; current = null; };
+          el.onclick = () => closeSheet();
         $('s-save').onclick = () => {
           current.dataset.saved = current.dataset.saved === '1' ? '0' : '1';
           openSheet(current); apply();
