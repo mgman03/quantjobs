@@ -47,8 +47,12 @@ without a UI. See [INTERNALS.md](INTERNALS.md).
 
 ## Install
 
-[Download QuantJobs.dmg][dmg] (macOS 14+) and drag it onto Applications. Nothing
-else to fetch — the app carries its own copy of the firm list.
+Two ways in, and they are independent — take either one.
+
+### Download it
+
+[QuantJobs.dmg][dmg] (macOS 14+): drag it onto Applications. Nothing else to
+fetch — the app carries its own copy of the firm list.
 
 The first launch takes one extra step, because the app is not notarised (that needs
 a paid Apple developer account). macOS offers only *Move to Trash* or *Done*:
@@ -60,18 +64,38 @@ a paid Apple developer account). macOS offers only *Move to Trash* or *Done*:
 
 [dmg]: https://github.com/mgman03/quantjobs/releases/latest/download/QuantJobs.dmg
 
-**Build it yourself** (needs the Xcode command-line tools):
+### Or build it
+
+Needs the Xcode command-line tools, and skips the step above entirely — an app you
+built yourself is not quarantined, so Gatekeeper leaves it alone.
 
 ```bash
 cd QuantJobsApp
-./make-app.sh          # installs to /Applications and adds a `quantjobs` command
-./make-app.sh --dmg    # or build the disk image
+./make-app.sh          # build, install to /Applications, add the `quantjobs` command
 ```
 
-An app you built is not quarantined, so Gatekeeper leaves it alone. `make-app.sh`
-also drops a `quantjobs` wrapper into the first of `~/.local/bin` or
-`/usr/local/bin` already on your PATH — the binary itself lives inside the bundle,
-which is not.
+`./make-app.sh --dmg` builds a disk image instead of installing, for handing to
+someone else. It is not part of installing it here.
+
+### The `quantjobs` command
+
+The binary lives inside the bundle at
+`/Applications/QuantJobs.app/Contents/MacOS/QuantJobs`, which is on nobody's PATH.
+`make-app.sh` drops a wrapper called `quantjobs` into the first of `~/.local/bin`
+or `/usr/local/bin` that already is, which is what makes the `quantjobs …` lines
+below typeable.
+
+**The disk image does not do this** — it contains the app and nothing else. If you
+installed that way and want the command:
+
+```bash
+mkdir -p ~/.local/bin
+printf '#!/bin/sh\nexec "/Applications/QuantJobs.app/Contents/MacOS/QuantJobs" "$@"\n' \
+  > ~/.local/bin/quantjobs && chmod +x ~/.local/bin/quantjobs
+```
+
+Or just use the full path. Nothing needs the command except the checks and the sync
+setup; the window does not.
 
 **Keep the checkout out of `~/Desktop`, `~/Documents` and `~/Downloads`.** macOS
 gates those three, so an app reading its config from one asks permission on every
