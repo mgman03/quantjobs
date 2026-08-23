@@ -335,6 +335,31 @@ enum WebExport {
            Stacked in a column beside the text, three targets a thumb can hit
            are taller than everything they sit next to, so the row was two
            thirds empty space; along the bottom they cost nothing at all. */
+        /* Stage headings in the Applied tab. Sticky, because the point of the
+           grouping is knowing which stage you are reading while you scroll. */
+        #list.grouped { display: flex; flex-direction: column; }
+        .stage-head {
+          display: flex; align-items: baseline; gap: 8px; list-style: none;
+          position: sticky; top: 0; z-index: 2;
+          /* Split, not one shorthand with max() in it: a parser that cannot read
+             max() drops the whole declaration and the heading loses its spacing
+             entirely, which is harder to notice than a wrong inset. */
+          padding: 16px 14px 8px;
+          padding-left: max(14px, env(safe-area-inset-left));
+          padding-right: max(14px, env(safe-area-inset-right));
+          font-size: 12px; font-weight: 650; letter-spacing: .04em;
+          color: var(--dim); text-transform: uppercase;
+          background: var(--bg); border-bottom: 1px solid var(--line);
+        }
+        .stage-head .sh-n {
+          font-weight: 500; text-transform: none; letter-spacing: 0;
+          font-size: 12px; color: var(--dim); opacity: .8;
+        }
+        .stage-head .sh-owed {
+          margin-left: auto; font-weight: 500; text-transform: none;
+          letter-spacing: 0; font-size: 11px; color: var(--owed);
+          border: 1px solid var(--owed); border-radius: 99px; padding: 1px 8px;
+        }
         .row {
           display: grid; grid-template-columns: minmax(0, 1fr) auto;
           grid-template-areas: "cell cell" "me marks";
@@ -701,7 +726,13 @@ enum WebExport {
         function groupByStage(shown) {
           for (const h of document.querySelectorAll('.stage-head')) h.remove();
           list.classList.toggle('grouped', tab === 'applied');
-          if (tab !== 'applied' || !shown) return;
+          if (tab !== 'applied' || !shown) {
+            // Leaving the tab: the grouping owned the order, so the sort has to
+            // be told it is no longer current or it will not re-run.
+            if (window.__grouped) { window.__sorted = null; window.__grouped = false; }
+            return;
+          }
+          window.__grouped = true;
 
           const visible = rows().filter(li => !li.hasAttribute('data-local-hide'));
           let order = 0;
@@ -726,8 +757,6 @@ enum WebExport {
             members.sort((a, b) => (b.dataset.posted || '').localeCompare(a.dataset.posted || ''));
             for (const li of members) li.style.order = order++;
           }
-          // The sort control does not apply here; let it re-run when you leave.
-          window.__sorted = null;
         }
 
         function mergeRows(shown) {
@@ -878,8 +907,6 @@ enum WebExport {
           // order is the point of the tab. Headers are real elements ordered
           // into place, because the list is a flex column and the sort already
           // positions rows that way.
-          groupByStage(shown);
-
           const by = val('f-sort');
           if (by !== window.__sorted) {
             const key = li => by === 'firm' ? li.dataset.firm.toLowerCase()
@@ -895,6 +922,11 @@ enum WebExport {
             list.style.flexDirection = 'column';
             window.__sorted = by;
           }
+
+          // After the sort, never before: the sort assigns an order to every row
+          // and would wipe the one the grouping just set — which is what left the
+          // headers stacked at the top with the rows scattered underneath.
+          groupByStage(shown);
 
           let active = 0;
           for (const id of controls) {

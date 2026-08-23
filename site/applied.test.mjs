@@ -46,6 +46,9 @@ const $ = id => w.document.getElementById(id);
 const tab = name => [...w.document.querySelectorAll('[role=tab]')]
   .find(b => b.dataset.list === name).dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
 const heads = () => [...w.document.querySelectorAll('.stage-head')];
+const rows = () => [...w.document.querySelectorAll('.row')];
+const LABEL = {Applied: 'Applied', OA: 'Online assessment', Interview: 'Interview',
+               Final: 'Final round', Offer: 'Offer', Rejected: 'Rejected'};
 
 // ---- the counts count what is drawn ----
 //
@@ -76,8 +79,23 @@ const oa = heads().find(h => h.querySelector('.sh-name').textContent === 'Online
 check('  an unsat step is badged to do', oa.querySelector('.sh-owed')?.textContent, '1 to do');
 const done = heads().find(h => h.querySelector('.sh-name').textContent === 'Rejected');
 check('  a stage with nothing owed is not', done.querySelector('.sh-owed'), 'null');
-check('  headers sort above their rows',
-      Number(heads()[0].style.order) < Number(heads()[1].style.order), true);
+// The bug this exists for: the sort ran after the grouping and reassigned every
+// row's order, so the headers kept theirs and stacked at the top of the list with
+// the rows scattered underneath by date. Reading order is the thing to assert.
+const reading = () => [...heads(), ...rows().filter(li => !li.hasAttribute('data-local-hide'))]
+  .sort((a, b) => Number(a.style.order) - Number(b.style.order));
+{
+  let head = null, wrong = 0;
+  for (const el of reading()) {
+    if (el.classList.contains('stage-head')) { head = el.querySelector('.sh-name').textContent; }
+    else if (head !== LABEL[el.dataset.stage]) wrong++;
+  }
+  check('  every row reads under its own heading', wrong, 0);
+}
+check('  and the CSS reaches the heading',
+      w.getComputedStyle(heads()[0]).getPropertyValue('gap'), '8px');
+check('  including its padding', 
+      w.getComputedStyle(heads()[0]).getPropertyValue('padding-top'), '16px');
 
 tab('all');
 await new Promise(r => setTimeout(r, 200));
