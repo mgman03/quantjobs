@@ -47,55 +47,31 @@ without a UI. See [INTERNALS.md](INTERNALS.md).
 
 ## Install
 
-Two ways in, and they are independent — take either one.
-
-### Download it
-
-[QuantJobs.dmg][dmg] (macOS 14+): drag it onto Applications. Nothing else to
-fetch — the app carries its own copy of the firm list.
-
-The first launch takes one extra step, because the app is not notarised (that needs
-a paid Apple developer account). macOS offers only *Move to Trash* or *Done*:
-
-1. Click **Done** — not Move to Trash.
-2. **System Settings ▸ Privacy & Security**, scroll to **Security**. There is a line
-   saying QuantJobs was blocked, with **Open Anyway**.
-3. Click it and authenticate. You are never asked again.
-
-[dmg]: https://github.com/mgman03/quantjobs/releases/latest/download/QuantJobs.dmg
-
-### Or build it
-
-Needs the Xcode command-line tools, and skips the step above entirely — an app you
-built yourself is not quarantined, so Gatekeeper leaves it alone.
-
 ```bash
-cd QuantJobsApp
-./make-app.sh          # build, install to /Applications, add the `quantjobs` command
+git clone https://github.com/mgman03/quantjobs
+cd quantjobs/QuantJobsApp
+./make-app.sh
 ```
 
-`./make-app.sh --dmg` builds a disk image instead of installing, for handing to
-someone else. It is not part of installing it here.
+Needs the Xcode command-line tools. It builds a release binary, wraps it in
+QuantJobs.app, installs it to `/Applications`, and drops a `quantjobs` command into
+the first of `~/.local/bin` or `/usr/local/bin` already on your PATH — that is what
+makes the `quantjobs …` lines below typeable, since the binary itself lives inside
+the bundle where nothing can find it.
 
-### The `quantjobs` command
+An app you built is not quarantined, so macOS opens it without argument.
 
-The binary lives inside the bundle at
-`/Applications/QuantJobs.app/Contents/MacOS/QuantJobs`, which is on nobody's PATH.
-`make-app.sh` drops a wrapper called `quantjobs` into the first of `~/.local/bin`
-or `/usr/local/bin` that already is, which is what makes the `quantjobs …` lines
-below typeable.
+**After that it updates itself.** On launch it asks GitHub whether there is a newer
+release; if there is, a bar appears with the version, what changed, and an Update
+button. It downloads the release's disk image, checks it really is QuantJobs and
+really is newer, swaps itself out and relaunches. Nothing is installed without you
+clicking Update, and the check is one unauthenticated GET.
 
-**The disk image does not do this** — it contains the app and nothing else. If you
-installed that way and want the command:
-
-```bash
-mkdir -p ~/.local/bin
-printf '#!/bin/sh\nexec "/Applications/QuantJobs.app/Contents/MacOS/QuantJobs" "$@"\n' \
-  > ~/.local/bin/quantjobs && chmod +x ~/.local/bin/quantjobs
-```
-
-Or just use the full path. Nothing needs the command except the checks and the sync
-setup; the window does not.
+That is the only reason a `.dmg` exists — it is what the updater consumes, and what
+to hand to someone without a toolchain. Installing from one by hand works, but it
+arrives quarantined, so macOS refuses it once and you have to go to **System
+Settings ▸ Privacy & Security ▸ Open Anyway**. Building is the shorter path. If you
+do want an image, `./make-app.sh --dmg` writes one.
 
 **Keep the checkout out of `~/Desktop`, `~/Documents` and `~/Downloads`.** macOS
 gates those three, so an app reading its config from one asks permission on every
@@ -231,18 +207,15 @@ so on; `locations.json` is the gazetteer that makes `US, CA, Santa Clara` and
 
 ## Updating
 
-The app asks GitHub on every launch whether there is a newer release. If there is, a
-bar appears with the version, what changed, and an Update button — it downloads the
-disk image, checks it really is QuantJobs and really is newer, swaps itself out and
-relaunches. Nothing is installed without you clicking Update, and the check is one
-unauthenticated GET.
-
-Updating this way skips the Gatekeeper prompt a manual download triggers, because
-quarantine is applied by browsers rather than by the network.
+Covered above — the app offers it and installs it. **QuantJobs ▸ Check for Updates…**
+asks on demand.
 
 Your saved and applied roles, settings and on/off choices live outside the app and
 are kept. The firm list is refreshed on first launch: firms added since your version
 arrive, and firms you switched on or off stay how you left them.
+
+Updating this way never trips Gatekeeper, because quarantine is applied by browsers
+rather than by the network.
 
 ## Notes
 

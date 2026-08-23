@@ -12,6 +12,10 @@ cd "$(dirname "$0")"
 APP="/Applications/QuantJobs.app"
 REVEAL=1
 DMG=""
+# Only when installing to the usual place. A build sent somewhere else with
+# --to is a throwaway — an old version to test the updater against, say — and
+# pointing the command everyone types at it silently breaks it.
+SHIM=1
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -22,7 +26,7 @@ while [ $# -gt 0 ]; do
                       else
                           DMG="$PWD/QuantJobs.dmg"
                       fi ;;
-        --to)         APP="$2"; shift ;;
+        --to)         APP="$2"; SHIM=0; shift ;;
         --no-reveal)  REVEAL=0 ;;
         -h|--help)    sed -n '2,7p' "$0"; exit 0 ;;
         *)            echo "unknown option: $1" >&2; exit 2 ;;
@@ -161,7 +165,7 @@ echo "built $APP"
 #
 # Only into a directory the shell already searches, and never over something
 # that is not ours.
-for dir in "$HOME/.local/bin" /usr/local/bin; do
+[ "$SHIM" = "1" ] && for dir in "$HOME/.local/bin" /usr/local/bin; do
     case ":$PATH:" in *":$dir:"*) ;; *) continue ;; esac
     mkdir -p "$dir" 2>/dev/null || continue
     [ -w "$dir" ] || continue
