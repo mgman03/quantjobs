@@ -107,6 +107,20 @@ The same scraper runs on GitHub's runners twice a day, builds one self-contained
 HTML page with every filter the app has, and publishes it to Cloudflare Pages. Free
 at every step, and it keeps working with the Mac shut.
 
+**It is your page, not a service.** There is no login because there are no accounts:
+the deploy publishes to a Cloudflare project in your own account, and the URL below
+is the one this repository's owner happens to have. `*.pages.dev` names are globally
+unique, so a second person cannot deploy to it even by accident — theirs is
+`something-else.pages.dev`, holding their postings and their marks, reachable with
+their password. Nothing is shared between two people running this, in either
+direction.
+
+Three things name this repository, and a fork should change them: the project name
+in `.github/workflows/fetch.yml`, `Updater.repo` (which decides whose releases the
+app offers you), and `SharedLedger.url` (whose first-seen dates it reads). The
+worker learns its own repository from the deploy, so the ⟳ button follows the fork
+without being told.
+
 ```mermaid
 flowchart TB
     T["cron 05:17 / 17:17 UTC · the Actions tab · the page's ⟳ button"] --> F
@@ -158,7 +172,7 @@ touched last.
 On the Mac, once:
 
 ```sh
-quantjobs --check --sync-setup https://quantjobs.pages.dev   # asks for the password
+quantjobs --check --sync-setup https://<your-project>.pages.dev   # asks for the password
 quantjobs --check --sync                                     # what the phone knows
 ```
 

@@ -220,6 +220,19 @@ jobs:
             | npx --yes wrangler@4 pages secret put REFRESH_TOKEN \
                 --project-name=quantjobs
 
+      # So the page's ⟳ button dispatches this repository's workflow rather than
+      # the one it was forked from.
+      - name: Tell the worker which repository it belongs to
+        if: env.CF_TOKEN != ''
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          printf '%s' "${{ github.repository }}" \
+            | npx --yes wrangler@4 pages secret put GITHUB_REPO \
+                --project-name=quantjobs
+
       - name: Publish to Cloudflare Pages
         if: env.CF_TOKEN != ''
         env:

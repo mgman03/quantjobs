@@ -56,14 +56,18 @@ export default {
 // GET reports the newest run so the page can tell when a fresh copy exists.
 // POST starts one. Both need the same password as the page.
 
-const REPO = 'mgman03/quantjobs';
+// Set by the deploy from ${{ github.repository }}, so a fork dispatches its own
+// workflow rather than this one's. The fallback only matters for a deploy that
+// predates the variable being set.
 const WORKFLOW = 'fetch.yml';
+const repoOf = env => env.GITHUB_REPO || 'mgman03/quantjobs';
 
 async function refresh(request, env) {
   if (!env.REFRESH_TOKEN) {
     return json({ error: 'no token bound; refreshing is not set up' }, 501);
   }
-  const api = (path, init) => fetch(`https://api.github.com/repos/${REPO}${path}`, {
+  const repo = repoOf(env);
+  const api = (path, init) => fetch(`https://api.github.com/repos/${repo}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${env.REFRESH_TOKEN}`,
