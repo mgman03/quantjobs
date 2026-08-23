@@ -690,6 +690,46 @@ enum WebExport {
           if (plus) plus.remove();
         }
 
+        // The stages a row can be at, in pipeline order, named as the app names
+        // them. Withdrawn is last because it is an ending rather than a step.
+        const GROUPS = [
+          ['Applied', 'Applied'], ['OA', 'Online assessment'],
+          ['Interview', 'Interview'], ['Final', 'Final round'],
+          ['Offer', 'Offer'], ['Rejected', 'Rejected'],
+        ];
+
+        function groupByStage(shown) {
+          for (const h of document.querySelectorAll('.stage-head')) h.remove();
+          list.classList.toggle('grouped', tab === 'applied');
+          if (tab !== 'applied' || !shown) return;
+
+          const visible = rows().filter(li => !li.hasAttribute('data-local-hide'));
+          let order = 0;
+          for (const [stage, label] of GROUPS) {
+            const members = visible.filter(li => li.dataset.stage === stage);
+            if (!members.length) continue;
+            const owed = members.filter(li => li.dataset.owed === '1').length;
+
+            const head = document.createElement('li');
+            head.className = 'stage-head';
+            head.style.order = order++;
+            head.innerHTML = '<span class="sh-name"></span>'
+              + '<span class="sh-n"></span>'
+              + (owed ? '<span class="sh-owed"></span>' : '');
+            head.querySelector('.sh-name').textContent = label;
+            head.querySelector('.sh-n').textContent = members.length;
+            if (owed) head.querySelector('.sh-owed').textContent = owed + ' to do';
+            list.append(head);
+
+            // Newest activity first inside a stage, which is what the app sorts
+            // the Applied list by — what is happening, not when it was posted.
+            members.sort((a, b) => (b.dataset.posted || '').localeCompare(a.dataset.posted || ''));
+            for (const li of members) li.style.order = order++;
+          }
+          // The sort control does not apply here; let it re-run when you leave.
+          window.__sorted = null;
+        }
+
         function mergeRows(shown) {
           const visible = rows().filter(li => !li.hasAttribute('data-local-hide'));
           visible.forEach(unmerge);
@@ -833,6 +873,13 @@ enum WebExport {
           shown = mergeRows(shown);
           document.getElementById('empty').hidden = shown > 0;
 
+          // The Applied tab is a pipeline, not a list — the app groups it by stage
+          // with a count and a "to do" badge on each, and reading them in that
+          // order is the point of the tab. Headers are real elements ordered
+          // into place, because the list is a flex column and the sort already
+          // positions rows that way.
+          groupByStage(shown);
+
           const by = val('f-sort');
           if (by !== window.__sorted) {
             const key = li => by === 'firm' ? li.dataset.firm.toLowerCase()
@@ -875,17 +922,26 @@ enum WebExport {
             document.getElementById('empty-clear').hidden = active === 0;
           }
 
+          // Counted the way the list is drawn. With merging on, one role posted
+          // in eight cities is one row, so counting the postings said 995 above
+          // a list of 615 — the tab disagreeing with what it opens.
           const all = rows();
+          const count = pick => {
+            const hits = all.filter(pick);
+            if (!document.getElementById('f-merge').checked) return hits.length;
+            return new Set(hits.map(li => li.dataset.role || li.dataset.key)).size;
+          };
           document.getElementById('n-all').textContent =
-            all.filter(li => li.dataset.hidden !== '1').length;
+            count(li => li.dataset.hidden !== '1');
           document.getElementById('n-saved').textContent =
-            all.filter(li => li.dataset.saved === '1').length;
+            count(li => li.dataset.saved === '1');
           document.getElementById('n-applied').textContent =
-            all.filter(li => li.dataset.stage !== '').length;
+            count(li => li.dataset.stage !== '');
           document.getElementById('n-hidden').textContent =
-            all.filter(li => li.dataset.hidden === '1').length;
-          document.getElementById('foot').textContent = shown + ' of ' + all.length
-            + ' shown. ' + (syncNote || 'Marks and filters sync with the Mac app.');
+            count(li => li.dataset.hidden === '1');
+          document.getElementById('foot').textContent = shown + ' of '
+            + count(() => true) + ' shown. '
+            + (syncNote || 'Marks and filters sync with the Mac app.');
         }
 
         // Undo. ◍ takes the row out of the list and sits next to the two marks

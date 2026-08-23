@@ -155,6 +155,11 @@ quantjobs --check --sync                                     # what the phone kn
 That writes `.sync.json`, `chmod 600`, gitignored. The app syncs on launch, two
 seconds after any mark, and on ⇧⌘S.
 
+**Applied is a pipeline, not a list**, as it is in the app: grouped by stage, each
+group counting its rows and badging what is still owed. The tab counts count what
+the list draws — with merging on, one role in eight cities is one row, and the tab
+used to say 995 above a list of 615.
+
 The page is built for a thumb: 44px targets, nothing focusable under 16px (Safari
 zooms in on a smaller field and does not zoom back out), a header that folds while
 you scroll, and six seconds to undo a mis-tap.
