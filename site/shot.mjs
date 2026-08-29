@@ -91,9 +91,19 @@ ws.addEventListener('message', e => {
     events.delete(msg.method);
   }
 });
-const send = (method, params = {}) => new Promise((resolve, reject) => {
+// Every call is bounded. A page that navigates while an evaluate is suspended
+// destroys the execution context it was waiting in, and the reply never comes —
+// which hangs the whole run rather than failing it. That is not hypothetical:
+// this page reloads itself when the fetch it is watching finishes, so shooting
+// it at the wrong moment hangs forever without the timeout.
+const send = (method, params = {}, ms = 30000) => new Promise((resolve, reject) => {
   const id = ++nextId;
-  pending.set(id, { resolve, reject });
+  const timer = setTimeout(() => {
+    pending.delete(id);
+    reject(new Error(`${method} did not answer in ${ms}ms (did the page navigate?)`));
+  }, ms);
+  pending.set(id, { resolve: v => { clearTimeout(timer); resolve(v); },
+                    reject: e => { clearTimeout(timer); reject(e); } });
   ws.send(JSON.stringify({ id, method, params }));
 });
 const once = method => new Promise(r => {
@@ -137,10 +147,19 @@ if (waitFor) {
 
 const script = flag('--eval');
 if (script) {
-  const { exceptionDetails } = await evaluate(script);
+  const { result, exceptionDetails } = await evaluate(script);
   if (exceptionDetails) throw new Error('--eval threw: ' + exceptionDetails.text);
-  await new Promise(r => setTimeout(r, Number(flag('--settle', 400))));
+  // Printed, because it is usually the answer to a question — what the header
+  // says, how many rows are showing — and a screenshot is a slow way to read a
+  // string.
+  if (result && result.value !== undefined) console.error('  eval: ' + JSON.stringify(result.value));
 }
+
+// Always, not only after --eval: a page that finishes its own work after load —
+// asking what the runner is doing, say — has nothing on screen yet when the
+// load event fires, and shooting it straight away photographs the wrong moment.
+// This cost me a screenshot I read as a bug in the page.
+await new Promise(r => setTimeout(r, Number(flag('--settle', 400))));
 
 const shot = { format: 'png', captureBeyondViewport: has('--full') };
 if (has('--full')) {
