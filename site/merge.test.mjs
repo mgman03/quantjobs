@@ -14,7 +14,18 @@ import fs from 'node:fs';
 const dom = new JSDOM('<!doctype html><html><head></head><body>'
   + fs.readFileSync(process.argv[2], 'utf8') + '</body></html>',
   { runScripts: 'dangerously', url: 'https://q/', pretendToBeVisual: true,
-    beforeParse(w) { w.fetch = async () => new Response('{}', { status: 501 }); } });
+    beforeParse(w) {
+      // GET stays 501 so no stored state is applied and the assertions below
+      // read the page as built. PUT is captured, because what reaches the
+      // store is the half of merging that used to be wrong.
+      w.fetch = async (u, o = {}) => {
+        if (String(u).includes('/state') && (o.method || 'GET') === 'PUT') {
+          pushed = JSON.parse(o.body); return Response.json({});
+        }
+        return new Response('{}', { status: 501 });
+      };
+    } });
+let pushed = null;
 const w = dom.window;
 await new Promise(r => setTimeout(r, 600));
 let fails = 0;
@@ -51,8 +62,40 @@ if (plussed.length) {
 toggle(false);
 check('unmerging restores the count', vis().length, unmerged);
 check('  and removes the badge', vis().filter(li => li.querySelector('.plus')).length, 0);
+// Not a bare '+': a posting's own location can read "Hong Kong, HK +1", which
+// made this fail on a listing that was perfectly restored. The badge is the
+// thing that must be gone, and it always reads "+N more".
 const restored = plussed.length ? plussed[0].querySelector('.me').textContent : '';
-check('  and the original location text', restored.includes('+'), false);
+check('  and the original location text', restored.includes(' more'), false);
+
+// ---- marking a merged row marks every posting it stands for ----
+//
+// A merged row covers several postings, and the app marks all of them. The page
+// marked only the visible one, so the folded copies came back unstarred the
+// moment merging was turned off — and because which copy leads is decided by
+// posting date, a rebuild could hand the lead to a different posting and the
+// star looked like it had moved on its own. That is what "saved does not sync"
+// turned out to be.
+if (plussed.length) {
+  toggle(true);
+  const lead = vis().find(li => li.querySelector('.plus'));
+  const family = all.filter(x => x.dataset.role === lead.dataset.role);
+  lead.querySelector('.mk[data-act=save]')
+      .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  check('starring a merged row stars every posting in it',
+        family.filter(x => x.dataset.saved === '1').length, family.length);
+
+  await new Promise(r => setTimeout(r, 1600));   // past the push debounce
+  const sent = Object.keys(pushed?.tracked || {});
+  check('  and every one of them reaches the store',
+        family.every(x => sent.includes(x.dataset.key)), true);
+  check('  each carrying an instant, so the merge can date it',
+        family.every(x => (pushed.tracked[x.dataset.key] || {}).updated), true);
+
+  toggle(false);
+  check('  so they are still starred with merging off',
+        family.filter(x => x.dataset.saved === '1').length, family.length);
+}
 
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

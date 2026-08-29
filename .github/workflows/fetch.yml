@@ -8,7 +8,7 @@ name: fetch
 
 on:
   schedule:
-    - cron: "17 5,17 * * *"     # twice a day, off the hour to avoid the stampede
+    - cron: "17 * * * *"        # hourly, at :17 — off the hour to avoid the stampede
   workflow_dispatch:             # and on demand from the Actions tab
 
 jobs:
@@ -24,7 +24,7 @@ jobs:
       # workspace is thrown away when the run ends, so without this every run
       # started from an empty .seen.json and dated every undated posting today —
       # which is how Jane Street, whose board states no dates at all, came to
-      # read "found today" on a page rebuilt twice a day.
+      # read "found today" on a page rebuilt every hour.
       #
       # The ledger lives on the `state` branch: one force-pushed commit carrying
       # no history, so the repository does not grow by a megabyte a run.
@@ -151,7 +151,7 @@ jobs:
                 --project-name=quantjobs
 
       # Somewhere for the phone's marks to live. The page is rebuilt from
-      # scratch twice a day, so a star tapped on the train has to survive a
+      # scratch every hour, so a star tapped on the train has to survive a
       # deploy, and the repository cannot hold it: that is public, and these are
       # rejections.
       #

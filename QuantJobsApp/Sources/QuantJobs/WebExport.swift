@@ -525,6 +525,29 @@ enum WebExport {
         /* If the page can't save, the marks are a lie — say so rather than
            letting taps look like they landed. */
         [artifact-sync-state="off"] .mk { opacity: .35; pointer-events: none; }
+
+        /* ---- wider than a phone ----
+           Everything above is built for a thumb, and it applied at every width:
+           on a laptop a row stretched the whole window, leaving a thousand
+           pixels of nothing between the title on the left and the star, send
+           and hide buttons pinned to the far right, so the eye had to cross the
+           screen to connect a row to its own controls. Capping the column fixes
+           that without a second layout — the header bar and its rule still span
+           the window, only their contents are reined in.
+
+           One breakpoint, not a redesign: this page is read on a phone, and a
+           desktop layout it does not have would be more to keep in step for
+           less. */
+        @media (min-width: 760px) {
+          header > *, #list, footer { max-width: 900px; margin-inline: auto; }
+          /* An input is inline-block, and auto margins do not centre one — so
+             it sat left while everything above and below it was centred. */
+          header > #q { display: block; }
+          /* Room for every filter, so the rail has nothing left to scroll and
+             drops its fade on its own — railFade clears data-more as soon as
+             the contents fit. */
+          .filters { flex-wrap: wrap; overflow-x: visible; }
+        }
         </style>
 
         <header>
@@ -759,9 +782,26 @@ enum WebExport {
           }
         }
 
+        // Every posting a row stands for.
+        //
+        // A merged row covers several — one role in eight cities is one row —
+        // and marking it has to mark all of them, exactly as the app does (see
+        // AppModel.edit). Marking only the visible one leaves the folded copies
+        // unmarked, so they come back unstarred the moment merging is turned
+        // off; and because which copy leads is decided by posting date, a
+        // rebuild can hand the lead to a different posting and the star looks
+        // like it moved on its own. That is the whole of "saved does not sync".
+        //
+        // Recorded here rather than read back off the DOM, because the
+        // data-local-hide attribute that hides a folded row is the same one the
+        // filter pass uses, so the two are indistinguishable afterwards.
+        const foldedInto = new WeakMap();
+        const targets = li => foldedInto.get(li) || [li];
+        const spread = (li, fn) => { for (const r of targets(li)) fn(r); };
+
         function mergeRows(shown) {
           const visible = rows().filter(li => !li.hasAttribute('data-local-hide'));
-          visible.forEach(unmerge);
+          visible.forEach(li => { unmerge(li); foldedInto.delete(li); });
           if (!document.getElementById('f-merge').checked) return shown;
 
           const groups = new Map();
@@ -796,6 +836,7 @@ enum WebExport {
             plus.textContent = extra > 0 ? '+' + extra + ' more' : '';
             if (extra > 0) me.insertBefore(plus, me.querySelector('.age'));
             for (const li of rest) { li.setAttribute('data-local-hide', '1'); folded++; }
+            foldedInto.set(primary, members);
           }
           return shown - folded;
         }
@@ -999,14 +1040,26 @@ enum WebExport {
           const b = e.target.closest('.mk');
           if (!b) return;
           const li = b.closest('.row');
-          const was = {saved: li.dataset.saved, hidden: li.dataset.hidden,
-                       stage: li.dataset.stage, owed: li.dataset.owed,
-                       steps: li.dataset.steps};
-          if (b.dataset.act === 'save')
-            li.dataset.saved = li.dataset.saved === '1' ? '0' : '1';
-          if (b.dataset.act === 'hide')
-            li.dataset.hidden = li.dataset.hidden === '1' ? '0' : '1';
-          if (b.dataset.act === 'apply') advance(li);
+          const group = targets(li);
+          const was = group.map(r => [r, {saved: r.dataset.saved, hidden: r.dataset.hidden,
+                                          stage: r.dataset.stage, owed: r.dataset.owed,
+                                          steps: r.dataset.steps}]);
+          if (b.dataset.act === 'save') {
+            const to = li.dataset.saved === '1' ? '0' : '1';
+            for (const r of group) r.dataset.saved = to;
+          }
+          if (b.dataset.act === 'hide') {
+            const to = li.dataset.hidden === '1' ? '0' : '1';
+            for (const r of group) r.dataset.hidden = to;
+          }
+          // Advanced once, from the row that was tapped, and the result copied
+          // to the rest — not advanced separately on each, which would move a
+          // folded copy on from whatever stage it happened to be at.
+          if (b.dataset.act === 'apply') {
+            advance(li);
+            const steps = stepsOf(li);
+            for (const r of group) if (r !== li) writeSteps(r, steps.map(x => ({...x})));
+          }
           const said = b.dataset.act === 'save'
               ? (li.dataset.saved === '1' ? 'Saved' : 'Removed from saved')
             : b.dataset.act === 'hide'
@@ -1014,8 +1067,7 @@ enum WebExport {
             : (li.dataset.stage ? 'Marked ' + li.dataset.stage
                                 : 'Application cleared');
           offerUndo(said, () => {
-            Object.assign(li.dataset, was);
-            paint(li);
+            for (const [r, d] of was) { Object.assign(r.dataset, d); paint(r); }
             apply();
           });
           apply();
@@ -1230,12 +1282,14 @@ enum WebExport {
               const b = document.createElement('button');
               b.textContent = 'mark ' + verb;
               b.onclick = () => { arr[i].done = new Date().toISOString().slice(0,10);
-                                  writeSteps(current, arr); drawSteps(); apply(); };
+                                  spread(current, r => writeSteps(r, arr.map(x => ({...x}))));
+                                  drawSteps(); apply(); };
               row.appendChild(b);
             }
             const rm = document.createElement('button');
             rm.textContent = 'remove';
-            rm.onclick = () => { arr.splice(i, 1); writeSteps(current, arr);
+            rm.onclick = () => { arr.splice(i, 1);
+                                 spread(current, r => writeSteps(r, arr.map(x => ({...x}))));
                                  drawSteps(); apply(); };
             row.appendChild(rm);
             $('s-steps').appendChild(row);
@@ -1250,11 +1304,13 @@ enum WebExport {
         for (const el of document.querySelectorAll('[data-close]'))
           el.onclick = () => closeSheet();
         $('s-save').onclick = () => {
-          current.dataset.saved = current.dataset.saved === '1' ? '0' : '1';
+          const to = current.dataset.saved === '1' ? '0' : '1';
+          spread(current, r => { r.dataset.saved = to; });
           openSheet(current); apply();
         };
         $('s-hide').onclick = () => {
-          current.dataset.hidden = current.dataset.hidden === '1' ? '0' : '1';
+          const to = current.dataset.hidden === '1' ? '0' : '1';
+          spread(current, r => { r.dataset.hidden = to; });
           openSheet(current); apply();
         };
         $('s-add').onclick = () => {
@@ -1265,15 +1321,16 @@ enum WebExport {
           // start, exactly as the app reasons about it.
           if (!arr.some(x => x.stage === 'Applied'))
             arr.push({stage: 'Applied', at: arr[0].at, done: ''});
-          writeSteps(current, arr); drawSteps(); apply();
+          spread(current, r => writeSteps(r, arr.map(x => ({...x}))));
+          drawSteps(); apply();
         };
         $('s-note').addEventListener('change', () => {
-          current.dataset.note = $('s-note').value;
+          spread(current, r => { r.dataset.note = $('s-note').value; });
         });
 
         // ---- sync: the same marks and filters here and in the app ----
         //
-        // The page is rebuilt from scratch twice a day, so a star tapped on the
+        // The page is rebuilt from scratch every hour, so a star tapped on the
         // train has nowhere to live unless something off the phone keeps it. That
         // is /state, which the worker serves out of a KV namespace behind the same
         // password as the page. The Mac app reads and writes the same document.

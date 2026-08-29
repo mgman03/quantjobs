@@ -28,3 +28,11 @@ roles.md
 Tools/.ax
 Tools/.window-id
 web/
+
+# graphify: derived knowledge graph. Rebuildable from source, and this
+# repo is public - nothing derived from the ignored config belongs in it.
+graphify-out/
+
+# npm, for the jsdom checks in site/. Not part of the build.
+node_modules/
+package-lock.json

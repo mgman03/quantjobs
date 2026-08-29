@@ -79,7 +79,7 @@ rebuild.
 
 ## The page on your phone
 
-The same scraper runs on GitHub's runners twice a day, builds one self-contained
+The same scraper runs on GitHub's runners every hour, builds one self-contained
 HTML page with every filter the app has, and publishes it to Cloudflare Pages. Free
 at every step, and it keeps working with the Mac shut.
 
@@ -99,7 +99,7 @@ without being told.
 
 ```mermaid
 flowchart TB
-    T["cron 05:17 / 17:17 UTC · the Actions tab · the page's ⟳ button"] --> F
+    T["hourly at :17 UTC · the Actions tab · the page's ⟳ button"] --> F
 
     subgraph F ["job: fetch — container swift:6.0"]
         F1["restore the first-seen ledger and Meta's cache"]
@@ -227,7 +227,7 @@ rather than by the network.
 - **First-seen dates are shared, not per-machine.** A posting with no date from its
   board shows when the *tracker* first saw it, from a ledger the scheduled fetch
   keeps on the repository's `state` branch. Without it, a rebuild that starts from
-  nothing calls every undated posting "found today", twice a day, for ever.
+  nothing calls every undated posting "found today", every hour, for ever.
 - `.tracked.json` holds what you have saved, applied to or hidden, and the timeline
   for each. It survives a board deleting the posting.
 - Boards are fetched concurrently with retries; a firm that fails is reported in the

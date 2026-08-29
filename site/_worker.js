@@ -108,7 +108,7 @@ async function refresh(request, env) {
 
 // ---- /state: the marks and filters, shared between the phone and the Mac ----
 //
-// The page is rebuilt from scratch twice a day, so anything tapped on the phone
+// The page is rebuilt from scratch every hour, so anything tapped on the phone
 // has to live somewhere that survives a deploy, and the repository cannot be it:
 // it is public, and these are rejections. So a KV namespace, reachable only
 // through the password above.
