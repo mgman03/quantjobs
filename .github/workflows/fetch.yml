@@ -61,11 +61,17 @@ jobs:
       # Written with the password as an argument rather than inside the format
       # string, and escaped, so a password containing % or " cannot break the
       # JSON or the printf.
+      # Not a step-level `if:` — the secrets context is not available in one,
+      # and using it there makes the whole file unparseable, which fails every
+      # run including the scheduled ones.
       - name: Let the builder read the marks
-        if: ${{ secrets.SITE_PASSWORD != '' }}
         env:
           SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
         run: |
+          if [ -z "$SITE_PASSWORD" ]; then
+            echo "no SITE_PASSWORD set; the page will be built without the marks"
+            exit 0
+          fi
           umask 077
           esc=$(printf '%s' "$SITE_PASSWORD" | sed 's/\\/\\\\/g; s/"/\\"/g')
           printf '{"url":"https://quantjobs.pages.dev","password":"%s"}\n' "$esc" \
