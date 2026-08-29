@@ -44,19 +44,29 @@ jobs:
             || echo '{}' > .meta-cache.json
           echo "meta cache $(wc -c < .meta-cache.json) bytes"
 
-      # A release build of the whole package is 30-odd seconds, and the sources
-      # are identical on every run that is only refetching data — which is what
-      # the page's refresh button asks for. Keyed on the sources themselves, so
-      # a code change misses and rebuilds; the container image is in the key too,
-      # because a build directory from a different toolchain is not reusable.
-      - name: Cache the build
+      # A release build is 30-odd seconds, and the sources are identical on every
+      # run that is only refetching data — which is exactly what the page's
+      # refresh button asks for.
+      #
+      # The build is skipped outright on a hit rather than left to decide for
+      # itself, because it would rebuild anyway: checkout stamps every source
+      # file with the time it was written, so a restored build directory always
+      # looks older than its own inputs. Caching it and still running the build
+      # bought 6 seconds of the 33; skipping the build buys all of it.
+      #
+      # No restore-keys, for the same reason. A near-miss restores a directory
+      # that does not match these sources, and the only safe thing to do with
+      # it is rebuild — which is the case this is trying to avoid. An exact hit
+      # or a cold build, nothing in between.
+      - name: Cache the built scraper
+        id: bin
         uses: actions/cache@v4
         with:
           path: QuantJobsApp/.build
-          key: swift6.0-${{ hashFiles('QuantJobsApp/Package.swift', 'QuantJobsApp/Package.resolved', 'QuantJobsApp/Sources/**/*.swift') }}
-          restore-keys: swift6.0-
+          key: swift6.0-bin-${{ hashFiles('QuantJobsApp/Package.swift', 'QuantJobsApp/Package.resolved', 'QuantJobsApp/Sources/**/*.swift') }}
 
       - name: Build the scraper
+        if: steps.bin.outputs.cache-hit != 'true'
         run: swift build -c release --package-path QuantJobsApp
 
       # The marks are not in this repository and never will be — they are
