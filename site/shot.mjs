@@ -153,5 +153,15 @@ await writeFile(out, Buffer.from(data, 'base64'));
 
 ws.close();
 proc.kill();
-await rm(profile, { recursive: true, force: true });
+
+// The screenshot is written by now, so nothing below may fail the run.
+// Chrome keeps flushing its profile for a moment after the kill, and deleting
+// the directory out from under it raises ENOTEMPTY — which threw away a
+// perfectly good capture. Wait for the process to go, then sweep, and shrug if
+// the sweep loses the race: it is a temp directory the OS will reap anyway.
+await new Promise(r => { proc.once('exit', r); setTimeout(r, 2000); });
+for (let i = 0; i < 3; i++) {
+  try { await rm(profile, { recursive: true, force: true }); break; }
+  catch { await new Promise(r => setTimeout(r, 250)); }
+}
 console.error(`wrote ${out}  (${width}x${height} @${dsr}x${has('--full') ? ', full page' : ''})`);
