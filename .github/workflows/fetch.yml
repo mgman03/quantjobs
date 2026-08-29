@@ -47,6 +47,30 @@ jobs:
       - name: Build the scraper
         run: swift build -c release --package-path QuantJobsApp
 
+      # The marks are not in this repository and never will be — they are
+      # applications and rejections, and this repo is public. They live in the
+      # KV namespace behind the page's own password, so the builder is handed
+      # the same credentials the Mac uses and reads them at build time.
+      #
+      # Without this the page is built with no applications on it at all, and
+      # the browser's own pull has nowhere to put them: it only marks a row it
+      # can find. An application to a firm you have switched off, or to a
+      # posting the board has since taken down, was invisible on the page while
+      # the app went on showing it.
+      #
+      # Written with the password as an argument rather than inside the format
+      # string, and escaped, so a password containing % or " cannot break the
+      # JSON or the printf.
+      - name: Let the builder read the marks
+        if: ${{ secrets.SITE_PASSWORD != '' }}
+        env:
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: |
+          umask 077
+          esc=$(printf '%s' "$SITE_PASSWORD" | sed 's/\\/\\\\/g; s/"/\\"/g')
+          printf '{"url":"https://quantjobs.pages.dev","password":"%s"}\n' "$esc" \
+            > "$GITHUB_WORKSPACE/.sync.json"
+
       - name: Fetch every board and write the page
         env:
           QUANTJOBS_CONFIG: ${{ github.workspace }}
@@ -54,6 +78,9 @@ jobs:
           mkdir -p web
           BIN=$(swift build -c release --package-path QuantJobsApp --show-bin-path)
           "$BIN/QuantJobs" web/index.html
+          # Gone as soon as it has been used. The workspace is thrown away
+          # anyway, but the ledger step below runs a git checkout in it.
+          rm -f "$GITHUB_WORKSPACE/.sync.json"
           ls -lh web/index.html
 
       # Pages hands every request to a _worker.js at the root of the deployed

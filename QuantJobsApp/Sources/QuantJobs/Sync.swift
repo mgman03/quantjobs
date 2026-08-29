@@ -29,6 +29,18 @@ struct SyncMarks: Codable, Sendable {
     var milestones: [SyncStep] = []
     /// ISO instant. What decides which side is newer.
     var updated = ""
+    /// The posting itself, so a client that cannot see it on any board can
+    /// still show the application.
+    ///
+    /// The page is built on a runner with no marks of its own, and a firm you
+    /// have switched off is never fetched at all — so without this an Amazon
+    /// interview lived in the store, arrived in the browser, and was dropped on
+    /// the floor for want of a row to land on. The app has always kept this
+    /// snapshot for the same reason: an application outlives the posting.
+    ///
+    /// Optional because a document written by an older client will not have it,
+    /// and a mark with no posting is still a mark worth keeping.
+    var job: Job?
 }
 
 /// A step in the shape the page writes into its rows.
@@ -131,7 +143,7 @@ extension SyncMarks {
     init(_ t: TrackedJob) {
         self.init(saved: t.saved, hidden: t.hidden, note: t.note,
                   milestones: t.milestones.map(SyncStep.init),
-                  updated: t.syncStamp)
+                  updated: t.syncStamp, job: t.job)
     }
 
     /// Everything except the history, which is unioned by the caller.

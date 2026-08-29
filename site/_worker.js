@@ -176,7 +176,13 @@ function mergeState(mine, theirs) {
     const m = out.tracked[key];
     if (!m) { out.tracked[key] = t; continue; }
     const newer = (t.updated || '') > (m.updated || '') ? t : m;
-    out.tracked[key] = { ...newer, milestones: unionSteps(m, t) };
+    // The posting snapshot is kept from whichever side has one, rather than
+    // taken from the newer side alone: a client that predates it writes an
+    // entry with no `job`, and letting that win would erase the only copy of a
+    // posting no board still lists. It is a fact about the posting, not an
+    // opinion about the mark, so there is nothing to resolve.
+    out.tracked[key] = { ...newer, milestones: unionSteps(m, t),
+                         job: newer.job || m.job || t.job };
   }
 
   const a = mine.filtersUpdated || '', b = theirs.filtersUpdated || '';

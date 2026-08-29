@@ -137,6 +137,37 @@ check('/state bad JSON → 400', (await worker.fetch(
     { STATE: kv })).json();
   check('newer filters replace them', newer.filters['f-cat'], 'quant-research');
 }
+// The posting snapshot: a fact about the listing, not an opinion about the
+// mark, so it survives whichever side happens to be newer.
+//
+// This is what kept an Amazon interview off the page. The snapshot was added to
+// a payload whose marks had not changed since the last sync, so the timestamps
+// tied, `newer` resolved to the stored copy that had none, and the field was
+// dropped on every push — for ever, because it could never be the newer one.
+{
+  const kv = store();
+  await call('PUT', { tracked: { a: { saved: true, updated: '2026-08-01T00:00:00Z' } } },
+             { STATE: kv });
+  const same = await (await call('PUT',
+    { tracked: { a: { saved: true, updated: '2026-08-01T00:00:00Z',
+                      job: { company: 'Amazon', title: 'SDE Intern' } } } },
+    { STATE: kv })).json();
+  check('a snapshot lands even when the timestamps tie',
+        same.tracked.a.job?.company, 'Amazon');
+
+  const older = await (await call('PUT',
+    { tracked: { a: { saved: false, updated: '2026-07-01T00:00:00Z' } } },
+    { STATE: kv })).json();
+  check('  and an older write without one does not erase it',
+        older.tracked.a.job?.company, 'Amazon');
+
+  const newer = await (await call('PUT',
+    { tracked: { a: { saved: false, updated: '2026-09-01T00:00:00Z' } } },
+    { STATE: kv })).json();
+  check('  nor does a newer write from a client that has none',
+        newer.tracked.a.job?.company, 'Amazon');
+  check('  while the newer mark still wins', newer.tracked.a.saved, false);
+}
 {
   const kv = store('{ this is not json');
   const r = await call('GET', undefined, { STATE: kv });

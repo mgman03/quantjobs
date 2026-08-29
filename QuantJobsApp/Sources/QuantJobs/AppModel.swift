@@ -1494,6 +1494,20 @@ final class AppModel {
         }
     }
 
+    /// Folds in marks from the store without sending anything back.
+    ///
+    /// For the page builder, which runs on a throwaway runner: it has no
+    /// .tracked.json of its own — that file is private and never leaves the Mac
+    /// — so this is the only way an application reaches the page it is supposed
+    /// to appear on. Filters are dropped deliberately: what the page is built
+    /// with is not whatever one client last chose to look at.
+    func absorbMarks(_ doc: SyncDoc) {
+        var marksOnly = doc
+        marksOnly.filters = nil
+        marksOnly.filtersUpdated = nil
+        merge(marksOnly)
+    }
+
     /// Folds the phone's document into this machine's, newest edit winning per
     /// posting and milestones unioned either way.
     private func merge(_ doc: SyncDoc) {
@@ -1514,14 +1528,15 @@ final class AppModel {
                 }
                 continue
             }
-            // Marked on the phone and never seen here. An entry needs a posting
-            // to hang off, so take it from this run's results; if it is not
-            // there, leave it on the server for a run that does return it rather
-            // than inventing a posting from a URL.
+            // Marked elsewhere and never seen here. An entry needs a posting to
+            // hang off: this run's results first, and otherwise the snapshot the
+            // other client sent with it. Only when there is neither is it left on
+            // the server for a run that does return it — inventing a posting from
+            // a bare URL is still not worth doing.
             if byKey == nil {
                 byKey = Dictionary(jobs.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
             }
-            guard let job = byKey?[key] else { continue }
+            guard let job = byKey?[key] ?? incoming.job else { continue }
             let entry = TrackedJob(job: job, updated: Dates.today,
                                    lastSeen: Dates.today,
                                    saved: incoming.saved, hidden: incoming.hidden,

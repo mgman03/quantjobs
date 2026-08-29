@@ -21,6 +21,26 @@ enum WebExport {
         let model = AppModel()
         await model.reload()
 
+        // The marks, from the store, before anything is written.
+        //
+        // On a runner there is no .tracked.json — it is private and stays on the
+        // Mac — so the page was built with no applications on it at all, and the
+        // browser's own pull then had nowhere to put them: applyState only marks
+        // a row it can find. An application to a firm you have switched off, or
+        // to a posting since taken down, was invisible on the page while the app
+        // still showed it.
+        //
+        // A pull, never a push: the page builder is not a client with opinions
+        // about your marks, and a failure here should cost the marks, not the
+        // page.
+        if let cfg = ConfigStore.loadSync(), cfg.isOn {
+            do { model.absorbMarks(try await StateSync.pull(cfg)) }
+            catch {
+                FileHandle.standardError.write(Data(
+                    "couldn't read the marks (\(error)); building without them\n".utf8))
+            }
+        }
+
         // Every early-career posting in every category, not the one slice the
         // window happens to be showing. The page can only filter what it was
         // given, so giving it less than the app has is what made it a reading
