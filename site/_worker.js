@@ -83,9 +83,26 @@ async function refresh(request, env) {
     const r = await api(`/actions/workflows/${WORKFLOW}/runs?per_page=1`);
     if (!r.ok) return json({ error: `github answered ${r.status}` }, 502);
     const run = (await r.json()).workflow_runs?.[0];
-    return json(run
-      ? { status: run.status, conclusion: run.conclusion, finished: run.updated_at }
-      : { status: 'none' });
+    if (!run) return json({ status: 'none' });
+    const out = { status: run.status, conclusion: run.conclusion,
+                  finished: run.updated_at, started: run.run_started_at };
+
+    // While it is running, say which step it is on. "Busy" for three minutes
+    // is indistinguishable from stuck, and the page has no other way to know:
+    // the run is on GitHub, and only this worker holds a token to ask.
+    //
+    // The second call is made only while something is actually running, so the
+    // usual case — nothing happening — stays one request.
+    if (run.status !== 'completed') {
+      const j = await api(`/actions/runs/${run.id}/jobs`);
+      if (j.ok) {
+        const jobs = (await j.json()).jobs || [];
+        const active = jobs.find(x => x.status === 'in_progress');
+        const step = active?.steps?.find(x => x.status === 'in_progress');
+        out.phase = step?.name || active?.name || null;
+      }
+    }
+    return json(out);
   }
 
   if (request.method !== 'POST') {

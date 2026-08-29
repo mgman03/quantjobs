@@ -1541,6 +1541,7 @@ enum WebExport {
         // exists. Several minutes, mostly Meta.
         const refresh = document.getElementById('refresh');
         const startedAt = new Date(made.dataset.at).getTime();
+        let watching = false;
 
         function say(text, busy) {
           made.textContent = text;
@@ -1548,20 +1549,69 @@ enum WebExport {
           refresh.disabled = !!busy;
         }
 
-        async function waitForBuild() {
-          for (let i = 0; i < 90; i++) {           // ~15 minutes, then give up
-            await new Promise(r => setTimeout(r, 10000));
-            let s;
-            try { s = await (await fetch('/refresh')).json(); } catch { continue; }
-            if (s.status === 'completed' && s.finished
+        // The runner's own step names, said in words. Falls through to the raw
+        // name for a step this page has not heard of, which is better than
+        // saying nothing and cannot go stale into a lie.
+        const PHASE = {
+          'Set up job': 'starting up',
+          'Initialize containers': 'starting up',
+          'Cache the build': 'starting up',
+          'Build the scraper': 'building the scraper',
+          'Let the builder read the marks': 'reading your marks',
+          'Fetch every board and write the page': 'reading 193 boards',
+          'Keep the page as an artifact': 'almost there',
+          'Publish the first-seen ledger': 'almost there',
+          'Take the page the fetch built': 'publishing',
+          'Declare the deploy': 'publishing',
+          'Publish to Cloudflare Pages': 'publishing',
+        };
+
+        const mmss = ms => {
+          const s = Math.max(0, Math.round(ms / 1000));
+          return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+        };
+
+        const ask = async () => {
+          try { return await (await fetch('/refresh')).json(); } catch { return null; }
+        };
+
+        // Reloading under someone's fingers loses what they were typing and
+        // shuts the sheet they had open. The marks and filters are in the store,
+        // so nothing else is at stake — it can simply wait for a quiet moment.
+        const quiet = () => {
+          const a = document.activeElement;
+          const typing = a && ['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName);
+          return !typing && !document.body.classList.contains('sheet-open');
+        };
+
+        /// Follows a run to its end, whoever started it.
+        ///
+        /// Every four seconds and asking straight away, rather than sleeping ten
+        /// first: the old version could sit silent for ten seconds after the
+        /// page had already been rebuilt, on top of a wait that is minutes long
+        /// to begin with.
+        async function watch() {
+          if (watching) return;
+          watching = true;
+          const began = Date.now();
+          for (let i = 0; i < 300; i++) {          // 20 minutes, then give up
+            const s = await ask();
+            if (s && s.status === 'completed' && s.finished
                 && new Date(s.finished).getTime() > startedAt) {
-              say('fetched — reloading', true);
-              location.reload();
+              if (quiet()) { say('fetched — reloading', true); location.reload(); return; }
+              say('a newer page is ready — reload when you are done', false);
+              watching = false;
               return;
             }
-            say('fetching' + '.'.repeat(1 + i % 3), true);
+            if (s && s.status && s.status !== 'none' && s.status !== 'completed') {
+              const since = s.started ? new Date(s.started).getTime() : began;
+              const what = PHASE[s.phase] || (s.phase ? s.phase.toLowerCase() : 'fetching');
+              say(what + ' · ' + mmss(Date.now() - since), true);
+            }
+            await new Promise(r => setTimeout(r, 4000));
           }
           say('still fetching — reload in a minute', false);
+          watching = false;
         }
 
         refresh.onclick = async () => {
@@ -1581,8 +1631,18 @@ enum WebExport {
             say('could not start a fetch (' + r.status + ')', false);
             return;
           }
-          waitForBuild();
+          watch();
         };
+
+        // A run started from anywhere — the schedule, the Actions tab, another
+        // phone — is one this page should be showing too. Without this the
+        // button only knew about a fetch it had started itself, so reloading
+        // mid-fetch, or opening the page on a second device, showed a stale
+        // timestamp and no sign that anything was happening.
+        (async () => {
+          const s = await ask();
+          if (s && s.status && s.status !== 'none' && s.status !== 'completed') watch();
+        })();
 
         rows().forEach(paint);
         apply();

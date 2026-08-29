@@ -22,13 +22,15 @@ const check = (n, got, want) => { const ok = String(got) === String(want);
 
 // Stub GitHub. Records the dispatch, and reports a run that finishes later.
 let dispatched = 0, finished = '2020-01-01T00:00:00Z';
+let run = { id: 7, status: 'completed', conclusion: 'success', updated_at: finished };
+let jobsBody = { jobs: [] }, jobCalls = 0;
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url, init = {}) => {
   const u = String(url);
   if (u.startsWith('https://api.github.com/')) {
     if (u.includes('/dispatches')) { dispatched++; return new Response(null, { status: 204 }); }
-    return Response.json({ workflow_runs: [{ status: 'completed', conclusion: 'success',
-                                             updated_at: finished }] });
+    if (u.includes('/jobs')) { jobCalls++; return Response.json(jobsBody); }
+    return Response.json({ workflow_runs: [{ ...run, updated_at: finished }] });
   }
   return realFetch(url, init);
 };
@@ -47,6 +49,39 @@ check('POST → 202', started.status, 202);
 check('  it dispatched the workflow', dispatched, 1);
 const status = await (await call('GET', { REFRESH_TOKEN: 't' })).json();
 check('GET reports the run', status.conclusion, 'success');
+check('  and asks for no steps when nothing is running', jobCalls, 0);
+
+// ---- what it is doing, not just that it is busy ----
+//
+// Three minutes of "busy" is indistinguishable from stuck, and the page cannot
+// find out on its own: the run is on GitHub and only the worker holds a token.
+run = { id: 7, status: 'in_progress', conclusion: null, updated_at: finished,
+        run_started_at: '2026-08-29T10:00:00Z' };
+jobsBody = { jobs: [
+  { name: 'fetch', status: 'completed', steps: [] },
+  { name: 'deploy', status: 'in_progress', steps: [
+      { name: 'Take the page the fetch built', status: 'completed' },
+      { name: 'Publish to Cloudflare Pages', status: 'in_progress' },
+  ] },
+] };
+const live = await (await call('GET', { REFRESH_TOKEN: 't' })).json();
+check('a running job reports its step', live.phase, 'Publish to Cloudflare Pages');
+check('  and when it started', live.started, '2026-08-29T10:00:00Z');
+check('  having asked for the steps', jobCalls, 1);
+
+// A job with no step marked in_progress still names something rather than
+// falling back to a blank spinner.
+jobsBody = { jobs: [{ name: 'fetch', status: 'in_progress', steps: [] }] };
+const coarse = await (await call('GET', { REFRESH_TOKEN: 't' })).json();
+check('no step in flight falls back to the job', coarse.phase, 'fetch');
+
+// The steps call is allowed to fail; the status still has to come back.
+jobsBody = null;
+globalThis.fetch = (u, i) => String(u).includes('/jobs')
+  ? Promise.resolve(new Response('nope', { status: 500 }))
+  : Response.json({ workflow_runs: [{ ...run, updated_at: finished }] });
+const degraded = await (await call('GET', { REFRESH_TOKEN: 't' })).json();
+check('a failed steps lookup still reports the run', degraded.status, 'in_progress');
 
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

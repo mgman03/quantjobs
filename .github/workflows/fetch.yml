@@ -44,6 +44,18 @@ jobs:
             || echo '{}' > .meta-cache.json
           echo "meta cache $(wc -c < .meta-cache.json) bytes"
 
+      # A release build of the whole package is 30-odd seconds, and the sources
+      # are identical on every run that is only refetching data — which is what
+      # the page's refresh button asks for. Keyed on the sources themselves, so
+      # a code change misses and rebuilds; the container image is in the key too,
+      # because a build directory from a different toolchain is not reusable.
+      - name: Cache the build
+        uses: actions/cache@v4
+        with:
+          path: QuantJobsApp/.build
+          key: swift6.0-${{ hashFiles('QuantJobsApp/Package.swift', 'QuantJobsApp/Package.resolved', 'QuantJobsApp/Sources/**/*.swift') }}
+          restore-keys: swift6.0-
+
       - name: Build the scraper
         run: swift build -c release --package-path QuantJobsApp
 
@@ -128,20 +140,19 @@ jobs:
               commit -q -m "first-seen ledger $(date -u +%F) ($(date -u +%R) UTC)"
           git push -qf origin state-new:state
 
-  # A separate job on a plain runner: the Swift container has no Node, and the
-  # Cloudflare action installs wrangler with npm. Splitting is cheaper than
-  # putting a JavaScript toolchain inside the Swift image to run one command.
-  deploy:
-    needs: fetch
+  # Everything Cloudflare needs that does not depend on the page, run beside
+  # the fetch rather than after it.
+  #
+  # All of it is idempotent setup — create the project, push the secrets, find
+  # the namespace — and none of it looks at what was fetched, so making the
+  # deploy wait for it was costing about half a minute on every run for no
+  # reason. The page's refresh button waits for exactly this pipeline, so that
+  # half minute was half a minute of someone watching a spinner.
+  bootstrap:
     runs-on: ubuntu-latest
-    if: ${{ needs.fetch.result == 'success' }}
+    outputs:
+      kv_id: ${{ steps.kv.outputs.id }}
     steps:
-      - name: Take the page the fetch built
-        uses: actions/download-artifact@v4
-        with:
-          name: quantjobs-page
-          path: web
-
       # Skips when the secrets are absent, so the fetch still works without them.
       # To turn it on, once:
       #   1. My Profile -> API Tokens -> Create Token, with Cloudflare Pages: Edit
@@ -215,28 +226,6 @@ jobs:
           echo "id=$id" >> "$GITHUB_OUTPUT"
           echo "store $id"
 
-      # Bindings for a direct upload come from wrangler.toml, and it is written
-      # here rather than committed because the namespace id is discovered above.
-      # Without an id the file omits the binding, and the deploy still happens.
-      - name: Declare the deploy
-        if: env.CF_TOKEN != ''
-        env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          KV_ID: ${{ steps.kv.outputs.id }}
-        run: |
-          {
-            echo 'name = "quantjobs"'
-            echo 'pages_build_output_dir = "web"'
-            echo 'compatibility_date = "2026-08-01"'
-            if [ -n "$KV_ID" ]; then
-              echo ''
-              echo '[[kv_namespaces]]'
-              echo 'binding = "STATE"'
-              echo "id = \"$KV_ID\""
-            fi
-          } > wrangler.toml
-          cat wrangler.toml
-
       # Lets the page's refresh button start this workflow. A fine-grained PAT
       # with Actions: read and write on this repository, added as REFRESH_TOKEN
       # alongside the others. Without it the button says so and nothing else
@@ -265,6 +254,45 @@ jobs:
           printf '%s' "${{ github.repository }}" \
             | npx --yes wrangler@4 pages secret put GITHUB_REPO \
                 --project-name=quantjobs
+
+  # A separate job on a plain runner: the Swift container has no Node, and the
+  # Cloudflare action installs wrangler with npm. Splitting is cheaper than
+  # putting a JavaScript toolchain inside the Swift image to run one command.
+  #
+  # All that is left here is the upload itself: the setup ran in parallel with
+  # the fetch, and its namespace id arrives as a job output.
+  deploy:
+    needs: [fetch, bootstrap]
+    runs-on: ubuntu-latest
+    if: ${{ needs.fetch.result == 'success' }}
+    steps:
+      - name: Take the page the fetch built
+        uses: actions/download-artifact@v4
+        with:
+          name: quantjobs-page
+          path: web
+
+      # Bindings for a direct upload come from wrangler.toml, and it is written
+      # here rather than committed because the namespace id is discovered above.
+      # Without an id the file omits the binding, and the deploy still happens.
+      - name: Declare the deploy
+        if: env.CF_TOKEN != ''
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          KV_ID: ${{ needs.bootstrap.outputs.kv_id }}
+        run: |
+          {
+            echo 'name = "quantjobs"'
+            echo 'pages_build_output_dir = "web"'
+            echo 'compatibility_date = "2026-08-01"'
+            if [ -n "$KV_ID" ]; then
+              echo ''
+              echo '[[kv_namespaces]]'
+              echo 'binding = "STATE"'
+              echo "id = \"$KV_ID\""
+            fi
+          } > wrangler.toml
+          cat wrangler.toml
 
       - name: Publish to Cloudflare Pages
         if: env.CF_TOKEN != ''
