@@ -53,7 +53,12 @@ cd quantjobs/QuantJobsApp
 ./make-app.sh
 ```
 
-Needs the Xcode command-line tools. It builds a release binary, wraps it in
+Needs the Xcode command-line tools (full Xcode is not required). The installer
+checks for the tools before building and opens Apple's installation prompt if
+they are unavailable. Finish installing them, then run `./make-app.sh` again.
+The Swift package requires Swift 6 or newer.
+
+It builds a release binary, wraps it in
 QuantJobs.app, installs it to `/Applications`, and drops a `quantjobs` command into
 the first of `~/.local/bin` or `/usr/local/bin` already on your PATH — that is what
 makes the `quantjobs …` lines below typeable, since the binary itself lives inside

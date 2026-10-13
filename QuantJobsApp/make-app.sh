@@ -34,6 +34,20 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+# Check before copying resources or changing the installation. /usr/bin/swift
+# exists even on Macs without developer tools, so command -v is not enough.
+if ! xcrun --sdk macosx --show-sdk-path >/dev/null 2>&1 \
+    || ! xcrun swift --version >/dev/null 2>&1; then
+    echo "QuantJobs needs Apple's Xcode Command Line Tools to build from source." >&2
+    echo "Opening Apple's installation prompt. Full Xcode is not required." >&2
+    if ! xcode-select --install; then
+        echo "If the tools are already installed, update them in System Settings > General > Software Update and check the active developer tools with xcode-select -p." >&2
+    fi
+    echo "Finish installing the tools, then run this script again." >&2
+    echo "Alternatively, download a prebuilt QuantJobs.dmg from https://github.com/mgman03/quantjobs/releases (no developer tools required)." >&2
+    exit 1
+fi
+
 # A disk image is built from a throwaway copy, never from /Applications.
 STAGE=""
 if [ -n "$DMG" ]; then
