@@ -50,12 +50,12 @@
       "ats" : "greenhouse",
       "enabled" : true,
       "name" : "AQR Capital",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "tags" : [
         "quant",
         "systematic"
       ],
-      "tier" : 1,
+      "tier" : 2,
       "token" : "aqr"
     },
     {
@@ -214,7 +214,7 @@
       "enabled" : true,
       "host" : "mlp.eightfold.ai",
       "name" : "Millennium",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "site" : "",
       "tags" : [
         "quant",
@@ -222,7 +222,7 @@
         "multistrat"
       ],
       "tenant" : "mlp.com",
-      "tier" : 1
+      "tier" : 2
     },
     {
       "ats" : "eightfold",
@@ -230,7 +230,7 @@
       "enabled" : true,
       "host" : "campusjobs.mlp.com",
       "name" : "Millennium",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "site" : "",
       "tags" : [
         "quant",
@@ -238,7 +238,7 @@
         "multistrat"
       ],
       "tenant" : "mlp.com",
-      "tier" : 1
+      "tier" : 2
     },
     {
       "ats" : "eightfold",
@@ -309,26 +309,26 @@
       "ats" : "greenhouse",
       "enabled" : true,
       "name" : "Point72",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "tags" : [
         "quant",
         "hedge-fund",
         "multistrat"
       ],
-      "tier" : 1,
+      "tier" : 2,
       "token" : "point72"
     },
     {
       "ats" : "greenhouse",
       "enabled" : true,
       "name" : "Qube RT",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "tags" : [
         "quant",
         "systematic",
         "london"
       ],
-      "tier" : 1,
+      "tier" : 2,
       "token" : "quberesearchandtechnologies"
     },
     {
@@ -336,13 +336,13 @@
       "board" : "Campus",
       "enabled" : true,
       "name" : "Radix Trading",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "tags" : [
         "quant",
         "hft",
         "prop"
       ],
-      "tier" : 1,
+      "tier" : 2,
       "token" : "radixuniversity"
     },
     {
@@ -364,13 +364,13 @@
       "ats" : "greenhouse",
       "enabled" : true,
       "name" : "Squarepoint Capital",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "tags" : [
         "quant",
         "hedge-fund",
         "systematic"
       ],
-      "tier" : 1,
+      "tier" : 2,
       "token" : "squarepointcapital"
     },
     {
@@ -389,13 +389,13 @@
       "ats" : "greenhouse",
       "enabled" : true,
       "name" : "Tower Research",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "tags" : [
         "quant",
         "hft",
         "prop"
       ],
-      "tier" : 1,
+      "tier" : 2,
       "token" : "towerresearchcapital"
     },
     {
@@ -414,13 +414,13 @@
       "ats" : "greenhouse",
       "enabled" : true,
       "name" : "Virtu Financial",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "tags" : [
         "quant",
         "hft",
         "market-maker"
       ],
-      "tier" : 1,
+      "tier" : 2,
       "token" : "virtu"
     },
     {
@@ -859,12 +859,12 @@
       "ats" : "greenhouse",
       "enabled" : true,
       "name" : "Five Rings",
-      "segment" : "Tier 2",
+      "segment" : "Tier 1",
       "tags" : [
         "quant",
         "prop"
       ],
-      "tier" : 2,
+      "tier" : 1,
       "token" : "fiveringsllc"
     },
     {
@@ -1593,7 +1593,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Bracebridge",
       "segment" : "Tier 3",
       "tags" : [
@@ -1629,7 +1629,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Da Vinci Derivatives",
       "segment" : "Tier 3",
       "tags" : [
@@ -1666,7 +1666,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "DV Trading",
       "segment" : "Tier 3",
       "tags" : [
@@ -1678,7 +1678,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Eclipse Trading",
       "segment" : "Tier 3",
       "tags" : [
@@ -1715,7 +1715,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Geneva Trading",
       "segment" : "Tier 3",
       "tags" : [
@@ -1727,7 +1727,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Grasshopper",
       "segment" : "Tier 3",
       "tags" : [
@@ -1764,7 +1764,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Keyrock",
       "segment" : "Tier 3",
       "tags" : [
@@ -1945,7 +1945,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Simplex Trading",
       "segment" : "Tier 3",
       "tags" : [
@@ -2030,7 +2030,7 @@
     },
     {
       "ats" : "lever",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Ansatz Capital",
       "segment" : "Tier 3",
       "tags" : [
@@ -2042,7 +2042,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Blackedge Capital",
       "segment" : "Tier 3",
       "tags" : [
@@ -2058,14 +2058,14 @@
       "host" : "blackrock.wd1.myworkdayjobs.com",
       "name" : "BlackRock",
       "note" : "Its own careers search returns 403 to scripted callers; the Workday board behind it does not. No query, because the whole site is 300 roles — and searching it for 'internship' returns none today. BlackRock_Campus, BlackRock_Students and Campus_Careers are all 404, so this is the only site there is; early-career roles will be picked up here when posted (checked 2026-08-19).",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "site" : "BlackRock_Professional",
       "tags" : [
         "quant",
         "asset-manager"
       ],
       "tenant" : "blackrock",
-      "tier" : 1
+      "tier" : 2
     },
     {
       "ats" : "greenhouse",
@@ -2085,13 +2085,13 @@
       "enabled" : false,
       "name" : "Bridgewater",
       "note" : "No readable careers page: /working-at-bridgewater/career-openings 404s and its sitemap lists a hundred pages, none of them jobs or careers. No ATS fingerprint anywhere on the site (rechecked 2026-08-19).",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "tags" : [
         "quant",
         "hedge-fund",
         "macro"
       ],
-      "tier" : 1,
+      "tier" : 2,
       "token" : ""
     },
     {
@@ -2202,14 +2202,14 @@
       "enabled" : true,
       "host" : "www.gresearch.com",
       "name" : "G-Research",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "site" : "",
       "tags" : [
         "quant",
         "london"
       ],
       "tenant" : "",
-      "tier" : 1
+      "tier" : 2
     },
     {
       "ats" : "greenhouse",
@@ -2228,12 +2228,12 @@
       "enabled" : false,
       "name" : "Goldman Sachs",
       "note" : "higher.gs.com is a Next.js app that fetches roles over GraphQL. The operations are GetRoles and GetCampusRoles against roleSearch(searchQueryInput:) — the query text is recoverable from its JS chunks — but the endpoint is not: /gateway/api/v1/graphql appears in the bundle with no base URL, every path under higher.gs.com returns the app shell, and api.gs.com answers 'No Service at Path' for each one tried. Nothing is server-rendered. Finding it needs a browser's network log (checked 2026-08-19).",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "tags" : [
         "quant",
         "bank"
       ],
-      "tier" : 1,
+      "tier" : 2,
       "token" : ""
     },
     {
@@ -2255,15 +2255,14 @@
       "host" : "jpmc.fa.oraclecloud.com",
       "name" : "JPMorgan Chase",
       "note" : "Oracle Cloud. 'internship' rather than 'intern': the keyword matches descriptions too, so 'intern' returns 3,784 of the tenant's 7,388 roles and buries the programmes, while 'internship' returns 338 and nearly all of them are early-career.",
-      "query" : "internship",
-      "segment" : "Tier 1",
+      "segment" : "Tier 2",
       "site" : "CX_1001",
       "tags" : [
         "quant",
         "bank"
       ],
       "tenant" : "",
-      "tier" : 1
+      "tier" : 2
     },
     {
       "ats" : "greenhouse",
@@ -2331,7 +2330,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Sierra",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2390,7 +2389,7 @@
     },
     {
       "ats" : "lever",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "Valkyrie Trading",
       "segment" : "Tier 3",
       "tags" : [

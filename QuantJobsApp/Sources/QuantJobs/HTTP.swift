@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(SystemConfiguration)
+import SystemConfiguration
+#endif
 #if canImport(FoundationNetworking)
 import FoundationNetworking   // URLSession lives here off Apple platforms
 #endif
@@ -7,6 +10,20 @@ import FoundationNetworking   // URLSession lives here off Apple platforms
 /// a 4xx is a real answer (bad token) and fails immediately, everything else
 /// gets a couple of backed-off retries before giving up.
 enum HTTP {
+
+    /// Some networks advertise WPAD but never serve its PAC file. Foundation
+    /// waits for that lookup before sending any board requests, while a direct
+    /// connection succeeds immediately. Keep normal proxy behavior elsewhere.
+    static func configureProxy(_ cfg: URLSessionConfiguration) {
+        #if canImport(SystemConfiguration)
+        let settings = SCDynamicStoreCopyProxies(nil) as? [String: Any] ?? [:]
+        if (settings["ProxyAutoConfigEnable"] as? NSNumber)?.boolValue == true,
+           let pac = settings["ProxyAutoConfigURLString"] as? String,
+           URL(string: pac)?.host?.lowercased() == "wpad" {
+            cfg.connectionProxyDictionary = [:]
+        }
+        #endif
+    }
 
     static let userAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -21,6 +38,7 @@ enum HTTP {
             "Accept": "application/json, text/html;q=0.9",
         ]
         cfg.httpMaximumConnectionsPerHost = 6
+        configureProxy(cfg)
         return URLSession(configuration: cfg)
     }()
 
@@ -42,6 +60,7 @@ enum HTTP {
             "Accept": "application/json, text/html;q=0.9",
         ]
         cfg.httpMaximumConnectionsPerHost = 20
+        configureProxy(cfg)
         return URLSession(configuration: cfg)
     }()
 

@@ -60,19 +60,27 @@ private extension Character {
 
 enum Levels {
 
-    // Plurals come free — see PhraseMatcher. Every phrase below has been
-    // checked against a full 40k-posting run, so the false positives it buys
-    // are countable: "Product Manager, Workday Student Financial Aid" is the
-    // only one, and the seniority veto already throws it out.
+    // A co-op can be a student placement or the name of a product team. The
+    // latter appears in titles such as "Co-op and Marketplaces"; that wording
+    // alone must not put an experienced role in the internship list.
+    private static let coOpTeam = try! NSRegularExpression(
+        pattern: #"\bco[- ]?op\s+and\b"#, options: [.caseInsensitive])
+    private static let experiencedGrade = try! NSRegularExpression(
+        pattern: #"\b(?:engineer|developer|scientist|analyst|researcher|designer|specialist)\s+(?:ii|iii|iv|v|[2-9])\b"#,
+        options: [.caseInsensitive])
+    private static let recruitingRole = try! NSRegularExpression(
+        pattern: #"\b(?:recruit(?:er|ing|ment)|talent acquisition|talent partner)\b"#,
+        options: [.caseInsensitive])
+    private static let campusEvent = try! NSRegularExpression(
+        pattern: #"\b(?:coffee chats?|hack\w*ton|talent community|student founder|interest form|career fair events?)\b"#,
+        options: [.caseInsensitive])
+
+    // Student eligibility, insight events and summer enrichment programmes
+    // are not evidence that the posting itself is an internship.
     static let intern = PhraseMatcher([
         "intern", "internship", "summer analyst", "summer associate",
         "co-op", "coop", "industrial placement", "work placement",
-        "placement student", "summer programme", "summer program", "sophomore",
-        "freshman", "penultimate", "student programme", "student program",
-        // Bare "student": how Israeli and German boards say intern — KLA's
-        // "Motion Control Student", NXP's "Working Student (f/m/d)".
-        "student", "praktikant", "praktikum", "undergraduate",
-        "insight programme", "insight program", "vacation scheme", "spring week",
+        "placement student", "praktikant", "praktikum", "vacation scheme",
     ])!
 
     static let newgrad = PhraseMatcher([
@@ -92,7 +100,7 @@ enum Levels {
     /// these tokens veto a level match outright.
     static let senior = PhraseMatcher([
         "senior", "staff", "principal", "lead", "head of", "director", "vp",
-        "vice president", "manager", "experienced", "10+ years", "5+ years",
+        "vice president", "experienced", "10+ years", "5+ years",
     ])!
 
     static func matcher(for key: String) -> PhraseMatcher? {
@@ -108,17 +116,29 @@ enum Levels {
     static func matches(_ level: Level, title: String, department: String) -> Bool {
         let wanted = level.matchKeys
         guard !wanted.isEmpty else { return true }
+        let titleRange = NSRange(title.startIndex..., in: title)
+        if experiencedGrade.firstMatch(in: title, range: titleRange) != nil { return false }
+        if campusEvent.firstMatch(in: title, range: titleRange) != nil { return false }
+        if wanted == ["newgrad"] &&
+            recruitingRole.firstMatch(in: title, range: titleRange) != nil { return false }
         let label = "\(title.lowercased()) \(department.lowercased())"
-        guard wanted.contains(where: { matcher(for: $0)?.matches(label) ?? false })
+        let labelRange = NSRange(label.startIndex..., in: label)
+        let studentLabel = coOpTeam.stringByReplacingMatches(
+            in: label, range: labelRange, withTemplate: "")
+        guard wanted.contains(where: { matcher(for: $0)?.matches(studentLabel) ?? false })
         else { return false }
-        return !senior.matches(title.lowercased())
+        // A title may name the team after the actual role: "Operations Intern –
+        // Managing Director Office" is still an internship. Only a seniority
+        // marker before the level word describes the candidate's role.
+        let firstLevel = wanted.compactMap { matcher(for: $0)?.positions(in: title).first }.min()
+        let seniorScope = firstLevel.map { (title as NSString).substring(to: $0) } ?? title
+        return !senior.matches(seniorScope.lowercased())
     }
 
     /// Best-guess label for a posting, shown in the Level column.
     static func detect(title: String, department: String) -> String {
-        let blob = "\(title) \(department)".lowercased()
-        if intern.matches(blob) { return "intern" }
-        if newgrad.matches(blob) { return "newgrad" }
+        if matches(.intern, title: title, department: department) { return "intern" }
+        if matches(.newgrad, title: title, department: department) { return "newgrad" }
         return ""
     }
 }
@@ -180,15 +200,6 @@ struct CategoryMatcher: Sendable {
         if let exclude, exclude.matches(title) { return false }
         if let parentExclude, parentExclude.matches(title) { return false }
 
-        let wanted = level.matchKeys
-        if !wanted.isEmpty {
-            // Judge seniority on the title/department only. Almost every JD body
-            // says "our internship programme" somewhere, so matching the
-            // description would make every posting look like an internship.
-            let levelHit = wanted.contains { Levels.matcher(for: $0)?.matches(label) ?? false }
-            if !levelHit { return false }
-            if Levels.senior.matches(title) { return false }
-        }
-        return true
+        return Levels.matches(level, title: job.title, department: job.department)
     }
 }

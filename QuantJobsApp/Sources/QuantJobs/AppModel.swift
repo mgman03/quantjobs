@@ -4,12 +4,37 @@ import Observation
 @MainActor
 @Observable
 final class AppModel {
+    typealias BoardRunner = @Sendable ([Company], Bool,
+        @escaping @Sendable (BoardResult) async -> Void) async -> Void
+    @ObservationIgnored private let runBoards: BoardRunner
+
+    init(runBoards: @escaping BoardRunner = { companies, deep, receive in
+        await Scraper.run(companies, deep: deep, onBoard: receive)
+    }) {
+        self.runBoards = runBoards
+    }
 
     // MARK: config
 
     var companies: [Company] = []
     var categories: [JobCategory] = []
-    var selectedCategoryID: String = "swe"
+    var selectedCategoryIDs: Set<String> = ["swe"]
+    // No selected category means every category. The old "all" value is kept
+    // at the settings/sync boundary for compatibility.
+    var selectedCategoryID: String {
+        get { selectedCategoryIDs.sorted().first ?? "all" }
+        set { selectedCategoryIDs = newValue == "all" ? [] : [newValue] }
+    }
+
+    func toggleCategory(_ name: String) {
+        list = .results
+        guard navCategories.contains(where: { $0.name == name }) else { return }
+        if selectedCategoryIDs.contains(name) {
+            selectedCategoryIDs.remove(name)
+        } else {
+            selectedCategoryIDs.insert(name)
+        }
+    }
 
     var selectedCategory: JobCategory? {
         categories.first { $0.name == selectedCategoryID } ?? categories.first
@@ -158,6 +183,17 @@ final class AppModel {
         cityFilter = []
     }
 
+    func resetAdvancedSettings() {
+        sinceDays = nil
+        intakeFilter = nil
+        appliedFilter = .show
+        excludedStacks = []
+        excludePhD = false
+        newOnly = false
+        deep = false
+        mergeRoles = true
+    }
+
     // MARK: results
 
     private(set) var jobs: [Job] = []
@@ -298,13 +334,13 @@ final class AppModel {
     // asks for it several times per pass — is far too much work to repeat.
     @ObservationIgnored private var visibleCacheKey = ""
     @ObservationIgnored private var visibleCache: [Job] = []
-    @ObservationIgnored private var resultsVersion = 0
+    private var resultsVersion = 0
 
     private var visibleKey: String {
         "\(resultsVersion)|\(list.rawValue)|\(showHidden)|\(appliedFilter.rawValue)|\(mergeRoles)|"
         + "\(excludedStacks.sorted().joined(separator: ","))|"
         + "\(intakeFilter.map(String.init) ?? "-")|\(excludePhD)|"
-        + "\(selectedCategoryID)|\(level.rawValue)|\(search)|"
+        + "\(selectedCategoryIDs.sorted().joined(separator: ","))|\(level.rawValue)|\(search)|"
         + "\(tagFilter ?? "-")|\(sinceDays.map(String.init) ?? "-")|"
         + "\(newOnly)|\(locationFilter)|"
         + "\(continentFilter.sorted().joined(separator: ","))|"
@@ -352,7 +388,8 @@ final class AppModel {
         let firms = applied == .firms ? appliedFirms : []
         var hiddenHeld = 0, appliedHeld = 0
         let kept = jobs.filter { job in
-            guard job.matchedCategories.contains(selectedCategoryID) else { return false }
+            guard selectedCategoryIDs.isEmpty
+                    || !job.matchedCategories.isDisjoint(with: selectedCategoryIDs) else { return false }
             guard level == .any || job.matchedLevels.contains(level.rawValue) else {
                 return false
             }
@@ -426,13 +463,16 @@ final class AppModel {
     /// Categories that name a parent describe a stack, not a discipline: they're
     /// offered as a filter rather than as a place to navigate to.
     var stackCategories: [JobCategory] { categories.filter { $0.parent != nil } }
-    var navCategories: [JobCategory] { categories.filter { $0.parent == nil } }
+    var navCategories: [JobCategory] {
+        categories.filter { $0.parent == nil && $0.name != "all" }
+    }
 
     /// Intake years present in the current results, newest first, so the menu only
     /// ever offers a year you could actually pick.
     var availableIntakes: [(year: Int, count: Int)] {
         var tally: [Int: Int] = [:]
-        for job in jobs where job.matchedCategories.contains(selectedCategoryID) {
+        for job in jobs where selectedCategoryIDs.isEmpty
+                || !job.matchedCategories.isDisjoint(with: selectedCategoryIDs) {
             if let y = job.intakeYear { tally[y, default: 0] += 1 }
         }
         return tally.map { (year: $0.key, count: $0.value) }.sorted { $0.year > $1.year }
@@ -686,7 +726,7 @@ final class AppModel {
     var settingsFingerprint: String {
         // Built in pieces rather than one literal: at a dozen interpolations in a
         // single array the type checker gives up.
-        var parts: [String] = [selectedCategoryID, level.rawValue, list.rawValue]
+        var parts: [String] = [selectedCategoryIDs.sorted().joined(separator: "|"), level.rawValue, list.rawValue]
         parts.append(tagFilter ?? "-")
         parts.append(locationFilter)
         parts.append(sinceDays.map(String.init) ?? "-")
@@ -703,7 +743,7 @@ final class AppModel {
     }
 
     var currentSettings: AppSettings {
-        AppSettings(categoryID: selectedCategoryID, level: level.rawValue,
+        AppSettings(categoryID: selectedCategoryID, categoryIDs: selectedCategoryIDs.sorted(), level: level.rawValue,
                     list: list.rawValue,
                     tagFilter: tagFilter, locationFilter: locationFilter,
                     sinceDays: sinceDays,
@@ -722,7 +762,11 @@ final class AppModel {
     }
 
     private func apply(_ s: AppSettings) {
-        selectedCategoryID = s.categoryID
+        let valid = Set(navCategories.map(\.name))
+        let selected = Set(s.categoryIDs ?? [s.categoryID]).intersection(valid)
+        let explicitlyAll = s.categoryID == "all" || s.categoryIDs?.isEmpty == true
+            || s.categoryIDs?.contains("all") == true
+        selectedCategoryIDs = selected.isEmpty && !explicitlyAll ? ["swe"] : selected
         level = Level(rawValue: s.level) ?? .intern
         list = JobList(rawValue: s.list) ?? .results
         tagFilter = s.tagFilter
@@ -785,15 +829,15 @@ final class AppModel {
         }
     }
 
-    /// Whether opening the app should kick off a run, or just show the cache.
-    ///
-    /// A full pass is ~106 boards and tens of thousands of postings; doing that
-    /// every time the window opens is why startup felt slow.
-    var shouldRefreshOnLaunch: Bool {
-        guard refreshOnLaunch else { return false }
-        guard let cacheDate else { return true }        // nothing cached yet
-        let age = Date().timeIntervalSince(cacheDate) / 3600
-        return age >= Double(refreshIfOlderThanHours)
+    /// Refresh on every launch when enabled. Cached rows are only a preview.
+    var shouldRefreshOnLaunch: Bool { refreshOnLaunch }
+
+    @ObservationIgnored private var didStartLaunchRefresh = false
+
+    func refreshAfterLaunch() {
+        guard isLoaded, !didStartLaunchRefresh else { return }
+        didStartLaunchRefresh = true
+        if shouldRefreshOnLaunch && !isScraping { scrape(full: true) }
     }
 
     /// How old the shown results are, for the status bar.
@@ -846,39 +890,31 @@ final class AppModel {
         seen = loaded.seen
         tracked = loaded.tracked
         loadError = loaded.error
-        // navCategories, not categories: a stack persisted as the selected
-        // category from before they became a filter would otherwise stick, and
-        // its rows can no longer be reached from the sidebar.
-        if !navCategories.contains(where: { $0.name == selectedCategoryID }) {
-            selectedCategoryID = navCategories.first?.name ?? "swe"
-        }
-
         // The user's own choices win over whatever the cache happened to hold.
         let saved = AppSettings.load()
         apply(saved)
-        // navCategories, not categories: a stack persisted as the selected
-        // category from before they became a filter would otherwise stick, and
-        // its rows can no longer be reached from the sidebar.
-        if !navCategories.contains(where: { $0.name == selectedCategoryID }) {
-            selectedCategoryID = navCategories.first?.name ?? "swe"
-        }
 
-        // Show last run's results straight away, then refresh behind them —
-        // but only if they're the same query, or the table would be labelled
-        // one thing while showing another.
-        if let cache = loaded.cache, !cache.jobs.isEmpty,
-           cache.category == selectedCategoryID, cache.level == level.rawValue {
+        // Cached postings carry every category and level; apply the current
+        // selection locally while the launch refresh fetches fresh data.
+        if let cache = loaded.cache, !cache.jobs.isEmpty {
             // firstSeen isn't persisted (see Job.firstSeen), so restore it here or
             // every undated cached row would show "–" until the next scrape.
             jobs = cache.jobs.map { job in
-                guard job.posted.isEmpty else { return job }
                 var copy = job
-                copy.firstSeen = Sighting.firstSeen(of: job, in: seen) ?? ""
+                // Old caches carry classifications from older parser rules.
+                copy.level = Levels.detect(title: job.title, department: job.department)
+                copy.matchedLevels = Set(Level.allCases.filter {
+                    Levels.matches($0, title: job.title, department: job.department)
+                }.map(\.rawValue))
+                if job.posted.isEmpty {
+                    copy.firstSeen = Sighting.firstSeen(of: job, in: seen) ?? ""
+                }
                 return copy
             }
             showingCache = true
             cacheDate = cache.savedAt
         }
+        resultsVersion += 1
         isLoaded = true
         loadStalled = false
     }
@@ -1205,6 +1241,12 @@ final class AppModel {
     func scrape(full: Bool = false) {
         let selected = selectedFirms
         guard !selected.isEmpty else { return }
+        // Loading config also triggers the view's debounced filter observer.
+        // Do not restart the launch refresh when it requests the same boards.
+        if !full, isScraping, deep == fetchedDeep,
+           Set(selected.map(\.id)) == fetchedFirms.union(requestedFirms.map(\.id)) {
+            return
+        }
 
         // Deep matching changes what each board returns, so it invalidates
         // everything; otherwise keep what we have and fetch the difference.
@@ -1241,7 +1283,9 @@ final class AppModel {
         let byName = Dictionary(categories.map { ($0.name, $0) },
                                 uniquingKeysWith: { a, _ in a })
         let today = Dates.today
-        let matchers = navCategories.map {
+        // Keep "all" as an internal matcher so uncategorized postings remain
+        // available when the user clears the Categories menu.
+        let matchers = categories.filter { $0.parent == nil }.map {
             CategoryMatcher($0, parent: $0.parent.flatMap { byName[$0] })
         }
         // Stack matchers are ungated on purpose: "does this posting mention C++"
@@ -1253,7 +1297,8 @@ final class AppModel {
 
         // Cached rows stay on screen until the first board answers, so the
         // table never blinks to empty on a refresh.
-        if !showingCache && keep.isEmpty { jobs = [] }
+        let replaceResults = keep.isEmpty
+        if replaceResults && !jobs.isEmpty { showingCache = true }
         failures = []
         runID += 1
         let run = runID
@@ -1261,7 +1306,9 @@ final class AppModel {
         total = firms.count
         newCount = 0
         isScraping = true
-        replacingCache = showingCache
+        replacingCache = replaceResults
+        scrapedKeys = []
+        scrapedCompanies = []
         fetchedDeep = q.deep
         fetchedFirms = keep
         requestedFirms = firms
@@ -1270,7 +1317,7 @@ final class AppModel {
             guard let self else { return }
             // Rows land as each board answers, so the table fills in rather than
             // sitting blank behind a spinner.
-            await Scraper.run(firms, deep: q.deep) { result in
+            await self.runBoards(firms, q.deep) { result in
                 // Tag every posting with the categories and levels it matches,
                 // then keep anything that landed in at least one category. That
                 // makes switching category or level a filter, not a re-fetch.
@@ -1318,7 +1365,7 @@ final class AppModel {
                         allKeys: [String], run: Int) {
         guard run == runID else { return }      // a superseded scrape reporting in
         // First board home: swap the cached rows out for live ones.
-        if replacingCache {
+        if replacingCache && result.failure == nil {
             replacingCache = false
             showingCache = false
             jobs = []
@@ -1352,7 +1399,10 @@ final class AppModel {
         // keeps every category, the raw figure was in the thousands.
         newCount = visibleJobs.filter(\.isNew).count
         isScraping = false
+        // A failed run must not make the old cache look freshly fetched.
+        guard !scrapedCompanies.isEmpty else { return }
         lastRun = Date()
+        cacheDate = lastRun
         if recordState { recordSeen(jobs) }
         refreshTracked(from: jobs)
         reconcileTracked()
@@ -1405,6 +1455,7 @@ final class AppModel {
     }
 
     func cancel() {
+        runID += 1 // Ignore callbacks and completion from the cancelled run.
         task?.cancel()
         task = nil
         isScraping = false
@@ -1439,6 +1490,7 @@ final class AppModel {
         for i in jobs.indices where jobs[i].posted.isEmpty {
             jobs[i].firstSeen = Sighting.firstSeen(of: jobs[i], in: seen) ?? jobs[i].firstSeen
         }
+        resultsVersion += 1
     }
 
     // MARK: - Marks and filters, shared with the phone
@@ -1568,7 +1620,7 @@ final class AppModel {
     private func outgoingFilters() -> [String: String] {
         [
             "q": search,
-            "f-cat": selectedCategoryID,
+            "f-cat": selectedCategoryIDs.sorted().joined(separator: "|"),
             "f-level": level.rawValue,
             "f-days": sinceDays.map(String.init) ?? "",
             "f-year": intakeFilter.map(String.init) ?? "",
@@ -1594,8 +1646,10 @@ final class AppModel {
 
     private func applyIncoming(_ f: [String: String]) {
         if let v = f["q"] { search = v }
-        if let v = f["f-cat"], navCategories.contains(where: { $0.name == v }) {
-            selectedCategoryID = v
+        if let v = f["f-cat"] {
+            let names = Set(v.split(separator: "|").map(String.init))
+            let valid = names.intersection(navCategories.map(\.name))
+            selectedCategoryIDs = valid
         }
         if let v = f["f-level"], let l = Level(rawValue: v) { level = l }
         if let v = f["f-days"] { sinceDays = Int(v) }

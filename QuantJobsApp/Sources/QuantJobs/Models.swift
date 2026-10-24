@@ -82,7 +82,7 @@ struct Company: Codable, Identifiable, Hashable, Sendable {
     var enabled: Bool
     var tags: [String]
     var note: String?
-    /// 1 = the names people target first, 2 = strong, 3 = everything else.
+    /// Editorial shortlist: 1 = core targets, 2 = additional targets, 3 = wider search.
     var tier: Int = 3
     /// What kind of firm it is — "FAANG+", "Frontier AI", "Hedge Funds"… The
     /// tree groups on this, which reads better than a tier number.
@@ -416,6 +416,39 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
     /// Internship, Quantitative Researcher" is four words of noise before the
     /// part that tells them apart in a list.
     var shortTitle: String { TitleTidy.shorten(title) }
+    var titleParts: (role: String, detail: String?) {
+        let seasonal = TitleTidy.seasonalIntake(title, in: self)
+        var source = TitleTidy.shorten(seasonal?.remainder ?? title)
+        source = TitleTidy.withoutRedundantTail(source, in: self)
+        source = TitleTidy.withoutRepeatedIntakePhrase(source, in: self)
+        source = TitleTidy.withoutTrailingIntakeYear(source, in: self)
+        var parts = TitleTidy.roleFirst(TitleTidy.parts(source))
+        if parts.detail == nil, source.hasSuffix(")"),
+           let open = source.range(of: " (", options: .backwards) {
+            let qualifier = String(source[open.upperBound..<source.index(before: source.endIndex)])
+            if TitleTidy.usefulDetail(qualifier, in: self) != nil {
+                parts = (String(source[..<open.lowerBound]), qualifier)
+            }
+        }
+        if let marker = TitleTidy.leadingGenericInternMarker(title),
+           !Levels.intern.matches(parts.role) {
+            parts.role += " \(marker)"
+        }
+        if level == "intern", TitleTidy.hasInternshipMarker(title),
+           !TitleTidy.hasInternshipMarker(parts.role) {
+            parts.role += title.range(of: #"\binternships?\b"#,
+                                      options: [.regularExpression, .caseInsensitive]) == nil
+                ? " Intern" : " Internship"
+            parts.detail = parts.detail.map { TitleTidy.withoutInternshipMarker($0) }
+        }
+        let detail = parts.detail.flatMap { TitleTidy.usefulDetail($0, in: self) }
+        let context = [detail, seasonal?.season].compactMap { $0 }
+        return (parts.role, context.isEmpty ? nil : context.joined(separator: " · "))
+    }
+    var displayTitle: String {
+        let parts = titleParts
+        return parts.detail.map { "\(parts.role) — \($0)" } ?? parts.role
+    }
 
     /// Every posting this row stands for, the primary one first.
     var allKeys: [String] { [key] + variants.map(\.key) }
@@ -1148,6 +1181,322 @@ struct TrackedJob: Codable, Identifiable, Sendable {
 /// the edge of the column.
 enum TitleTidy {
 
+    /// Season is useful context, while its year repeats the intake badge.
+    static func seasonalIntake(_ title: String, in job: Job)
+        -> (season: String, remainder: String)? {
+        guard job.level == "intern", let year = job.intakeYear,
+              let range = title.range(
+                of: #"\b(spring|summer|fall|autumn|winter)\s+\#(year)\b"#,
+                options: [.regularExpression, .caseInsensitive]) else { return nil }
+        if range.lowerBound > title.startIndex,
+           title[title.index(before: range.lowerBound)] == "/" { return nil }
+        let season = String(title[range].split(separator: " ")[0]).capitalized
+        var remainder = title
+        remainder.removeSubrange(range)
+        remainder = remainder.replacingOccurrences(
+            of: #"\s+[-–—]\s*[-–—]\s+"#, with: " - ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: " -–—,:"))
+        guard !remainder.isEmpty else { return nil }
+        return (season, remainder)
+    }
+
+    static func withoutTrailingIntakeYear(_ title: String, in job: Job) -> String {
+        guard !job.level.isEmpty, let year = job.intakeYear,
+              title.hasSuffix(" \(year)") else { return title }
+        let count = intakeYears.numberOfMatches(
+            in: title, range: NSRange(title.startIndex..., in: title))
+        guard count == 1 else { return title }
+        let prefix = String(title.dropLast(5))
+        if prefix.range(of: #"\b(?:january|february|march|april|may|june|july|august|september|october|november|december)$"#,
+                        options: [.regularExpression, .caseInsensitive]) != nil { return title }
+        return prefix
+    }
+
+    static func withoutRepeatedIntakePhrase(_ title: String, in job: Job) -> String {
+        guard !job.level.isEmpty, let year = job.intakeYear else { return title }
+        let withoutParenthetical = title.replacingOccurrences(
+            of: #"\s*\[\s*\#(year)\s+(?:summer|fall|autumn|winter|spring)\s*\]"#,
+            with: "", options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(
+            of: #"\s*\(\s*\#(year)(?:\s+Start)?\s*\)"#, with: "",
+            options: [.regularExpression, .caseInsensitive])
+        let count = intakeYears.numberOfMatches(
+            in: withoutParenthetical,
+            range: NSRange(withoutParenthetical.startIndex..., in: withoutParenthetical))
+        guard count == 1,
+              withoutParenthetical.range(of: #"\bClass of\s+20\d{2}\b"#,
+                                         options: [.regularExpression, .caseInsensitive]) == nil,
+              withoutParenthetical.range(
+                of: #"\b(?:january|february|march|april|may|june|july|august|september|october|november|december|Q[1-4])\s+\#(year)\b"#,
+                options: [.regularExpression, .caseInsensitive]) == nil
+        else { return withoutParenthetical }
+        return withoutParenthetical.replacingOccurrences(
+            of: #"\b\#(year)(?:\s+Start)?\b"#, with: "",
+            options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\(\s+"#, with: "(", options: .regularExpression)
+            .replacingOccurrences(of: #",\s+\("#, with: " (", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: " -–—,:"))
+    }
+
+    static func leadingGenericInternMarker(_ title: String) -> String? {
+        guard let range = title.range(
+            of: #"^\s*(?:20\d{2}\s*[-–—]?\s*)?(?:summer\s+)?intern(?:ship)?(?:\s+20\d{2})?\s*[-–—,:]"#,
+            options: [.regularExpression, .caseInsensitive]) else { return nil }
+        return title[range].lowercased().contains("internship") ? "Internship" : "Intern"
+    }
+
+    static func hasInternshipMarker(_ title: String) -> Bool {
+        title.range(of: #"\bintern(?:ships?)?\b"#,
+                    options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    static func withoutInternshipMarker(_ detail: String) -> String {
+        detail.replacingOccurrences(of: #"\bintern(?:ships?)?\b"#, with: "",
+                                    options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\(\s*\)"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+\)"#, with: ")", options: .regularExpression)
+            .replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: " -–—,:;"))
+    }
+
+    /// Generic programme wording and front-loaded team names should not hide
+    /// the actual discipline in the subtitle.
+    static func roleFirst(_ parts: (role: String, detail: String?))
+        -> (role: String, detail: String?) {
+        let role = parts.role.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let detail = parts.detail,
+           role.range(of: #"^(?:campus full[ -]?time|recent graduate|expressions? of interest(?: graduate)?|new university graduate|new college (?:grad|graduate)|nvidia internships?|nvidia new college graduate)$"#,
+                         options: [.regularExpression, .caseInsensitive]) != nil {
+            let nested = self.parts(detail)
+            if role.lowercased() == "nvidia internships" {
+                return ("\(nested.role) Internship", nested.detail)
+            }
+            if role.lowercased() == "nvidia new college graduate" {
+                return (nested.role, nested.detail)
+            }
+            if role.lowercased().hasPrefix("expressions") {
+                let promoted = role.lowercased().contains("graduate")
+                    ? "Graduate \(nested.role)" : nested.role
+                return (promoted, ["Expression of Interest", nested.detail]
+                    .compactMap { $0 }.joined(separator: " · "))
+            }
+            return (nested.role, nested.detail)
+        }
+        if let detail = parts.detail,
+           role.range(of: #"^(?:mako\s+)?summer internship$"#,
+                         options: [.regularExpression, .caseInsensitive]) != nil {
+            let nested = self.parts(detail)
+            return ("\(nested.role) Internship", ["Summer", nested.detail]
+                .compactMap { $0 }.joined(separator: " · "))
+        }
+        if let detail = parts.detail,
+           role.lowercased() == "internship" || role.lowercased() == "intern" {
+            let nested = self.parts(detail)
+            let marker = role.lowercased() == "intern" ? "Intern" : "Internship"
+            return ("\(nested.role) \(marker)", nested.detail)
+        }
+        if let detail = parts.detail,
+           ["high school internship", "summer internship", "spring internship",
+            "fall internship", "winter internship", "autumn internship"]
+            .contains(role.lowercased()) {
+            let nested = self.parts(detail)
+            let qualifier = role.replacingOccurrences(of: #"\s+Internship$"#, with: "",
+                                                      options: [.regularExpression, .caseInsensitive])
+            return ("\(nested.role) Internship", [qualifier, nested.detail]
+                .compactMap { $0 }.joined(separator: " · "))
+        }
+        if parts.detail == nil,
+           let suffix = role.range(of: #"Software(?: Engineering)? Intern(?:ship)?$"#,
+                                   options: [.regularExpression, .caseInsensitive]),
+           suffix.lowerBound > role.startIndex {
+            let team = String(role[..<suffix.lowerBound])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !team.isEmpty {
+                return (String(role[suffix]), team)
+            }
+        }
+        return parts
+    }
+
+    /// Context already shown by the Location and Level columns should not take
+    /// a second line in the Role column. Keep team names and degree qualifiers.
+    static func usefulDetail(_ detail: String, in job: Job) -> String? {
+        var prepared = detail.replacingOccurrences(
+            of: #"^\s*20\d{2}\s*\(([^)]+)\)\s*$"#, with: "$1",
+            options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"\(20\d{2}\s+([A-Za-z][^)]*)\)"#,
+                                  with: "($1)", options: .regularExpression)
+            .replacingOccurrences(of: #",\s*20\d{2}\s+Start(?=\s*\()"#,
+                                  with: "", options: [.regularExpression, .caseInsensitive])
+        if prepared.hasPrefix("("), prepared.hasSuffix(")") {
+            prepared = String(prepared.dropFirst().dropLast())
+        }
+        let fragments = separated(prepared, by: detailSeparator)
+        let useful = fragments.map { cleanedFragment($0) }
+            .filter { fragment in
+                let core = fragment.trimmingCharacters(
+                    in: CharacterSet(charactersIn: " ()-–—,:;"))
+                return !core.isEmpty && !isRedundant(core, in: job)
+            }
+        if useful.isEmpty { return nil }
+        if useful.count == fragments.count && useful == fragments { return prepared }
+        return useful.joined(separator: " · ")
+    }
+
+    /// Parenthetical context can contain a separator itself: without this,
+    /// "Intern (Summer 2027 - Austin)" splits at the dash and calls Austin a
+    /// subtitle while leaving "(Summer 2027" in the role.
+    static func withoutRedundantTail(_ title: String, in job: Job) -> String {
+        guard let open = title.range(of: " (", options: .backwards),
+              title.hasSuffix(")") else { return title }
+        let inner = String(title[open.upperBound..<title.index(before: title.endIndex)])
+        guard usefulDetail(inner, in: job) == nil else { return title }
+        return String(title[..<open.lowerBound])
+    }
+
+    private static let detailSeparator = try! NSRegularExpression(
+        pattern: #"\s+[-–—]\s*|\s*[-–—]\s+|\s*;\s*|,\s+"#)
+    private static let intakeYears = try! NSRegularExpression(pattern: #"\b20\d{2}\b"#)
+    private static let occupation = try! NSRegularExpression(
+        pattern: #"\b(?:engineer|developer|researcher|research|analyst|trader|trading|architect|scientist|designer|manager|associate|executive|intern|internship|specialist|technologist|technician|recruiter|coordinator)\b"#,
+        options: .caseInsensitive)
+
+    private static func cleanedFragment(_ text: String) -> String {
+        let fragment = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if fragment.range(of: #"^Class of\s+20\d{2}$"#,
+                          options: [.regularExpression, .caseInsensitive]) != nil {
+            return fragment
+        }
+        if fragment.range(of: #"^\[20\d{2}\s+(?:summer|fall|autumn|winter|spring)\]$"#,
+                          options: [.regularExpression, .caseInsensitive]) != nil { return "" }
+        let years = intakeYears.numberOfMatches(
+            in: fragment, range: NSRange(fragment.startIndex..., in: fragment))
+        if years > 1 { return fragment } // a date range is not an intake label
+        if fragment.range(of: #"^(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+20\d{2}$"#,
+                          options: [.regularExpression, .caseInsensitive]) != nil {
+            return fragment // an event or start month is more than an intake year
+        }
+        return fragment.replacingOccurrences(
+            of: #"\s*[-–—,]?\s*\(?(?:(?:summer|fall|autumn|winter|spring)\s+)?20\d{2}(?:\s+start)?\)?\s*$"#,
+            with: "", options: [.regularExpression, .caseInsensitive])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func isRedundant(_ text: String, in job: Job) -> Bool {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if normalized.range(of: #"^(?:(?:summer|fall|autumn|winter|spring)\s+)?20\d{2}(?:\s+start)?$|^20\d{2}\s+(?:summer|fall|autumn|winter|spring)?\s*(?:internship|intern|graduates?)$"#,
+                            options: [.regularExpression, .caseInsensitive]) != nil {
+            return true
+        }
+        if ["intern", "internship", "co-op", "new grad", "graduate",
+            "new college grad", "new college graduate"]
+            .contains(normalized.lowercased()),
+           job.level == "intern" || job.level == "newgrad" { return true }
+
+        let key = canonicalPlace(normalized)
+        let structuredCity = job.places.contains { place in
+            !place.city.isEmpty && (!place.country.isEmpty || !place.region.isEmpty)
+                && canonicalPlace(place.city) == key
+        }
+        guard structuredCity || LocationParser.isOnlyAPlace(normalized) else { return false }
+        let labels = job.places.flatMap { place in
+            [place.city, place.region, place.regionAbbr, place.country,
+             place.countryName, place.label]
+        } + [job.location, job.locationDisplay]
+        if labels.contains(where: { canonicalPlace($0) == key }) { return true }
+        let mentionedCountries = Set(LocationParser.parse(normalized).map(\.country)
+            .filter { !$0.isEmpty })
+        return !mentionedCountries.isEmpty
+            && mentionedCountries.isSubset(of: Set(job.countries))
+    }
+
+    private static func canonicalPlace(_ text: String) -> String {
+        text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    private static func separated(_ text: String, by regex: NSRegularExpression) -> [String] {
+        let ns = text as NSString
+        var cursor = 0
+        var result: [String] = []
+        for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+            result.append(ns.substring(with: NSRange(location: cursor,
+                                                     length: match.range.location - cursor)))
+            cursor = match.range.location + match.range.length
+        }
+        result.append(ns.substring(from: cursor))
+        return result
+    }
+
+    /// Put the role first while preserving team and programme qualifiers separately.
+    static func parts(_ title: String) -> (role: String, detail: String?) {
+        let separators = [", ", " - ", " – ", " — ", ": "]
+        var depth = 0
+        var cut: Range<String.Index>?
+        var cursor = title.startIndex
+        while cursor < title.endIndex {
+            let character = title[cursor]
+            if character == "(" || character == "[" { depth += 1 }
+            if character == ")" || character == "]" { depth = max(0, depth - 1) }
+            if depth == 0,
+               let separator = separators.first(where: { title[cursor...].hasPrefix($0) }),
+               let end = title.index(cursor, offsetBy: separator.count,
+                                     limitedBy: title.endIndex) {
+                cut = cursor..<end
+                break
+            }
+            cursor = title.index(after: cursor)
+        }
+        guard let cut else {
+            return (title, nil)
+        }
+        let role = String(title[..<cut.lowerBound]).trimmingCharacters(in: .whitespaces)
+        let detail = String(title[cut.upperBound...]).trimmingCharacters(in: .whitespaces)
+        guard role.count >= 4, detail.count >= 2 else { return (title, nil) }
+        // Most tiny suffixes read better beside the role; a degree is useful
+        // context even when it is only three letters.
+        if detail.count <= 4 && !["phd", "mba", "bs", "ms"]
+            .contains(detail.lowercased()) { return (title, nil) }
+        if detail.lowercased().hasPrefix("co-op and ") { return (role, detail) }
+
+        // A level is part of the role, not a tiny second-line footnote. This
+        // covers "Software Engineer, Intern", "Software Engineering - Intern",
+        // and the equivalent graduate/co-op forms. The Level column still gives
+        // the standardized classification.
+        if let status = detail.range(
+            of: #"^(?:internship|intern|co-op|new grad|graduate)\b"#,
+            options: [.regularExpression, .caseInsensitive]) {
+            let marker = String(detail[status])
+            let merged = role.lowercased().hasSuffix(marker.lowercased())
+                ? role : "\(role) \(marker)"
+            let rest = detail[status.upperBound...]
+                .trimmingCharacters(in: CharacterSet(charactersIn: " -–—,:"))
+            return (merged, rest.count > 4 ? rest : nil)
+        }
+
+        // A year by itself is already visible in the Level badge. A short
+        // programme prefix such as "Quantic" should not obscure the actual
+        // role that follows it.
+        if detail.range(of: #"^(?:(?:summer|fall|autumn|winter|spring)\s+)?20\d{2}$"#,
+                        options: [.regularExpression, .caseInsensitive]) != nil {
+            return (role, nil)
+        }
+        let roleHasLevel = Levels.intern.matches(role) || Levels.newgrad.matches(role)
+        let detailHasLevel = Levels.intern.matches(detail) || Levels.newgrad.matches(detail)
+        let roleIsOccupation = occupation.firstMatch(
+            in: role, range: NSRange(role.startIndex..., in: role)) != nil
+        let detailIsOccupation = occupation.firstMatch(
+            in: detail, range: NSRange(detail.startIndex..., in: detail)) != nil
+        if role.count <= 22 && !roleHasLevel && !roleIsOccupation
+            && detailHasLevel && detailIsOccupation && detail.count > role.count {
+            return (detail, role)
+        }
+        return (role, detail)
+    }
+
     private static let patterns: [String] = [
         // Leading: "2026 - ", "2027 Internship – ", "Summer 2027: "
         #"^\s*(19|20)\d{2}\s*[-–—:,]\s*"#,
@@ -1155,6 +1504,7 @@ enum TitleTidy {
         #"^\s*(19|20)\d{2}\s+(summer\s+)?(internships?|intern|graduate\s+programme|graduate\s+program)\s*[-–—:,]\s*"#,
         #"^\s*(summer\s+)?intern(ship)?s?\s+(19|20)\d{2}\s*[-–—:,]\s*"#,
         #"^\s*(internships?|intern)\s*[-–—:,]\s*"#,
+        #"^\s*(?:graduate\s+or\s+internship|internship\s+or\s+graduate)\s*[-–—:,]\s*"#,
         // Trailing: " - Summer 2027", ", 2026", " (Summer 2027)"
         #"\s*[-–—:,]\s*(summer|fall|autumn|winter|spring)?\s*(19|20)\d{2}\s*$"#,
         #"\s*\(\s*(summer|fall|autumn|winter|spring)?\s*(19|20)\d{2}\s*\)\s*$"#,

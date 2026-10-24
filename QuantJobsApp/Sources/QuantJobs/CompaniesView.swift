@@ -111,7 +111,7 @@ struct CompaniesView: View {
                 }
                 .labelsHidden()
                 .frame(width: 110)
-                .help("Tier 1 is the names people target first; tier 3 ships off")
+                .help("Tier 1: core quant targets. Tier 2: additional targets. Tier 3: wider search.")
 
                 Divider().frame(height: 16)
 

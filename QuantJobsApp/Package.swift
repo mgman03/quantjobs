@@ -10,6 +10,7 @@ let package = Package(
             path: "Sources/QuantJobs",
             resources: [.process("Resources")],
             swiftSettings: [.swiftLanguageMode(.v6)]
-        )
+        ),
+        .testTarget(name: "QuantJobsTests", dependencies: ["QuantJobs"])
     ]
 )

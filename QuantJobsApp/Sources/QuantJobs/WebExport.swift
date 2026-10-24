@@ -944,7 +944,7 @@ enum WebExport {
               // Stack is an exclusion, so it drops rows that name it.
               && (!narrow || (!stack || !anyOf(stack, d.stacks)))
               && (!narrow || (!phd || d.phd !== '1'))
-              && (!narrow || (!cat || (d.cat || '').split('|').includes(cat)))
+              && (!narrow || (!cat || cat === 'all' || anyOf(cat, d.cat)))
               && (!narrow || (!city || anyOf(city, d.city)))
               && (!narrow || (!firm || d.firm === firm))
               && (!narrow || (applied !== 'roles' || d.stage === ''))

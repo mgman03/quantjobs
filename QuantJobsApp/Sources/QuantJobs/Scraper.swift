@@ -44,9 +44,8 @@ enum Scraper {
         }
     }
 
-    /// Roughly how long each kind of board takes. The slow ones page HTML ten
-    /// rows at a time or sit behind a rate limit; starting them last means
-    /// everything else waits on them.
+    /// Roughly how long each kind of board takes. Some sources need hundreds of
+    /// requests; keep them in flight without filling every initial worker slot.
     static func expectedCost(_ ats: ATS) -> Int {
         switch ats {
         // A request per posting, eight hundred and fifty of them. Nothing else
@@ -68,28 +67,45 @@ enum Scraper {
         }
     }
 
+    /// Start two expensive boards alongside quick ones. Previously the ten
+    /// initial workers all went to the slowest sources, so launch could show
+    /// 0/71 boards for a long time even though dozens of one-request boards
+    /// were waiting in the queue.
+    static func orderedForProgress(_ companies: [Company], workers: Int) -> [Company] {
+        let slow = companies.filter { expectedCost($0.ats) >= 20 }
+            .sorted { expectedCost($0.ats) > expectedCost($1.ats) }
+        let quick = companies.filter { expectedCost($0.ats) < 20 }
+            .sorted { expectedCost($0.ats) < expectedCost($1.ats) }
+        let warm = workers <= 1 ? 0 : min(slow.count, max(1, workers / 4))
+        return Array(slow.prefix(warm)) + quick + slow.dropFirst(warm)
+    }
+
     /// Run every board with at most `workers` in flight, reporting each one as
     /// it lands so the UI can show progress rather than a long blank spinner.
     static func run(_ rawCompanies: [Company], deep: Bool, workers: Int = 10,
+                    fetch: @Sendable @escaping (Company, Bool) async -> BoardResult = {
+                        company, deep in await one(company, deep: deep)
+                    },
                     onBoard: @Sendable @escaping (BoardResult) async -> Void) async {
         guard !rawCompanies.isEmpty else { return }
-        // Slowest first, so they overlap the quick ones instead of trailing.
-        let companies = rawCompanies.sorted {
-            expectedCost($0.ats) > expectedCost($1.ats)
-        }
-        let limit = max(1, min(workers, companies.count))
+        let limit = max(1, min(workers, rawCompanies.count))
+        let companies = orderedForProgress(rawCompanies, workers: limit)
 
         await withTaskGroup(of: BoardResult.self) { group in
             var next = 0
             for _ in 0..<limit {
                 let c = companies[next]; next += 1
-                group.addTask { await one(c, deep: deep) }
+                group.addTask { await fetch(c, deep) }
             }
             while let result = await group.next() {
+                guard !Task.isCancelled else {
+                    group.cancelAll()
+                    break
+                }
                 await onBoard(result)
                 if next < companies.count {
                     let c = companies[next]; next += 1
-                    group.addTask { await one(c, deep: deep) }
+                    group.addTask { await fetch(c, deep) }
                 }
             }
         }

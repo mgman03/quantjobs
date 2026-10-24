@@ -1,335 +1,253 @@
-// Wrapped so the package still builds where SwiftUI does not exist —
-// the scraper has to run on Linux for the scheduled fetch, and only the
-// window needs Apple's UI frameworks.
 #if canImport(SwiftUI)
 import SwiftUI
 
-/// The row of controls above the table: level, place, firms, date, applied,
-/// search. Its own view so `--check --render` can snapshot it — "do these
-/// controls look like one family?" is a question only a picture answers.
+/// Compact, single-row controls with a separate panel for advanced choices.
 struct FilterBar: View {
-
+    private enum Density: Equatable { case wide, compact, icons }
     @Bindable var model: AppModel
-
     @State private var showingPlaces = false
     @State private var showingFirms = false
+    @State private var showingSettings = false
 
-    /// "All firms" / "Quant" / "62 firms" — the state at a glance.
-    private var firmsLabel: String {
-        let on = model.selectedFirms.count
-        let total = model.companies.count { $0.isConfigured }
-        if on == total { return "All firms" }
-        for node in model.firmTree where model.checkState(node.ids,
-                                                          usable: node.usable) == .on {
-            let others = model.firmTree.filter { $0.group != node.group }
-            if others.allSatisfy({ model.enabledCount($0.ids) == 0 }) {
-                return AppModel.groupLabel(node.group)
-            }
-        }
-        return "\(on) firms"
-    }
-
-    /// "Anywhere" / "Europe" / "3 places" — enough to see the state at a glance.
     private var placesLabel: String {
-        let continents = model.continentFilter, cities = model.cityFilter
-        if continents.isEmpty && cities.isEmpty { return "Anywhere" }
-        if !cities.isEmpty {
-            return cities.count == 1 ? cities.first! : "\(cities.count) cities"
+        if !model.cityFilter.isEmpty {
+            return model.cityFilter.count == 1 ? model.cityFilter.first! : "\(model.cityFilter.count) cities"
         }
-        if continents.count == 1, let only = continents.first { return only }
-        return "\(continents.count) regions"
+        if model.continentFilter.count == 1 { return model.continentFilter.first! }
+        return model.continentFilter.isEmpty ? "Anywhere" : "\(model.continentFilter.count) regions"
     }
 
-    /// Every filter control wears the same label and the same button style.
-    /// The date filter used to be a borderless Menu next to bordered Buttons,
-    /// which made one of four look like a different kind of control.
-    private func filterLabel(_ symbol: String, _ text: String,
-                             compact: Bool = false) -> some View {
-        HStack(spacing: 4) {
+    @ViewBuilder
+    private func label(_ title: String, _ symbol: String, density: Density) -> some View {
+        if density == .icons {
             Image(systemName: symbol)
-            if !compact {
-                Text(text)
-                Image(systemName: "chevron.down").font(.system(size: 8))
-            }
+                .font(.system(size: 14))
+                .foregroundStyle(.primary)
+                .frame(width: 18)
+                .accessibilityLabel(title)
+        } else if density == .compact {
+            Text(title)
+                .font(.system(size: 12))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .accessibilityLabel(title)
+        } else {
+            Label(title, systemImage: symbol)
+                .font(.system(size: 12)).lineLimit(1)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: true, vertical: false)
         }
-        .font(.callout)
-        // The text is gone in compact form, so the tooltip has to carry it.
-        .help(compact ? text : "")
     }
 
-    /// Which intake year to show. Only years actually present are offered, and a
-    /// posting that names no year is never filtered out — most don't name one.
-    private func intakeMenu(compact: Bool) -> some View {
+    private func categoryMenu(_ density: Density, width: CGFloat) -> some View {
         Menu {
-            Section("Intake") {
-                Button("Any year") { model.intakeFilter = nil }
-                ForEach(model.availableIntakes, id: \.year) { intake in
-                    Button {
-                        model.intakeFilter = intake.year
-                    } label: {
-                        Text("\(String(intake.year))  ·  \(intake.count) roles")
-                    }
-                }
-            }
-        } label: {
-            filterLabel("calendar.badge.clock", model.intakeLabel, compact: compact)
-        }
-        .menuStyle(.button)
-        .buttonStyle(.bordered)
-        .menuIndicator(.hidden)
-        .layoutPriority(-1)
-        .help("Boards leave stale cycles up — Qube's internship still says 2026, "
-              + "which reads the same as a 2027 one in a list. Roles that name no "
-              + "year are always kept.")
-    }
-
-    /// Which stacks to leave out. Tick boxes, not a Picker: it's a set of things
-    /// you don't want, and every label says so — an include list needed a tick on
-    /// everything you'd accept plus one on "unspecified", which is three ticks to
-    /// express one exclusion and silently empty if you missed the last.
-    private func stackMenu(compact: Bool) -> some View {
-        Menu {
-            Section("Leave out roles that use") {
-                ForEach(model.stackCategories) { stack in
+            Section("Choose one or more job categories") {
+                ForEach(model.navCategories) { category in
                     Toggle(isOn: Binding(
-                        get: { model.excludedStacks.contains(stack.name) },
-                        set: { _ in model.toggleStack(stack.name) })) {
-                        // Spelled out per row, because a tick box next to a
-                        // language reads as "I want this one" unless the row says
-                        // otherwise.
-                        Text("\(stack.shortName) — hide these")
+                        get: { model.selectedCategoryIDs.contains(category.name) },
+                        set: { _ in model.toggleCategory(category.name) }
+                    )) {
+                        Label(category.displayName, systemImage: category.symbol)
                     }
+                    .help(category.description)
                 }
             }
-            Divider()
-            Section("Leave out roles that require") {
-                // Degree, not stack, but the same kind of decision and the same
-                // menu — a filter row this tight doesn't need a seventh control
-                // for one checkbox.
-                Toggle(isOn: Binding(get: { model.excludePhD },
-                                     set: { model.excludePhD = $0 })) {
-                    Text("A PhD — hide these")
-                }
-                .help("Hides roles whose title states a doctorate requirement. "
-                      + "A title that also names a lower degree, like "
-                      + "\"BSc/MSc/PhD\", is kept — that phrasing means either.")
-            }
-            if !model.excludedStacks.isEmpty || model.excludePhD {
-                Divider()
-                Button("Show everything") {
-                    model.excludedStacks = []
-                    model.excludePhD = false
-                }
-            }
-        } label: {
-            filterLabel("curlybraces", model.stackLabel, compact: compact)
-        }
-        .menuStyle(.button)
-        .buttonStyle(.bordered)
-        .menuIndicator(.hidden)
-        // No .fixedSize(): the filter row can't wrap, so a control that refuses
-        // to shrink pushes the detail column past the window width and the
-        // sidebar gets squeezed below its stated minimum — which clips its
-        // labels rather than narrowing the row. Truncating a label here is the
-        // cheaper failure.
-        .layoutPriority(-1)
-        .help("Tick a stack to remove those roles. Anything that names no stack "
-              + "stays — that's most of them, so this narrows rather than empties.")
-    }
-
-    /// Roles you've applied to: shown, hidden, or the whole firm hidden.
-    ///
-    /// A menu rather than a button, for three reasons. It's a three-way choice
-    /// now, so a toggle can't express it. It reads as one of the family — the
-    /// same bordered label as place, firms and date — instead of a filled blue
-    /// pill shouting from the middle of the row. And a menu has room to say what
-    /// each option means, which "Hide applied" never did.
-    private func appliedMenu(compact: Bool) -> some View {
-        Menu {
-            // The section header names what the three options are about. Without
-            // it the menu opened on "Show roles I've applied to" with nothing
-            // saying that's what this control governs.
-            Section("Roles you've already applied to") {
-                Picker("", selection: $model.appliedFilter) {
-                    ForEach(AppliedFilter.allCases) { option in
-                        Text(option.label).tag(option).help(option.help)
-                    }
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
-            }
-        } label: {
-            filterLabel(model.appliedFilter.symbol, model.appliedFilter.short,
-                        compact: compact)
-        }
-        .menuStyle(.button)
-        .buttonStyle(.bordered)
-        .menuIndicator(.hidden)
-        // No .fixedSize(): the filter row can't wrap, so a control that refuses
-        // to shrink pushes the detail column past the window width and the
-        // sidebar gets squeezed below its stated minimum — which clips its
-        // labels rather than narrowing the row. Truncating a label here is the
-        // cheaper failure.
-        .layoutPriority(-1)
-        .accessibilityLabel("Applied roles: \(model.appliedFilter.label)")
-        // The state lives in the label, so the control doesn't need to change
-        // shape to say it's active — but the count is worth having on hover.
-        .help(model.appliedFilter.isFiltering
-              ? model.appliedFilter.help
-                + " — currently holding back \(model.appliedInResults)"
-              : model.appliedFilter.help)
-    }
-
-    /// Three layouts, widest first: full labels; icon-only filter buttons with the
-    /// level picker intact; and icons with the level picker collapsed to a menu.
-    ///
-    /// ViewThatFits rather than letting the row compress. Compression made every
-    /// control degrade at once — the date, stack and applied menus all rendered as
-    /// "…" while the level picker kept its width — and worse, a row that still
-    /// wanted more than the window took it out of the sidebar, which clips its
-    /// labels instead of narrowing. Choosing a layout that *fits* means nothing is
-    /// truncated and the sidebar is never squeezed.
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            row(compact: false, levelAsMenu: false)
-            row(compact: true, levelAsMenu: false)
-            row(compact: true, levelAsMenu: true)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-    }
-
-    private func row(compact: Bool, levelAsMenu: Bool) -> some View {
-        HStack(spacing: 8) {
-            if levelAsMenu {
-                Menu {
-                    Picker("", selection: $model.level) {
-                        ForEach(Level.allCases) { Text($0.label).tag($0) }
-                    }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
-                } label: {
-                    filterLabel("person.crop.rectangle.stack", model.level.shortLabel,
-                                compact: false)
-                }
-                .menuStyle(.button)
-                .buttonStyle(.bordered)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help(model.level.hint)
+            if model.selectedCategoryIDs.isEmpty {
+                Text("No selection shows all categories")
             } else {
-            Picker("", selection: $model.level) {
-                ForEach(Level.allCases) {
-                    Text($0.shortLabel).tag($0).help($0.hint)
+                Divider()
+                Button("Show all categories") { model.selectedCategoryIDs = [] }
+            }
+        } label: { label("Categories", "square.grid.2x2", density: density) }
+        .modifier(FilterControlSurface(width: width))
+        .help("Choose one or more categories. With none selected, all jobs are shown.")
+    }
+
+    private func level(_ density: Density, width: CGFloat) -> some View {
+        Menu {
+            ForEach(Level.allCases) { choice in
+                Button {
+                    model.level = choice
+                } label: {
+                    if model.level == choice {
+                        Label(choice.shortLabel, systemImage: "checkmark")
+                    } else {
+                        Text(choice.shortLabel)
+                    }
                 }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            // The one control that keeps its intrinsic width. Four segments
-            // squeezed to "Int…" would be worse than a narrower search box, and
-            // this is the most-used control in the row.
-            .fixedSize()
-            .help(model.level.hint)
-            }
+        } label: { label(model.level.shortLabel, "graduationcap", density: density) }
+        .modifier(FilterControlSurface(width: width))
+    }
+    private func places(_ density: Density, width: CGFloat) -> some View {
+        Button { showingPlaces.toggle() } label: {
+            label(density == .compact ? "Locations" : placesLabel, "globe", density: density)
+        }
+            .modifier(FilterControlSurface(width: width))
+            .popover(isPresented: $showingPlaces) { PlaceFilter(model: model) }
+            .help(placesLabel)
+    }
+    private func firms(_ density: Density, width: CGFloat) -> some View {
+        Button { showingFirms.toggle() } label: {
+            label(density == .compact ? "Firms" : "\(model.selectedFirms.count) firms",
+                  "building.2", density: density)
+        }
+            .modifier(FilterControlSurface(width: width))
+            .popover(isPresented: $showingFirms) { FirmFilter(model: model) }
+            .help("\(model.selectedFirms.count) firms")
+    }
+    private func more(_ density: Density, width: CGFloat) -> some View {
+        Button { showingSettings.toggle() } label: {
+            label(density == .compact ? "Settings" : "Advanced Settings",
+                  "gearshape", density: density)
+        }
+        .modifier(FilterControlSurface(width: width))
+        .accessibilityLabel("Advanced Settings")
+        .popover(isPresented: $showingSettings, arrowEdge: .bottom) {
+            AdvancedSettingsPanel(model: model)
+        }
+        .help("Dates, intake year, exclusions, matching, and how roles are shown")
+    }
 
-            Button {
-                showingPlaces.toggle()
-            } label: {
-                filterLabel("globe.americas", placesLabel, compact: compact)
-            }
-            .buttonStyle(.bordered)
-            .popover(isPresented: $showingPlaces, arrowEdge: .bottom) {
-                PlaceFilter(model: model)
-            }
-            .help("Filter by continent, then drill into cities")
-
-            Button {
-                showingFirms.toggle()
-            } label: {
-                filterLabel("building.2", firmsLabel, compact: compact)
-            }
-            .buttonStyle(.bordered)
-            .popover(isPresented: $showingFirms, arrowEdge: .bottom) {
-                FirmFilter(model: model)
-            }
-            .help("Choose which firms to scrape")
-
-            Menu {
-                Picker("", selection: $model.sinceDays) {
-                    Text("Any time").tag(Int?.none)
-                    Text("Last 7 days").tag(Int?.some(7))
-                    Text("Last 14 days").tag(Int?.some(14))
-                    Text("Last 30 days").tag(Int?.some(30))
-                    Text("Last 90 days").tag(Int?.some(90))
+    var body: some View {
+        VStack(spacing: 8) {
+            GeometryReader { geometry in
+                let density: Density = geometry.size.width < 420 ? .icons
+                    : geometry.size.width < 760 ? .compact : .wide
+                let width = density == .wide ? CGFloat(146)
+                    : (geometry.size.width - 24) / 5
+                ScrollView(.horizontal) {
+                    HStack(spacing: 6) {
+                        categoryMenu(density, width: width)
+                        level(density, width: width)
+                        places(density, width: width)
+                        firms(density, width: width)
+                        more(density, width: width)
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
                 }
-                .pickerStyle(.inline)
-                .labelsHidden()
-            } label: {
-                filterLabel("calendar",
-                            model.sinceDays.map { "Last \($0)d" } ?? "Any time",
-                            compact: compact)
+                .scrollIndicators(.hidden)
             }
-            .menuStyle(.button)
-            .buttonStyle(.bordered)
-            .menuIndicator(.hidden)
-            .layoutPriority(-1)
-            .help("How recently the role was posted")
-
-            intakeMenu(compact: compact)
-
-            stackMenu(compact: compact)
-
-            appliedMenu(compact: compact)
-
-            Spacer(minLength: 8)
-
-            SearchField(model: model)
-
-            // The controls above show their own state, so there are no chips to
-            // clear one by one — but a filter restored from a previous session
-            // still needs one way out, and `deep` and `tag` have no control of
-            // their own at all.
-            if model.hasExtraFilters {
-                Button("Clear", action: model.clearFilters)
-                    .buttonStyle(.link)
-                    .font(.callout)
-                    .help("Turn every filter off")
+            .frame(height: 32)
+            HStack(spacing: 8) {
+                SearchField(model: model)
+                if model.hasExtraFilters {
+                    Button(action: model.clearFilters) {
+                        Label("Clear", systemImage: "xmark").font(.system(size: 12))
+                    }
+                    .modifier(FilterControlSurface(width: 70))
+                }
             }
         }
+        .buttonStyle(.plain).menuStyle(.borderlessButton).menuIndicator(.hidden)
+        .controlSize(.regular)
+        .padding(.horizontal, 12).padding(.vertical, 10)
     }
 }
 
-/// Pulled out of the filter row because the saved-list header needs it too.
-struct SearchField: View {
+private struct FilterControlSurface: ViewModifier {
+    let width: CGFloat
+    func body(content: Content) -> some View {
+        content.frame(width: width, height: 32)
+            .background(Color.secondary.opacity(0.10), in: .rect(cornerRadius: 7))
+            .contentShape(RoundedRectangle(cornerRadius: 7))
+    }
+}
 
+struct AdvancedSettingsPanel: View {
     @Bindable var model: AppModel
+    @Environment(\.dismiss) private var dismiss
 
-    /// Lives in the filter row rather than the window toolbar. In the toolbar it
-    /// was drawn across the top of the inspector, so the field's capsule and the
-    /// panel's rounded corner overlapped whenever a role was selected.
     var body: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "magnifyingglass")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            TextField("Filter roles", text: $model.search)
-                .textFieldStyle(.plain)
-                .frame(minWidth: 70, idealWidth: 150)
-            if !model.search.isEmpty {
-                Button { model.search = "" } label: {
-                    Image(systemName: "xmark.circle.fill")
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Advanced Settings", systemImage: "gearshape")
+                .font(.headline)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    GroupBox("Narrow results") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            LabeledContent("Date posted") {
+                                Picker("Date posted", selection: $model.sinceDays) {
+                                    Text("Any date").tag(Int?.none)
+                                    ForEach([7, 14, 30, 90], id: \.self) {
+                                        Text("Last \($0) days").tag(Int?.some($0))
+                                    }
+                                }
+                                .labelsHidden()
+                            }
+                            LabeledContent("Intake year") {
+                                Picker("Intake year", selection: $model.intakeFilter) {
+                                    Text("Any year").tag(Int?.none)
+                                    ForEach(model.availableIntakes, id: \.year) {
+                                        Text(String($0.year)).tag(Int?.some($0.year))
+                                    }
+                                }
+                                .labelsHidden()
+                            }
+                            LabeledContent("Previously applied") {
+                                Picker("Previously applied", selection: $model.appliedFilter) {
+                                    ForEach(AppliedFilter.allCases) { Text($0.label).tag($0) }
+                                }
+                                .labelsHidden()
+                            }
+                            Toggle("Only roles new to me", isOn: $model.newOnly)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 4)
+                    }
+                    GroupBox("Exclude roles") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle("Roles requiring a PhD", isOn: $model.excludePhD)
+                            if !model.stackCategories.isEmpty {
+                                Divider()
+                                Text("Technology stacks").font(.subheadline.weight(.medium))
+                                ForEach(model.stackCategories) { stack in
+                                    Toggle("Hide \(stack.shortName)", isOn: Binding(
+                                        get: { model.excludedStacks.contains(stack.name) },
+                                        set: { _ in model.toggleStack(stack.name) }))
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 4)
+                    }
+                    GroupBox("Matching and display") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle("Search full job descriptions", isOn: $model.deep)
+                            Toggle("Combine the same role across offices", isOn: $model.mergeRoles)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 4)
+                    }
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+            }
+            HStack {
+                Button("Reset Settings", action: model.resetAdvancedSettings)
+                Spacer()
+                Button("Done") { dismiss() }
             }
         }
-        .font(.callout)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 6))
-        .fixedSize(horizontal: false, vertical: true)
-        .layoutPriority(-1)
-        .help("Filter the roles already on screen")
+        .padding(16)
+        .frame(width: 390, height: 490)
+        .controlSize(.small)
+    }
+}
+
+struct SearchField: View {
+    @Bindable var model: AppModel
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Search roles, firms or locations", text: $model.search)
+                .textFieldStyle(.plain)
+            if !model.search.isEmpty {
+                Button { model.search = "" } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.plain).accessibilityLabel("Clear search")
+            }
+        }
+        .font(.system(size: 13))
+        .padding(.horizontal, 10).frame(minHeight: 34)
+        .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 7))
     }
 }
 #endif

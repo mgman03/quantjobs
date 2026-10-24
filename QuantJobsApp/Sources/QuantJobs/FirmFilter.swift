@@ -171,7 +171,7 @@ struct FirmFilter: View {
             .labelsHidden()
             .padding(.horizontal, 12)
             .padding(.bottom, 6)
-            .help("Tier 1 is the names people target first. All On / All Off "
+            .help("Tier 1: core quant targets; Tier 2: additional established and specialist firms. All On / All Off "
                   + "below apply to whatever this leaves showing.")
 
             HStack(spacing: 6) {

@@ -20,6 +20,11 @@ enum HeadlessCheck {
         if args.contains("--update") { runUpdateCheck() }
         if args.contains("--migrate") { runMigrationCheck() }
         if args.contains("--ledger") { runLedgerCheck() }
+        if args.contains("--audit-titles") { runTitleAudit() }
+        if args.contains("--dump-titles") { runTitleDump() }
+        if let i = args.firstIndex(of: "--inspect-titles"), i + 1 < args.count {
+            runTitleInspection(query: args[i + 1])
+        }
         if let i = args.firstIndex(of: "--sync-setup"), i + 1 < args.count {
             runSyncSetup(url: args[i + 1])
         }
@@ -159,6 +164,13 @@ enum HeadlessCheck {
         let collector = Collector()
         let startedAt = Date()
         await Scraper.run(firms, deep: deep) { result in
+            if CommandLine.arguments.contains("--progress") {
+                let line = String(format: "%.1fs  %@  %@\n",
+                                  Date().timeIntervalSince(startedAt),
+                                  result.company.displayName,
+                                  result.failure == nil ? "answered" : "failed")
+                FileHandle.standardError.write(Data(line.utf8))
+            }
             let kept = result.jobs.filter { job in
                 guard query.keep(job, matcher: matcher) else { return false }
                 guard !stacks.isEmpty else { return true }
@@ -647,10 +659,117 @@ enum HeadlessCheck {
         exit(0)
     }
 
+    /// Read every cached title through the same matcher and display parser the
+    /// app uses. This is a cheap audit after changing either rule.
+    private static func runTitleDump() -> Never {
+        LocationParser.gazetteer = ConfigStore.loadGazetteer()
+        guard let cache = ConfigStore.loadCache() else { exit(1) }
+        print("company\tposted_title\trole\tdetail\tlevel\tintake\tlocation")
+        for job in cache.jobs.sorted(by: {
+            ($0.company, $0.title, $0.location) < ($1.company, $1.title, $1.location)
+        }) {
+            let parts = job.titleParts
+            let fields = [job.company, job.title, parts.role, parts.detail ?? "",
+                          job.level, job.intakeYear.map(String.init) ?? "",
+                          job.locationDisplay]
+            print(fields.map { $0.replacingOccurrences(of: "\t", with: " ")
+                              .replacingOccurrences(of: "\n", with: " ") }
+                  .joined(separator: "\t"))
+        }
+        exit(0)
+    }
+
+    private static func runTitleInspection(query: String) -> Never {
+        LocationParser.gazetteer = ConfigStore.loadGazetteer()
+        guard let cache = ConfigStore.loadCache() else { exit(1) }
+        for job in cache.jobs where job.company.localizedCaseInsensitiveContains(query)
+            || job.title.localizedCaseInsensitiveContains(query) {
+            let parts = job.titleParts
+            print("\(job.company) | \(job.title)")
+            print("  role=\(parts.role) | detail=\(parts.detail ?? "–") | location=\(job.locationDisplay) | badge=\(job.levelShort) \(job.intakeYear.map(String.init) ?? "")")
+        }
+        exit(0)
+    }
+
+    private static func runTitleAudit() -> Never {
+        LocationParser.gazetteer = ConfigStore.loadGazetteer()
+        guard let cache = ConfigStore.loadCache() else {
+            print("No cached jobs to audit")
+            exit(1)
+        }
+        var changedToIntern: [String] = []
+        var changedFromIntern: [String] = []
+        var danglingStatus: [String] = []
+        var shortDetail: [String] = []
+        var genericRole: [String] = []
+        var removedDetail: [String] = []
+        var shortenedDetail: [String] = []
+        var detailWithYear: [String] = []
+        var detailOnlyPlace: [String] = []
+        var split = 0
+        for job in cache.jobs {
+            let now = Levels.detect(title: job.title, department: job.department)
+            if now == "intern" && job.level != "intern" {
+                changedToIntern.append("\(job.company) | \(job.title)")
+            } else if now != "intern" && job.level == "intern" {
+                changedFromIntern.append("\(job.company) | \(job.title)")
+            }
+            let parts = job.titleParts
+            let before = TitleTidy.parts(job.shortTitle)
+            if let oldDetail = before.detail {
+                if parts.detail == nil {
+                    removedDetail.append("\(job.company) | \(job.title) → \(oldDetail) [\(job.locationDisplay)]")
+                } else if parts.detail != oldDetail {
+                    shortenedDetail.append("\(job.company) | \(job.title) → \(parts.detail!) [\(job.locationDisplay)]")
+                }
+            }
+            if let detail = parts.detail {
+                split += 1
+                if detail.range(of: #"20\d{2}"#, options: .regularExpression) != nil {
+                    detailWithYear.append("\(job.company) | \(job.title) → \(detail)")
+                }
+                if LocationParser.isOnlyAPlace(detail) {
+                    detailOnlyPlace.append("\(job.company) | \(job.title) → \(detail) [\(job.locationDisplay)]")
+                }
+                if detail.count <= 4 { shortDetail.append("\(job.company) | \(job.title) → \(detail)") }
+                if ["intern", "internship", "co-op", "new grad", "graduate"]
+                    .contains(detail.lowercased()) {
+                    danglingStatus.append("\(job.company) | \(job.title)")
+                }
+            }
+            if parts.role.range(of: #"^(?:20\d{2}|intern(?:ship)?|graduate)$"#,
+                                options: [.regularExpression, .caseInsensitive]) != nil {
+                genericRole.append("\(job.company) | \(job.title) → \(parts.role)")
+            }
+        }
+        print("Audited \(cache.jobs.count) cached jobs")
+        print("Titles with useful second lines: \(split)")
+        print("Redundant detail removed: \(removedDetail.count)")
+        removedDetail.prefix(20).forEach { print("  removed \($0)") }
+        print("Detail shortened: \(shortenedDetail.count)")
+        shortenedDetail.prefix(20).forEach { print("  shortened \($0)") }
+        print("Remaining detail with year: \(detailWithYear.count)")
+        detailWithYear.prefix(25).forEach { print("  year \($0)") }
+        print("Remaining place-only detail: \(detailOnlyPlace.count)")
+        detailOnlyPlace.prefix(25).forEach { print("  place \($0)") }
+        print("Status-only qualifiers: \(danglingStatus.count)")
+        print("Very short qualifiers: \(shortDetail.count)")
+        shortDetail.prefix(20).forEach { print("  short \($0)") }
+        print("Generic role lines: \(genericRole.count)")
+        genericRole.prefix(20).forEach { print("  generic \($0)") }
+        print("New internship matches: \(changedToIntern.count)")
+        changedToIntern.forEach { print("  + \($0)") }
+        print("Removed internship matches: \(changedFromIntern.count)")
+        changedFromIntern.forEach { print("  - \($0)") }
+        if !danglingStatus.isEmpty { danglingStatus.forEach { print("  dangling \($0)") } }
+        exit(danglingStatus.isEmpty ? 0 : 1)
+    }
+
     /// `--check --render <dir>` draws the detail panel offscreen, which is the
     /// only way to eyeball it without a display session.
     private static func runRender(to directory: String) -> Never {
         Task { @MainActor in
+            _ = NSApplication.shared
             let sample = Job(
                 company: "Jane Street",
                 title: "Software Engineer Internship — Summer 2027",
@@ -682,18 +801,28 @@ enum HeadlessCheck {
                 let framed = view
                     .background(scheme == .dark ? Color.black : Color.white)
                     .environment(\.colorScheme, scheme)
-                let renderer = ImageRenderer(content: framed)
-                renderer.scale = 2
-                guard let image = renderer.nsImage,
-                      let tiff = image.tiffRepresentation,
-                      let rep = NSBitmapImageRep(data: tiff),
-                      let png = rep.representation(using: .png, properties: [:])
-                else { return }
+                let host = NSHostingView(rootView: framed)
+                host.frame.size = host.fittingSize
+                host.layoutSubtreeIfNeeded()
+                guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return }
+                host.cacheDisplay(in: host.bounds, to: rep)
+                guard let png = rep.representation(using: .png, properties: [:]) else { return }
                 let url = URL(fileURLWithPath: directory)
                     .appendingPathComponent("\(name).png")
                 try? png.write(to: url)
                 print("wrote \(url.path)")
             }
+
+            // Exercise the responsive controls at laptop and wide pane widths.
+            useScratchConfig("controls-render")
+            let model = AppModel()
+            await model.reload()
+            model.selectedCategoryIDs = ["swe", "data"]
+            for width in [360, 480, 1000] {
+                write(FilterBar(model: model).frame(width: CGFloat(width)),
+                      "controls-\(width)", .light)
+            }
+            write(AdvancedSettingsPanel(model: model), "advanced-settings", .light)
 
             // The case from the screenshot: a merged, undated posting whose title
             // names one of its two cities.
@@ -735,12 +864,11 @@ enum HeadlessCheck {
                         .frame(width: 250), name + "-250", scheme)
             }
 
-            // No snapshot of the filter row: it takes a `@Bindable` model, and
-            // ImageRenderer never settles on a view that observes @Observable
-            // state — the same reason JobDetailContent is handed plain values.
             exit(0)
         }
-        dispatchMain()
+        // AppKit-backed controls require a real main run loop for rendering.
+        RunLoop.main.run()
+        exit(1)
     }
 
     /// `--check --sync-setup <url>` writes the sync config, reading the password

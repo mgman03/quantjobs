@@ -169,6 +169,37 @@ The page is built for a thumb: 44px targets, nothing focusable under 16px (Safar
 zooms in on a smaller field and does not zoom back out), a header that folds while
 you scroll, and six seconds to undo a mis-tap.
 
+## Browsing on the Mac
+
+The Categories menu above the results lets you combine Software Engineering and
+Data / ML to see either discipline. Clear its selections to see all categories.
+The selection survives a restart. Advanced Settings opens a panel with dates,
+intake, exclusions and display choices. The five equally sized controls stay on
+one row, switching to icons when space is very tight.
+
+With refresh on launch enabled, the app starts fetching as soon as local data is
+loaded. Cached rows are a preview while that happens. A completely failed fetch
+keeps the previous cache and does not label it freshly updated. Quick boards
+answer alongside slow multi-request sources, so progress starts without waiting
+for the slowest ten boards. On Macs whose proxy settings point at an unresponsive
+`http://wpad/wpad.dat`, board requests connect directly rather than waiting for
+the proxy auto-configuration lookup to time out.
+
+The internship filter requires internship or placement wording in the title or
+board's department. Student eligibility, discovery events and spring insight
+programmes alone no longer qualify. Those postings remain available at All levels.
+Experienced grades such as Software Engineer II and team names such as "Co-op and
+Marketplaces" do not count as internships. Titles keep level words like "Intern"
+beside the role, and show meaningful team or qualification detail on a second
+line. Locations already in the Location column and intake years already in the
+Level badge are omitted there. The original title remains on hover.
+"High School Internship, Software Engineering" reads as Software Engineering
+Internship with High School below it; spring and summer stay below the role while
+their intake year stays in the badge.
+
+Firm tiers are an editorial shortlist, with a narrower Tier 1 and consistent tiers
+across each firm's boards. See [the tier criteria](docs/firm-tiers.md).
+
 ## Which firms are wired up
 
 193 board entries across 187 firms, read through 19 kinds of source. Most are

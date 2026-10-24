@@ -8,6 +8,7 @@ import Foundation
 struct AppSettings: Codable, Sendable, Equatable {
 
     var categoryID = "swe"
+    var categoryIDs: [String]? = nil
     var level = Level.intern.rawValue
     var list = "results"
 
@@ -40,9 +41,8 @@ struct AppSettings: Codable, Sendable, Equatable {
     /// see Sync.swift. Not itself a filter.
     var filtersUpdated = ""
 
-    /// Refresh on open, and how stale the cache has to be before that's worth
-    /// doing. A full run is a hundred-odd boards and tens of thousands of
-    /// postings, so repeating it every time you open the window is wasteful.
+    /// Refresh on open. Keep the old age field for settings-file compatibility;
+    /// it no longer suppresses an enabled launch refresh.
     var refreshOnLaunch = true
     var refreshIfOlderThanHours = 6
 

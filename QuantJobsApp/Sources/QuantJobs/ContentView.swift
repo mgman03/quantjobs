@@ -190,16 +190,14 @@ struct ContentView: View {
             // Deliberately after the window is up: the first read of the config
             // folder can trigger a macOS permission prompt.
             if !model.isLoaded { await model.reload() }
-            // Before the scrape, so rows land already carrying the date the
-            // scheduled fetch first saw them rather than this machine's.
+            // Start before any optional network work so sync/update delays
+            // cannot leave the window indefinitely showing yesterday's cache.
+            model.refreshAfterLaunch()
             await model.mergeSharedLedger()
             // And whatever was starred on the phone since the window was last
             // open. Silent when syncing has not been set up.
             await model.syncMarks()
             await model.updater.checkOnLaunch()
-            // Refresh on open only when the cache is stale — otherwise the
-            // window comes up instantly on last run's results and waits for ⌘R.
-            if model.lastRun == nil && model.shouldRefreshOnLaunch { model.scrape() }
         }
     }
 
@@ -209,29 +207,18 @@ struct ContentView: View {
     /// separate highlights, which left two rows looking selected at once.
     private var sidebarSelection: Binding<String?> {
         Binding(
-            get: {
-                model.list == .results
-                    ? "cat.\(model.selectedCategoryID)"
-                    : "list.\(model.list.rawValue)"
-            },
+            get: { "list.\(model.list.rawValue)" },
             set: { raw in
-                guard let raw else { return }
-                if let name = raw.dropPrefixIfPresent("list.") {
-                    model.list = AppModel.JobList(rawValue: name) ?? .results
-                } else if let name = raw.dropPrefixIfPresent("cat.") {
-                    model.list = .results
-                    model.selectedCategoryID = name
-                }
+                guard let raw, let name = raw.dropPrefixIfPresent("list.") else { return }
+                model.list = AppModel.JobList(rawValue: name) ?? .results
             })
     }
 
     private var sidebar: some View {
         List(selection: sidebarSelection) {
-            // `.results` deliberately absent: it isn't a list, it's the mode
-            // you're in when a category is selected — and the Everything
-            // category already means "all roles", so a row for it read as a
-            // second, subtly different way to ask for the same thing.
             Section("Lists") {
+                Label("Browse Jobs", systemImage: "magnifyingglass")
+                    .tag("list.results")
                 ForEach(AppModel.JobList.pickable) { entry in
                     HStack(spacing: 6) {
                         Label(entry.title, systemImage: entry.symbol)
@@ -252,19 +239,6 @@ struct ContentView: View {
                 }
             }
 
-            Section("Category") {
-                // Sub-categories sit indented under their parent — they're slices
-                // of it, not peers, and reading them as siblings of "Software
-                // Engineering" made "Python" look like a discipline of its own.
-                // Disciplines only. cpp/python/frontend describe a stack rather
-                // than a place to navigate to — as nav they were exclusive, so
-                // choosing one threw away the 87% of roles that name no language.
-                // They're an additive filter in the row above instead.
-                ForEach(model.navCategories) { category in
-                    Label(category.displayName, systemImage: category.symbol)
-                        .tag("cat.\(category.name)")
-                }
-            }
 
         }
         // Opening the inspector squeezes this column below its stated width,
@@ -273,24 +247,7 @@ struct ContentView: View {
         // the leading edge and letting it actually shrink is what stops it.
         .frame(maxWidth: .infinity, alignment: .leading)
         .navigationSplitViewColumnWidth(min: 180, ideal: 224, max: 280)
-        .safeAreaInset(edge: .bottom) {
-            // Just context for the selected category now — choosing firms is
-            // the tree above, and "where's this from" moved to the status bar.
-            if model.list == .results,
-               let description = model.selectedCategory?.description {
-                VStack(alignment: .leading, spacing: 0) {
-                    Divider()
-                    Text(description)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 14)
-                        .padding(.top, 8)
-                        .padding(.bottom, 12)
-                }
-            }
-        }
+
     }
 
     /// Sits above the results rather than in a modal: an update is worth
@@ -574,13 +531,22 @@ struct ContentView: View {
             .width(min: 74, ideal: 116, max: 190)
 
             TableColumn("Role", value: \.shortTitle) { job in
+                let parts = job.titleParts
                 HStack(spacing: 5) {
-                    Text(job.shortTitle)
-                        // The one thing at full weight and full contrast: this
-                        // is the column people actually read down.
-                        .fontWeight(.medium)
-                        .foregroundStyle(model.isDelisted(job) ? .secondary : .primary)
-                        .strikethrough(model.isDelisted(job), color: .secondary)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(parts.role)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(model.isDelisted(job) ? .secondary : .primary)
+                            .strikethrough(model.isDelisted(job), color: .secondary)
+                            .lineLimit(1)
+                        if let detail = parts.detail {
+                            Text(detail)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     if model.isDelisted(job) {
                         Image(systemName: "xmark.circle")
                             .font(.caption2)
@@ -588,6 +554,7 @@ struct ContentView: View {
                             .help("No longer listed on the board")
                     }
                 }
+                .accessibilityLabel(job.displayTitle)
                 .help(job.title)      // the full posted title on hover
             }
             .width(min: 96, ideal: 230)
@@ -740,7 +707,9 @@ struct ContentView: View {
                   systemImage: model.isScraping ? "arrow.trianglehead.2.clockwise" : "tray")
         } description: {
             if model.isScraping {
-                Text("\(model.scanned) of \(model.total) boards")
+                Text(model.scanned == 0
+                     ? "Connecting to \(model.total) boards…"
+                     : "\(model.scanned) of \(model.total) boards")
                 // Which one, once it is down to a few. Meta alone is a request
                 // per posting and takes minutes; without a name on it, the last
                 // board looks like a stall rather than a slow one.
@@ -765,12 +734,17 @@ struct ContentView: View {
     private func statusBar(_ rows: [Job]) -> some View {
         HStack(spacing: 12) {
             if model.isScraping {
-                ProgressView(value: Double(model.scanned), total: Double(max(model.total, 1)))
-                    .progressViewStyle(.linear)
-                    .frame(width: 130)
-                Text(model.outstandingBoards.isEmpty
-                     ? "\(model.scanned)/\(model.total) boards"
-                     : "\(model.scanned)/\(model.total) · \(model.outstandingBoards[0])")
+                if model.scanned == 0 {
+                    ProgressView().controlSize(.small)
+                    Text("Connecting to \(model.total) boards…")
+                } else {
+                    ProgressView(value: Double(model.scanned), total: Double(max(model.total, 1)))
+                        .progressViewStyle(.linear)
+                        .frame(width: 130)
+                    Text(model.outstandingBoards.isEmpty
+                         ? "\(model.scanned)/\(model.total) boards"
+                         : "\(model.scanned)/\(model.total) · \(model.outstandingBoards[0])")
+                }
             } else {
                 HStack(spacing: 4) {
                     Text("\(rows.count)").fontWeight(.medium)
