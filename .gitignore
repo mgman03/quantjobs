@@ -9,6 +9,7 @@ __pycache__/
 .sync.json
 .tracked.json
 *.csv
+docs/title-audit-*.tsv
 *.dmg
 *.pyc
 # and the DMG is a couple of megabytes, so neither belongs in the history.
