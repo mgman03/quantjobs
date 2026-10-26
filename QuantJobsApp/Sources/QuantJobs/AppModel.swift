@@ -990,29 +990,8 @@ final class AppModel {
                 .map { CategoryMatcher($0) }
             // firstSeen isn't persisted (see Job.firstSeen), so restore it here or
             // every undated cached row would show "–" until the next scrape.
-            jobs = cache.jobs.map { job in
-                var copy = job
-                if let research {
-                    let raw = RawJob(title: job.title, location: job.location,
-                                     url: job.url, posted: job.posted,
-                                     department: job.department,
-                                     description: job.description)
-                    if research.acceptsCategory(raw, deep: deep) {
-                        copy.matchedCategories.insert("quant-research")
-                    } else {
-                        copy.matchedCategories.remove("quant-research")
-                    }
-                }
-                // Old caches carry classifications from older parser rules.
-                let classification = Levels.classification(
-                    title: job.title, department: job.department)
-                copy.level = classification.level
-                copy.matchedLevels = classification.matches
-                if job.posted.isEmpty {
-                    copy.firstSeen = Sighting.firstSeen(of: job, in: seen) ?? ""
-                }
-                return copy
-            }
+            jobs = await CachedJobClassifier.reclassify(cache.jobs, research: research,
+                                                       deep: deep, seen: seen)
             showingCache = true
             cacheDate = cache.savedAt
         }

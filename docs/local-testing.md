@@ -10,4 +10,8 @@ cp companies.json categories.json locations.json .cache.json .local-audit/benchm
 QUANTJOBS_BENCH_DIR="$PWD/.local-audit/benchmark-config" swift test --package-path QuantJobsApp -c release --filter SearchBenchmark
 ```
 
+To time cache loading without changing app state, build the app target and run
+`QuantJobs --check --profile-cache` with `QUANTJOBS_CONFIG` set to a copied config
+folder. The command reports the number of cached postings and elapsed load time.
+
 Before committing, run `git status --short` and `git diff --cached --stat` to confirm that only source, tests, and intentionally written documentation are staged.

@@ -23,6 +23,7 @@ enum HeadlessCheck {
         if args.contains("--audit-titles") { runTitleAudit() }
         if args.contains("--dump-titles") { runTitleDump() }
         if args.contains("--profile-titles") { runTitleProfile() }
+        if args.contains("--profile-cache") { runCacheProfile() }
         if let i = args.firstIndex(of: "--inspect-titles"), i + 1 < args.count {
             runTitleInspection(query: args[i + 1])
         }
@@ -80,6 +81,19 @@ enum HeadlessCheck {
                               stacks: stacks))
         }
         dispatchMain()   // park the main thread; the task above exits the process
+    }
+
+    /// Read-only startup measurement against QUANTJOBS_CONFIG, for large caches.
+    private static func runCacheProfile() -> Never {
+        Task { @MainActor in
+            let started = Date()
+            let model = AppModel(runBoards: { _, _, _ in })
+            await model.reload()
+            print(String(format: "loaded %d cached jobs in %.3fs",
+                         model.jobs.count, Date().timeIntervalSince(started)))
+            exit(model.loadError == nil ? 0 : 1)
+        }
+        dispatchMain()
     }
 
     /// `--check --board optiver` — run one firm's adapter and print what it
@@ -694,9 +708,11 @@ enum HeadlessCheck {
         LocationParser.gazetteer = ConfigStore.loadGazetteer()
         guard let cache = ConfigStore.loadCache() else { exit(1) }
         print("company\tposted_title\trole\tdetail\tlevel\tintake\tlocation")
-        for job in cache.jobs.sorted(by: {
+        for cached in cache.jobs.sorted(by: {
             ($0.company, $0.title, $0.location) < ($1.company, $1.title, $1.location)
         }) {
+            var job = cached
+            job.level = Levels.detect(title: job.title, department: job.department)
             let parts = job.titleParts
             let fields = [job.company, job.title, parts.role, parts.detail ?? "",
                           job.level, job.intakeYear.map(String.init) ?? "",
@@ -731,8 +747,10 @@ enum HeadlessCheck {
     private static func runTitleInspection(query: String) -> Never {
         LocationParser.gazetteer = ConfigStore.loadGazetteer()
         guard let cache = ConfigStore.loadCache() else { exit(1) }
-        for job in cache.jobs where job.company.localizedCaseInsensitiveContains(query)
-            || job.title.localizedCaseInsensitiveContains(query) {
+        for cached in cache.jobs where cached.company.localizedCaseInsensitiveContains(query)
+            || cached.title.localizedCaseInsensitiveContains(query) {
+            var job = cached
+            job.level = Levels.detect(title: job.title, department: job.department)
             let parts = job.titleParts
             print("\(job.company) | \(job.title)")
             print("  role=\(parts.role) | detail=\(parts.detail ?? "–") | location=\(job.locationDisplay) | badge=\(job.levelShort) \(job.intakeYear.map(String.init) ?? "")")
@@ -756,13 +774,15 @@ enum HeadlessCheck {
         var detailWithYear: [String] = []
         var detailOnlyPlace: [String] = []
         var split = 0
-        for job in cache.jobs {
+        for cached in cache.jobs {
+            var job = cached
             let now = Levels.detect(title: job.title, department: job.department)
-            if now == "intern" && job.level != "intern" {
+            if now == "intern" && cached.level != "intern" {
                 changedToIntern.append("\(job.company) | \(job.title)")
-            } else if now != "intern" && job.level == "intern" {
+            } else if now != "intern" && cached.level == "intern" {
                 changedFromIntern.append("\(job.company) | \(job.title)")
             }
+            job.level = now
             let parts = job.titleParts
             let before = TitleTidy.parts(job.shortTitle)
             if let oldDetail = before.detail {
