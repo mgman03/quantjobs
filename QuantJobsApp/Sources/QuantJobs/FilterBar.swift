@@ -5,6 +5,7 @@ import SwiftUI
 struct FilterBar: View {
     private enum Density: Equatable { case wide, compact, icons }
     @Bindable var model: AppModel
+    @State private var showingCategories = false
     @State private var showingPlaces = false
     @State private var showingFirms = false
     @State private var showingSettings = false
@@ -40,27 +41,12 @@ struct FilterBar: View {
     }
 
     private func categoryMenu(_ density: Density, width: CGFloat) -> some View {
-        Menu {
-            Section("Choose one or more job categories") {
-                ForEach(model.navCategories) { category in
-                    Toggle(isOn: Binding(
-                        get: { model.selectedCategoryIDs.contains(category.name) },
-                        set: { _ in model.toggleCategory(category.name) }
-                    )) {
-                        Label(category.displayName, systemImage: category.symbol)
-                    }
-                    .help(category.description)
-                }
-            }
-            if model.selectedCategoryIDs.isEmpty {
-                Text("No selection shows all categories")
-            } else {
-                Divider()
-                Button("Show all categories") { model.selectedCategoryIDs = [] }
-            }
-        } label: { label("Categories", "square.grid.2x2", density: density) }
-        .modifier(FilterControlSurface(width: width))
-        .help("Choose one or more categories. With none selected, all jobs are shown.")
+        Button { showingCategories.toggle() } label: {
+            label("Categories", "square.grid.2x2", density: density)
+        }
+            .modifier(FilterControlSurface(width: width))
+            .popover(isPresented: $showingCategories) { CategoryFilter(model: model) }
+            .help("Choose one or more categories to show jobs.")
     }
 
     private func level(_ density: Density, width: CGFloat) -> some View {
@@ -142,6 +128,51 @@ struct FilterBar: View {
         .buttonStyle(.plain).menuStyle(.borderlessButton).menuIndicator(.hidden)
         .controlSize(.regular)
         .padding(.horizontal, 12).padding(.vertical, 10)
+    }
+}
+
+private struct CategoryFilter: View {
+    @Bindable var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Categories", systemImage: "square.grid.2x2")
+                .font(.headline)
+            Text("Select several to show jobs in any of them.")
+                .font(.caption).foregroundStyle(.secondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(model.navCategories) { category in
+                        Toggle(isOn: Binding(
+                            get: { model.selectedCategoryIDs.contains(category.name) },
+                            set: { _ in model.toggleCategory(category.name) }
+                        )) {
+                            Label(category.displayName, systemImage: category.symbol)
+                        }
+                        .help(category.description)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            HStack {
+                Button("Select all") {
+                    model.selectedCategoryIDs = Set(model.navCategories.map(\.name))
+                    model.list = .results
+                }
+                .disabled(model.selectedCategoryIDs.count == model.navCategories.count)
+                Button("Clear") {
+                    model.selectedCategoryIDs = []
+                    model.list = .results
+                }
+                .disabled(model.selectedCategoryIDs.isEmpty)
+                Spacer()
+                Button("Done") { dismiss() }
+            }
+        }
+        .padding(16)
+        .frame(width: 330, height: 380)
+        .controlSize(.small)
     }
 }
 

@@ -703,10 +703,14 @@ struct ContentView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(model.isScraping ? "Scraping…" : "No roles yet",
+            Label(model.list == .results && model.selectedCategoryIDs.isEmpty
+                  ? "Choose categories"
+                  : model.isScraping ? "Scraping…" : "No roles yet",
                   systemImage: model.isScraping ? "arrow.trianglehead.2.clockwise" : "tray")
         } description: {
-            if model.isScraping {
+            if model.list == .results && model.selectedCategoryIDs.isEmpty {
+                Text("Select one or more categories above to show jobs.")
+            } else if model.isScraping {
                 Text(model.scanned == 0
                      ? "Connecting to \(model.total) boards…"
                      : "\(model.scanned) of \(model.total) boards")

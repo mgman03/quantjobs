@@ -21,7 +21,11 @@ enum Scraper {
         func elapsed() -> Double { Date().timeIntervalSince(started) }
         do {
             let raw = try await Adapters.fetch(c, deep: deep)
-            let jobs = raw.map { r in
+            let jobs = raw.filter { r in
+                let title = r.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                return !title.isEmpty
+                    && !title.localizedCaseInsensitiveContains("No intern program at this time")
+            }.map { r in
                 Job(company: c.name, title: r.title, location: r.location,
                     url: r.url, posted: r.posted, department: r.department,
                     description: r.description, ats: c.ats, tags: c.tags,
@@ -174,7 +178,7 @@ struct ScrapeQuery: Sendable {
     func matchesSearch(_ job: Job, searchText: String? = nil) -> Bool {
         guard !search.isEmpty else { return true }
         var hay = searchText ?? Self.searchText(of: job)
-        var needle = search.lowercased()
+        var needle = search.lowercased().precomposedStringWithCanonicalMapping
         // Bytes, not Characters: both sides are lowercased already, and
         // String.contains walking Characters was ten times slower — 85ms a
         // keystroke across 37,000 postings.
@@ -186,7 +190,7 @@ struct ScrapeQuery: Sendable {
     /// Everything the search box looks through, lowercased.
     static func searchText(of job: Job) -> String {
         "\(job.title) \(job.company) \(job.location) \(job.locationDisplay) \(job.department)"
-            .lowercased()
+            .lowercased().precomposedStringWithCanonicalMapping
     }
 
     var cutoffDate: String? {

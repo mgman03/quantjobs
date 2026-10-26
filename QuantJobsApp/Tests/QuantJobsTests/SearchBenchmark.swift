@@ -28,10 +28,18 @@ struct SearchBenchmark {
         }
 
         let model = AppModel(runBoards: { _, _, _ in })
-        await model.reload()
         let clock = ContinuousClock()
+        let loadStart = clock.now
+        await model.reload()
+        print("BENCH loaded \(model.jobs.count) postings in \(loadStart.duration(to: clock.now))")
 
-        for level in [Level.intern, .any] {
+        for (scope, categories, level) in [
+            ("swe/intern", Set(["swe"]), Level.intern),
+            ("swe/any", Set(["swe"]), Level.any),
+            ("all categories/intern", Set(model.navCategories.map(\.name)), Level.intern),
+            ("all categories/any", Set(model.navCategories.map(\.name)), Level.any),
+        ] {
+            model.selectedCategoryIDs = categories
             model.level = level
             model.search = ""
             let first = clock.measure { _ = model.visibleJobs.count }
@@ -45,7 +53,7 @@ struct SearchBenchmark {
                 let b = clock.measure { _ = model.availableContinents; _ = model.availableCities }
                 list += a; places += b; worst = max(worst, a + b)
             }
-            print("BENCH \(level.rawValue), \(model.jobs.count) postings: first list \(first); "
+            print("BENCH \(scope), \(model.jobs.count) postings: first list \(first); "
                   + "per keystroke \((list + places) / query.count) "
                   + "(list \(list / query.count), places \(places / query.count)), worst \(worst)")
         }
@@ -57,5 +65,19 @@ struct SearchBenchmark {
         model.setSaved(true, for: [model.jobs[0]])
         let rebuilt = clock.measure { _ = model.visibleJobs.count }
         print("BENCH re-filter after the results change: \(rebuilt)")
+
+        // Turn on the narrowing controls together to catch any interaction
+        // that unexpectedly forces a fresh full-cache pass.
+        model.search = "research"
+        model.sinceDays = 90
+        model.newOnly = true
+        model.intakeFilter = 2027
+        model.excludePhD = true
+        model.excludedStacks = ["python"]
+        model.continentFilter = ["Europe"]
+        model.appliedFilter = .roles
+        let narrowed = clock.measure { _ = model.visibleJobs.count
+            _ = model.availableContinents; _ = model.availableCities }
+        print("BENCH combined filters: \(narrowed), \(model.visibleJobs.count) rows")
     }
 }

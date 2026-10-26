@@ -108,8 +108,12 @@
     ]
   },
   "quant-research": {
-    "description": "Signal / alpha research, statistics, ML research.",
+    "description": "Research roles across quant, machine learning, science, product, and markets.",
     "include": [
+      "research",
+      "researcher",
+      "scientist",
+      "r&d",
       "quantitative research",
       "quant research",
       "quantitative researcher",
@@ -133,9 +137,7 @@
       "recruiting",
       "marketing",
       "compliance",
-      "legal",
-      "user research",
-      "market research"
+      "legal"
     ]
   },
   "hardware": {

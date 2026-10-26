@@ -79,6 +79,8 @@ struct RegressionTests {
             ("Software Engineer II, Co-op and Marketplaces", ""),
             ("Product Engineer, Co-op and Partnerships", ""),
             ("Software Engineer III, Internship Platform", ""),
+            ("Internship (No intern program at this time)", ""),
+            ("Banking, Investment Banking, Full Time Analyst, London – United Kingdom 2027 - (Applicable for 2026 Citi Summer interns only)", ""),
         ]
         let accepted: [(String, String)] = [
             ("Software Engineering Intern, Summer 2027", ""),
@@ -94,6 +96,7 @@ struct RegressionTests {
             ("Technology Co-op with Drexel University", ""),
             ("Praktikum Softwareentwicklung", ""),
             ("Industrial Placement Engineer", ""),
+            ("Site Reliability Engineering University Co - Op Placement 2027", ""),
             ("Undergraduate Software Intern", ""),
         ]
         let matcher = CategoryMatcher(JobCategory(name: "all", description: "", include: [], exclude: []))
@@ -113,17 +116,66 @@ struct RegressionTests {
                       "Talent Acquisition - Campus (Paris)",
                       "Campus Student Founder / Teacher",
                       "Point72 Academy Coffee Chats — Class of 2029 (US)",
-                      "EU Campus - Aarhus Hackahton IMCity"] {
+                      "EU Campus - Aarhus Hackahton IMCity",
+                      "Campus Construction Manager",
+                      "Campus Operations Manager",
+                      "Associate Banker, 30 Hours, Winston Salem, NC - University Pkwy Branch",
+                      "Private Client Banker - University Place - New York, NY",
+                      "Personal Banker SAFE Act - University of Chicago Branch",
+                      "Quant Talk - University of Oxford (13th of November)"] {
             #expect(!Levels.matches(.newgrad, title: title, department: ""))
+            #expect(!Levels.matches(.internOrNewgrad, title: title, department: ""))
         }
         #expect(!Levels.matches(.intern,
                                 title: "Expression of Interests | Career Fair Events Internship",
                                 department: ""))
         for title in ["Campus Full Time 2027 - Software Developer",
                       "Campus AI Research Engineer (Full-Time)",
-                      "Software Engineer, Early Career"] {
+                      "Software Engineer, Early Career",
+                      "Member of Technical Staff (New Grad)"] {
             #expect(Levels.matches(.newgrad, title: title, department: ""))
         }
+        #expect(!Levels.matches(.newgrad,
+                                title: "Senior Member of Technical Staff (New Grad)",
+                                department: ""))
+        #expect(Levels.classification(title: "Member of Technical Staff (New Grad)",
+                                      department: "").matches.contains(Level.internOrNewgrad.rawValue))
+    }
+
+    @MainActor
+    @Test
+    func testResearchMatchesBroadTitlesAndReclassifiesCachedJobs() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let previous = ConfigStore.directoryOverride
+        let previousSettings = AppSettings.store
+        ConfigStore.directoryOverride = directory
+        AppSettings.useScratchStore("research-regression")
+        defer {
+            ConfigStore.directoryOverride = previous
+            AppSettings.store = previousSettings
+            try? FileManager.default.removeItem(at: directory)
+        }
+        try seedConfig(in: directory)
+        let category = try #require(ConfigStore.loadCategories().first { $0.name == "quant-research" })
+        #expect(category.displayName == "Research")
+        let matcher = CategoryMatcher(category)
+        for title in ["Machine Learning Researcher Intern", "Research Intern, Robotics",
+                      "Fundamental Researcher", "User Research Intern",
+                      "Market Research Analyst", "Applied Scientist Intern",
+                      "Marketing Insights Researcher", "Applied Legal Researcher",
+                      "Research Science Internship - Science Recruiting"] {
+            #expect(matcher.acceptsCategory(RawJob(title: title), deep: false), "\(title)")
+        }
+        #expect(!matcher.acceptsCategory(RawJob(title: "Software Engineer Intern"), deep: false))
+        #expect(!matcher.acceptsCategory(RawJob(title: "Recruiter - AI Research"), deep: false))
+        #expect(!matcher.acceptsCategory(RawJob(title: "Recruiting Researcher"), deep: false))
+        var cached = job("Research Intern, Robotics")
+        cached.matchedCategories = ["all"] // written before Research included broad titles
+        ConfigStore.saveCache(.init(savedAt: Date(), category: "swe", level: "intern", jobs: [cached]))
+        let model = AppModel()
+        await model.reload()
+        #expect(model.jobs.first?.matchedCategories.contains("quant-research") == true)
     }
 
     @Test
@@ -229,6 +281,22 @@ struct RegressionTests {
                 == "Graduate Software Developer")
         #expect(parts("NVIDIA 2027 New College Graduate: Software Engineering - China", location: "London").0
                 == "Software Engineering")
+        #expect(parts("Data Engineer Internship - 2027 (US)", location: "London").0
+                == "Data Engineer Internship")
+        #expect(parts("Software Engineer Intern - (Summer 2027)", location: "London").0
+                == "Software Engineer Intern")
+        #expect(parts("(Physical) Security Specialist Intern - 2027 Internship, DC Security", location: "London").0
+                == "(Physical) Security Specialist Intern")
+        #expect(parts("【Class of 2029／Internship】Applied Scientists , Amazon Japan", location: "London").0
+                == "Applied Scientists Internship")
+        #expect(parts("2027 University Graduate - Software Engineer", location: "London").0
+                == "Software Engineer")
+        #expect(parts("Graduate Talent (Software Application Development Engineer)", location: "London").0
+                == "Software Application Development Engineer")
+        #expect(parts("Intern (Engineering & IT)", location: "London").0
+                == "Engineering & IT Intern")
+        #expect(parts("University Grad | Customer Experience Associate", location: "London").0
+                == "Customer Experience Associate")
     }
 
     @MainActor
@@ -376,16 +444,29 @@ struct RegressionTests {
         #expect(reloaded.selectedCategoryIDs == ["swe", "data"])
         #expect(reloaded.visibleJobs.count == 2)
         #expect(!model.navCategories.contains { $0.name == "all" })
+        #expect(model.navCategories.contains { $0.displayName == "Others" })
         model.toggleCategory("swe")
         #expect(model.selectedCategoryIDs == ["data"])
         model.toggleCategory("data")
         #expect(model.selectedCategoryIDs.isEmpty)
-        #expect(model.visibleJobs.count == 3)
+        #expect(model.visibleJobs.isEmpty)
         model.currentSettings.save()
-        let allCategories = AppModel()
-        await allCategories.reload()
-        #expect(allCategories.selectedCategoryIDs.isEmpty)
-        #expect(allCategories.visibleJobs.count == 3)
+        let noCategories = AppModel()
+        await noCategories.reload()
+        #expect(noCategories.selectedCategoryIDs.isEmpty)
+        #expect(noCategories.visibleJobs.isEmpty)
+        noCategories.toggleCategory("others")
+        #expect(noCategories.visibleJobs.map(\.title) == ["Operations Intern"])
+        // A saved setting from the older UI used an empty selection to mean
+        // every category. Convert it once to an explicit broad selection.
+        var legacy = noCategories.currentSettings
+        legacy.categoryID = "all"
+        legacy.categoryIDs = []
+        legacy.save()
+        let migrated = AppModel()
+        await migrated.reload()
+        #expect(migrated.selectedCategoryIDs == Set(migrated.navCategories.map(\.name)))
+        #expect(migrated.visibleJobs.count == 3)
     }
 
     @MainActor
@@ -432,7 +513,8 @@ struct RegressionTests {
         zurich.company = "Jane Street"
         zurich.location = "Zürich"
         for (search, hit) in [("", true), ("QUANT", true), ("jane street", true), ("zürich", true),
-                              ("ZÜRICH", true), ("researcher jane", true), ("trader", false)] {
+                              ("ZÜRICH", true), ("Zu\u{308}rich", true),
+                              ("researcher jane", true), ("trader", false)] {
             q.search = search
             #expect(q.matchesSearch(zurich) == hit, "\(search)")
             #expect(q.matchesSearch(zurich, searchText: ScrapeQuery.searchText(of: zurich)) == hit,

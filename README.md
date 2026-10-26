@@ -171,8 +171,10 @@ you scroll, and six seconds to undo a mis-tap.
 
 ## Browsing on the Mac
 
-The Categories menu above the results lets you combine Software Engineering and
-Data / ML to see either discipline. Clear its selections to see all categories.
+The Categories picker above the results stays open while you combine Software
+Engineering, Research, Data / ML, or other disciplines. Others contains jobs
+outside the named categories. An empty selection shows no jobs; use Select all
+to show every category, including Others.
 The selection survives a restart. Advanced Settings opens a panel with dates,
 intake, exclusions and display choices. The five equally sized controls stay on
 one row, switching to icons when space is very tight.

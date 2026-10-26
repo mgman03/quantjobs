@@ -22,6 +22,7 @@ enum HeadlessCheck {
         if args.contains("--ledger") { runLedgerCheck() }
         if args.contains("--audit-titles") { runTitleAudit() }
         if args.contains("--dump-titles") { runTitleDump() }
+        if args.contains("--profile-titles") { runTitleProfile() }
         if let i = args.firstIndex(of: "--inspect-titles"), i + 1 < args.count {
             runTitleInspection(query: args[i + 1])
         }
@@ -189,6 +190,34 @@ enum HeadlessCheck {
 
         let jobs = await collector.jobs.deduplicated().sortedByRecency()
         let failures = await collector.failures
+
+        if CommandLine.arguments.contains("--save-audit-cache") {
+            guard ProcessInfo.processInfo.environment["QUANTJOBS_CONFIG"] != nil else {
+                FileHandle.standardError.write(Data(
+                    "--save-audit-cache requires QUANTJOBS_CONFIG pointing at a scratch folder\n".utf8))
+                return 1
+            }
+            let matchers = categories.filter { $0.parent == nil }.map { CategoryMatcher($0) }
+            let tagged = jobs.map { original in
+                var job = original
+                let raw = RawJob(title: job.title, location: job.location, url: job.url,
+                                 posted: job.posted, department: job.department,
+                                 description: job.description)
+                job.matchedCategories = Set(matchers.filter {
+                    $0.acceptsCategory(raw, deep: deep)
+                }.map(\.name))
+                job.matchedStacks = Set(stackMatchers.filter {
+                    $0.acceptsCategory(raw, deep: deep)
+                }.map(\.name))
+                let classification = Levels.classification(
+                    title: job.title, department: job.department)
+                job.level = classification.level
+                job.matchedLevels = classification.matches
+                return job
+            }
+            ConfigStore.saveCache(.init(savedAt: Date(), category: "all", level: "any",
+                                         jobs: tagged))
+        }
 
         if CommandLine.arguments.contains("--json") {
             for job in jobs {
@@ -676,6 +705,26 @@ enum HeadlessCheck {
                               .replacingOccurrences(of: "\n", with: " ") }
                   .joined(separator: "\t"))
         }
+        exit(0)
+    }
+
+    /// Read-only parser timing on a cached dataset. This keeps the generated
+    /// benchmark input in a scratch config instead of the source tree.
+    private static func runTitleProfile() -> Never {
+        LocationParser.gazetteer = ConfigStore.loadGazetteer()
+        guard let cache = ConfigStore.loadCache() else { exit(1) }
+        var bytes = 0
+        let start = Date()
+        for job in cache.jobs {
+            let parts = job.titleParts
+            bytes += parts.role.utf8.count + (parts.detail?.utf8.count ?? 0)
+        }
+        let titles = Date().timeIntervalSince(start)
+        let keysStart = Date()
+        for job in cache.jobs { bytes += job.roleKey.utf8.count }
+        let keys = Date().timeIntervalSince(keysStart)
+        print("\(cache.jobs.count) jobs; title parts \(String(format: "%.3f", titles))s; "
+              + "role keys \(String(format: "%.3f", keys))s; checksum \(bytes)")
         exit(0)
     }
 

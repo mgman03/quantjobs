@@ -72,14 +72,20 @@ enum Levels {
         pattern: #"\b(?:recruit(?:er|ing|ment)|talent acquisition|talent partner)\b"#,
         options: [.caseInsensitive])
     private static let campusEvent = try! NSRegularExpression(
-        pattern: #"\b(?:coffee chats?|hack\w*ton|talent community|student founder|interest form|career fair events?)\b"#,
+        pattern: #"\b(?:coffee chats?|hack\w*ton|talent community|student founder|interest form|career fair events?|quant talk|symposium)\b"#,
+        options: [.caseInsensitive])
+    private static let placeNamedCampus = try! NSRegularExpression(
+        pattern: #"\b(?:university\s+(?:pkwy|parkway|place|and\s+mill|branch)|columbia university\s*[-–—]|university of chicago branch|campus (?:construction|operations)\b)(?=$|\W)"#,
+        options: [.caseInsensitive])
+    private static let nonInternPosting = try! NSRegularExpression(
+        pattern: #"\b(?:no intern(?:ship)? program at this time|full[ -]?time analyst\b.*\binterns? only)\b"#,
         options: [.caseInsensitive])
 
     // Student eligibility, insight events and summer enrichment programmes
     // are not evidence that the posting itself is an internship.
     static let intern = PhraseMatcher([
         "intern", "internship", "summer analyst", "summer associate",
-        "co-op", "coop", "industrial placement", "work placement",
+        "co-op", "co op", "coop", "industrial placement", "work placement",
         "placement student", "praktikant", "praktikum", "vacation scheme",
     ])!
 
@@ -114,13 +120,20 @@ enum Levels {
     /// Same rule `classify` uses: the level words must appear in the title or
     /// department, and a seniority word in the title vetoes it.
     static func matches(_ level: Level, title: String, department: String) -> Bool {
+        if level == .internOrNewgrad {
+            return matches(.intern, title: title, department: department)
+                || matches(.newgrad, title: title, department: department)
+        }
         let wanted = level.matchKeys
         guard !wanted.isEmpty else { return true }
         let titleRange = NSRange(title.startIndex..., in: title)
         if experiencedGrade.firstMatch(in: title, range: titleRange) != nil { return false }
+        if wanted == ["intern"] &&
+            nonInternPosting.firstMatch(in: title, range: titleRange) != nil { return false }
         if campusEvent.firstMatch(in: title, range: titleRange) != nil { return false }
         if wanted == ["newgrad"] &&
-            recruitingRole.firstMatch(in: title, range: titleRange) != nil { return false }
+            (recruitingRole.firstMatch(in: title, range: titleRange) != nil ||
+             placeNamedCampus.firstMatch(in: title, range: titleRange) != nil) { return false }
         let label = "\(title.lowercased()) \(department.lowercased())"
         let labelRange = NSRange(label.startIndex..., in: label)
         let studentLabel = coOpTeam.stringByReplacingMatches(
@@ -132,7 +145,13 @@ enum Levels {
         // marker before the level word describes the candidate's role.
         let firstLevel = wanted.compactMap { matcher(for: $0)?.positions(in: title).first }.min()
         let seniorScope = firstLevel.map { (title as NSString).substring(to: $0) } ?? title
-        return !senior.matches(seniorScope.lowercased())
+        // "Member of Technical Staff" is an occupation, not a Staff grade.
+        // The leading "Senior" in "Senior Member of Technical Staff" still
+        // vetoes a campus label as intended.
+        let gradeScope = seniorScope.replacingOccurrences(
+            of: #"\bmember of (?:the )?technical staff\b"#, with: "member of technical team",
+            options: [.regularExpression, .caseInsensitive])
+        return !senior.matches(gradeScope.lowercased())
     }
 
     /// Best-guess label for a posting, shown in the Level column.
@@ -141,12 +160,30 @@ enum Levels {
         if matches(.newgrad, title: title, department: department) { return "newgrad" }
         return ""
     }
+
+    static func classification(title: String, department: String)
+        -> (level: String, matches: Set<String>) {
+        let internship = matches(.intern, title: title, department: department)
+        let graduate = matches(.newgrad, title: title, department: department)
+        var labels: Set<String> = [Level.any.rawValue]
+        if internship { labels.insert(Level.intern.rawValue) }
+        if graduate { labels.insert(Level.newgrad.rawValue) }
+        if internship || graduate { labels.insert(Level.internOrNewgrad.rawValue) }
+        return (internship ? "intern" : graduate ? "newgrad" : "", labels)
+    }
 }
 
 // MARK: - Category matching
 
 /// A category's include/exclude lists, compiled once per scrape.
 struct CategoryMatcher: Sendable {
+    private static let researchOccupation = PhraseMatcher([
+        "researcher", "research scientist", "research analyst", "research science",
+        "research engineer", "research internship", "research intern",
+    ])!
+    private static let recruitingRole = PhraseMatcher([
+        "recruiter", "recruiting researcher", "talent acquisition",
+    ])!
     let name: String
     let include: PhraseMatcher?
     let exclude: PhraseMatcher?
@@ -197,7 +234,14 @@ struct CategoryMatcher: Sendable {
 
         // Exclusions are judged on the title only: a C++ role whose description
         // happens to mention "sales" shouldn't be thrown away.
-        if let exclude, exclude.matches(title) { return false }
+        if let exclude, exclude.matches(title) {
+            // "Marketing Insights Researcher" and "Research Science Internship
+            // — Science Recruiting" are research jobs; the excluded word
+            // names their domain. "Recruiter - Research" is still a recruiter.
+            guard name == "quant-research",
+                  Self.researchOccupation.matches(title),
+                  !Self.recruitingRole.matches(title) else { return false }
+        }
         if let parentExclude, parentExclude.matches(title) { return false }
 
         return Levels.matches(level, title: job.title, department: job.department)

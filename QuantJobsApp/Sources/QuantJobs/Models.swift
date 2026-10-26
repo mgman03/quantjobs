@@ -282,6 +282,7 @@ struct JobCategory: Codable, Identifiable, Hashable, Sendable {
         case "swe": "chevron.left.forwardslash.chevron.right"
         case "quant-trading": "chart.line.uptrend.xyaxis"
         case "quant-research": "function"
+        case "others": "tray.full"
         case "hardware": "memorychip"
         case "data": "cylinder.split.1x2"
         case "cpp": "chevron.left.forwardslash.chevron.right"
@@ -296,7 +297,8 @@ struct JobCategory: Codable, Identifiable, Hashable, Sendable {
         switch name {
         case "swe": "Software Engineering"
         case "quant-trading": "Quant Trading"
-        case "quant-research": "Quant Research"
+        case "quant-research": "Research"
+        case "others": "Others"
         case "hardware": "Hardware / FPGA"
         case "data": "Data / ML"
         case "cpp": "C++ / Low Latency"
@@ -422,13 +424,22 @@ struct Job: Identifiable, Hashable, Sendable, Codable {
         source = TitleTidy.withoutRedundantTail(source, in: self)
         source = TitleTidy.withoutRepeatedIntakePhrase(source, in: self)
         source = TitleTidy.withoutTrailingIntakeYear(source, in: self)
+        source = source.trimmingCharacters(in: CharacterSet(charactersIn: " -–—,:/"))
         var parts = TitleTidy.roleFirst(TitleTidy.parts(source))
         if parts.detail == nil, source.hasSuffix(")"),
            let open = source.range(of: " (", options: .backwards) {
             let qualifier = String(source[open.upperBound..<source.index(before: source.endIndex)])
             if TitleTidy.usefulDetail(qualifier, in: self) != nil {
-                parts = (String(source[..<open.lowerBound]), qualifier)
+                parts = (String(source[..<open.lowerBound])
+                    .trimmingCharacters(in: CharacterSet(charactersIn: " -–—,:/")), qualifier)
             }
+        }
+        if ["engineering & it", "engineering and it"].contains(parts.detail?.lowercased())
+            && ["intern", "internship"].contains(parts.role.lowercased()) {
+            parts = ("\(parts.detail!) \(parts.role)", nil)
+        }
+        if ["graduate talent", "ice graduate talent"].contains(parts.role.lowercased()) {
+            parts = TitleTidy.roleFirst(parts)
         }
         if let marker = TitleTidy.leadingGenericInternMarker(title),
            !Levels.intern.matches(parts.role) {
@@ -1267,7 +1278,7 @@ enum TitleTidy {
         -> (role: String, detail: String?) {
         let role = parts.role.trimmingCharacters(in: .whitespacesAndNewlines)
         if let detail = parts.detail,
-           role.range(of: #"^(?:campus full[ -]?time|recent graduate|expressions? of interest(?: graduate)?|new university graduate|new college (?:grad|graduate)|nvidia internships?|nvidia new college graduate)$"#,
+           role.range(of: #"^(?:campus full[ -]?time|recent graduate|expressions? of interest(?: graduate)?|new university graduate|(?:mba )?university grad(?:uate)?|(?:ice )?graduate talent|new college (?:grad|graduate)|nvidia internships?|nvidia new college graduate)$"#,
                          options: [.regularExpression, .caseInsensitive]) != nil {
             let nested = self.parts(detail)
             if role.lowercased() == "nvidia internships" {
@@ -1433,7 +1444,7 @@ enum TitleTidy {
 
     /// Put the role first while preserving team and programme qualifiers separately.
     static func parts(_ title: String) -> (role: String, detail: String?) {
-        let separators = [", ", " - ", " – ", " — ", ": "]
+        let separators = [", ", " - ", " – ", " — ", ": ", " | "]
         var depth = 0
         var cut: Range<String.Index>?
         var cursor = title.startIndex
@@ -1470,7 +1481,9 @@ enum TitleTidy {
             of: #"^(?:internship|intern|co-op|new grad|graduate)\b"#,
             options: [.regularExpression, .caseInsensitive]) {
             let marker = String(detail[status])
-            let merged = role.lowercased().hasSuffix(marker.lowercased())
+            let alreadyHasIntern = ["intern", "internship"].contains(marker.lowercased())
+                && hasInternshipMarker(role)
+            let merged = role.lowercased().hasSuffix(marker.lowercased()) || alreadyHasIntern
                 ? role : "\(role) \(marker)"
             let rest = detail[status.upperBound...]
                 .trimmingCharacters(in: CharacterSet(charactersIn: " -–—,:"))
@@ -1498,6 +1511,8 @@ enum TitleTidy {
     }
 
     private static let patterns: [String] = [
+        // Amazon Japan prefixes the degree cohort in full-width brackets.
+        #"^【(?:MBA\s+)?Class of\s+20\d{2}(?:\s*[&／/]\s*20\d{2})?\s*[／/]\s*Internship】\s*"#,
         // Leading: "2026 - ", "2027 Internship – ", "Summer 2027: "
         #"^\s*(19|20)\d{2}\s*[-–—:,]\s*"#,
         #"^\s*(summer|fall|autumn|winter|spring)\s+(19|20)\d{2}\s*[-–—:,]\s*"#,
@@ -1516,14 +1531,29 @@ enum TitleTidy {
 
     static func shorten(_ title: String) -> String {
         var out = title
+        // These patterns can only touch a year/season/programme prefix or a
+        // year at the end. Most experienced titles have neither; avoid 26
+        // regex scans for every one of those rows.
+        let head = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let prefix = String(head.prefix(24)).lowercased()
+        let mayHavePrefix = head.first?.isNumber == true || head.first == "【"
+            || ["summer", "fall", "autumn", "winter", "spring", "intern", "graduate"]
+                .contains(where: prefix.hasPrefix)
+        let mayHaveYearSuffix = head.last?.isNumber == true || head.last == ")"
+        if !mayHavePrefix && !mayHaveYearSuffix {
+            let trimmed = title.trimmingCharacters(in: CharacterSet(charactersIn: " -–—,:"))
+            return trimmed.count >= 4 ? trimmed : title
+        }
         // Two passes: "2026 - Internship, X" needs the year gone before the
         // "Internship," rule can see the start of the string.
         for _ in 0..<2 {
+            let before = out
             for rx in regexes {
                 out = rx.stringByReplacingMatches(
                     in: out, range: NSRange(out.startIndex..., in: out),
                     withTemplate: "")
             }
+            if out == before { break }
         }
         out = out.trimmingCharacters(in: CharacterSet(charactersIn: " -–—:,"))
         // If tidying ate the whole thing, the original was the useful part.

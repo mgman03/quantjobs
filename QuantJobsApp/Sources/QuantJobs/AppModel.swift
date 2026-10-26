@@ -19,11 +19,14 @@ final class AppModel {
     var companies: [Company] = []
     var categories: [JobCategory] = []
     var selectedCategoryIDs: Set<String> = ["swe"]
-    // No selected category means every category. The old "all" value is kept
-    // at the settings/sync boundary for compatibility.
+    // An empty selection intentionally shows no result rows. Keep the old
+    // "all" setting readable so existing users retain a broad selection.
     var selectedCategoryID: String {
-        get { selectedCategoryIDs.sorted().first ?? "all" }
-        set { selectedCategoryIDs = newValue == "all" ? [] : [newValue] }
+        get { selectedCategoryIDs.sorted().first ?? "none" }
+        set {
+            selectedCategoryIDs = newValue == "all" ? Set(navCategories.map(\.name))
+                : newValue == "none" ? [] : [newValue]
+        }
     }
 
     func toggleCategory(_ name: String) {
@@ -37,7 +40,7 @@ final class AppModel {
     }
 
     var selectedCategory: JobCategory? {
-        categories.first { $0.name == selectedCategoryID } ?? categories.first
+        navCategories.first { $0.name == selectedCategoryID }
     }
 
     // MARK: query
@@ -315,8 +318,7 @@ final class AppModel {
         }
 
         /// The ones the sidebar offers. `.results` isn't a list you pick — it's
-        /// the mode you're in when a category is selected, and the Everything
-        /// category already means "all roles".
+        /// the mode you're in when a category is selected.
         static var pickable: [JobList] { allCases.filter { $0.status != nil } }
     }
 
@@ -446,6 +448,10 @@ final class AppModel {
     /// of a role posted in four should leave the other three, which dropping
     /// whole merged rows wouldn't.
     private func resultRows(showHidden: Bool, applied: AppliedFilter) -> [Job] {
+        guard !selectedCategoryIDs.isEmpty else {
+            heldHidden = 0; heldApplied = 0
+            return []
+        }
         let q = query
         let cutoff = q.cutoffDate
         // Built once, not per posting.
@@ -454,8 +460,7 @@ final class AppModel {
         var hiddenHeld = 0, appliedHeld = 0
         let keptIndices = jobs.indices.filter { i in
             let job = jobs[i]
-            guard selectedCategoryIDs.isEmpty
-                    || !job.matchedCategories.isDisjoint(with: selectedCategoryIDs) else { return false }
+            guard matchesSelectedCategory(job) else { return false }
             guard level == .any || job.matchedLevels.contains(level.rawValue) else {
                 return false
             }
@@ -537,14 +542,23 @@ final class AppModel {
     var stackCategories: [JobCategory] { categories.filter { $0.parent != nil } }
     var navCategories: [JobCategory] {
         categories.filter { $0.parent == nil && $0.name != "all" }
+            + [JobCategory(name: "others",
+                           description: "Jobs outside the named categories.",
+                           include: [], exclude: [])]
+    }
+
+    private func matchesSelectedCategory(_ job: Job) -> Bool {
+        if selectedCategoryIDs.contains("others"),
+           job.matchedCategories.subtracting(["all"]).isEmpty { return true }
+        return !job.matchedCategories.isDisjoint(with: selectedCategoryIDs)
     }
 
     /// Intake years present in the current results, newest first, so the menu only
     /// ever offers a year you could actually pick.
     var availableIntakes: [(year: Int, count: Int)] {
+        guard !selectedCategoryIDs.isEmpty else { return [] }
         var tally: [Int: Int] = [:]
-        for job in jobs where selectedCategoryIDs.isEmpty
-                || !job.matchedCategories.isDisjoint(with: selectedCategoryIDs) {
+        for job in jobs where matchesSelectedCategory(job) {
             if let y = job.intakeYear { tally[y, default: 0] += 1 }
         }
         return tally.map { (year: $0.key, count: $0.value) }.sorted { $0.year > $1.year }
@@ -835,9 +849,10 @@ final class AppModel {
     private func apply(_ s: AppSettings) {
         let valid = Set(navCategories.map(\.name))
         let selected = Set(s.categoryIDs ?? [s.categoryID]).intersection(valid)
-        let explicitlyAll = s.categoryID == "all" || s.categoryIDs?.isEmpty == true
-            || s.categoryIDs?.contains("all") == true
-        selectedCategoryIDs = selected.isEmpty && !explicitlyAll ? ["swe"] : selected
+        let legacyAll = s.categoryID == "all" || s.categoryIDs?.contains("all") == true
+        selectedCategoryIDs = legacyAll ? valid
+            : s.categoryID == "none" || s.categoryIDs?.isEmpty == true ? []
+            : selected.isEmpty ? ["swe"] : selected
         level = Level(rawValue: s.level) ?? .intern
         list = JobList(rawValue: s.list) ?? .results
         tagFilter = s.tagFilter
@@ -968,15 +983,31 @@ final class AppModel {
         // Cached postings carry every category and level; apply the current
         // selection locally while the launch refresh fetches fresh data.
         if let cache = loaded.cache, !cache.jobs.isEmpty {
+            // Category rules can change between releases. The stable internal
+            // id keeps saved filters working, but cached category tags need to
+            // reflect the broader Research definition before a scrape finishes.
+            let research = categories.first { $0.name == "quant-research" }
+                .map { CategoryMatcher($0) }
             // firstSeen isn't persisted (see Job.firstSeen), so restore it here or
             // every undated cached row would show "–" until the next scrape.
             jobs = cache.jobs.map { job in
                 var copy = job
+                if let research {
+                    let raw = RawJob(title: job.title, location: job.location,
+                                     url: job.url, posted: job.posted,
+                                     department: job.department,
+                                     description: job.description)
+                    if research.acceptsCategory(raw, deep: deep) {
+                        copy.matchedCategories.insert("quant-research")
+                    } else {
+                        copy.matchedCategories.remove("quant-research")
+                    }
+                }
                 // Old caches carry classifications from older parser rules.
-                copy.level = Levels.detect(title: job.title, department: job.department)
-                copy.matchedLevels = Set(Level.allCases.filter {
-                    Levels.matches($0, title: job.title, department: job.department)
-                }.map(\.rawValue))
+                let classification = Levels.classification(
+                    title: job.title, department: job.department)
+                copy.level = classification.level
+                copy.matchedLevels = classification.matches
                 if job.posted.isEmpty {
                     copy.firstSeen = Sighting.firstSeen(of: job, in: seen) ?? ""
                 }
@@ -1404,10 +1435,10 @@ final class AppModel {
                     job.matchedStacks = Set(stackMatchers
                         .filter { $0.acceptsCategory(raw, deep: q.deep) }
                         .map(\.name))
-                    job.matchedLevels = Set(Level.allCases
-                        .filter { Levels.matches($0, title: job.title,
-                                                 department: job.department) }
-                        .map(\.rawValue))
+                    let classification = Levels.classification(
+                        title: job.title, department: job.department)
+                    job.level = classification.level
+                    job.matchedLevels = classification.matches
                     // The legacy key too, so the run after the key changed
                     // doesn't announce every posting as new.
                     job.isNew = known[job.key] == nil && known[job.legacyKey] == nil
