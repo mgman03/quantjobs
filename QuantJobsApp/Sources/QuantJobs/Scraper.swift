@@ -150,7 +150,11 @@ struct ScrapeQuery: Sendable {
     /// The firm filters live here as well as in the board selection, so
     /// switching group narrows what's already on screen instead of making the
     /// user re-scrape to see the effect.
-    func matchesLiveFilters(_ job: Job, cutoff: String?) -> Bool {
+    ///
+    /// `searchText` is the posting's `Self.searchText(of:)` when the caller has
+    /// it to hand; working it out per posting per keystroke was most of the cost
+    /// of typing into the search box.
+    func matchesLiveFilters(_ job: Job, cutoff: String?, searchText: String? = nil) -> Bool {
         if let group, !job.tags.contains(group) { return false }
         if let tag, !job.tags.contains(tag) { return false }
         // A city is a narrower statement than its continent, so picking one
@@ -164,14 +168,25 @@ struct ScrapeQuery: Sendable {
         }
         if newOnly && !job.isNew { return false }
         if let cutoff, job.posted.isEmpty || job.posted < cutoff { return false }
-        return matchesSearch(job)
+        return matchesSearch(job, searchText: searchText)
     }
 
-    func matchesSearch(_ job: Job) -> Bool {
+    func matchesSearch(_ job: Job, searchText: String? = nil) -> Bool {
         guard !search.isEmpty else { return true }
-        let hay = "\(job.title) \(job.company) \(job.location) "
-            + "\(job.locationDisplay) \(job.department)"
-        return hay.lowercased().contains(search.lowercased())
+        var hay = searchText ?? Self.searchText(of: job)
+        var needle = search.lowercased()
+        // Bytes, not Characters: both sides are lowercased already, and
+        // String.contains walking Characters was ten times slower — 85ms a
+        // keystroke across 37,000 postings.
+        return hay.withUTF8 { h in
+            needle.withUTF8 { n in memmem(h.baseAddress, h.count, n.baseAddress, n.count) != nil }
+        }
+    }
+
+    /// Everything the search box looks through, lowercased.
+    static func searchText(of job: Job) -> String {
+        "\(job.title) \(job.company) \(job.location) \(job.locationDisplay) \(job.department)"
+            .lowercased()
     }
 
     var cutoffDate: String? {
@@ -210,12 +225,16 @@ extension Array where Element == Job {
     /// Firms list one job per office, so "Campus Software Engineer" shows up
     /// five times differing only by city. The extra postings survive as
     /// `variants` — each keeps its own link, and the detail panel lists them.
-    func mergedByRole() -> [Job] {
+    ///
+    /// `roleKeys`, when given, is each posting's `roleKey` in the same order —
+    /// working it out parses the title for places, which across a whole scrape
+    /// took most of a second.
+    func mergedByRole(roleKeys: [String]? = nil) -> [Job] {
         var order: [String] = []
         var groups: [String: [Job]] = [:]
 
-        for job in self {
-            let key = job.roleKey
+        for (i, job) in enumerated() {
+            let key = roleKeys?[i] ?? job.roleKey
             if groups[key] == nil { order.append(key) }
             groups[key, default: []].append(job)
         }

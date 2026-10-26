@@ -425,6 +425,41 @@ struct RegressionTests {
         #expect(ConfigStore.loadCache() == nil)
     }
 
+    @Test
+    func testSearchMatchesAcrossFieldsIgnoringCase() {
+        var q = ScrapeQuery(category: JobCategory(name: "all", description: "", include: [], exclude: []))
+        var zurich = job("Quant Researcher")
+        zurich.company = "Jane Street"
+        zurich.location = "Zürich"
+        for (search, hit) in [("", true), ("QUANT", true), ("jane street", true), ("zürich", true),
+                              ("ZÜRICH", true), ("researcher jane", true), ("trader", false)] {
+            q.search = search
+            #expect(q.matchesSearch(zurich) == hit, "\(search)")
+            #expect(q.matchesSearch(zurich, searchText: ScrapeQuery.searchText(of: zurich)) == hit,
+                    "\(search), precomputed")
+        }
+    }
+
+    @MainActor
+    @Test
+    func testSearchFollowsResultsAsTheyChange() {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let previous = ConfigStore.directoryOverride
+        ConfigStore.directoryOverride = directory
+        defer { ConfigStore.directoryOverride = previous; try? FileManager.default.removeItem(at: directory) }
+        let model = AppModel()
+        model.list = .favorite
+        model.search = "intern"
+        #expect(model.visibleJobs.isEmpty)
+        // The saved list is built from snapshots, so a search there has to see
+        // a role saved after the search was typed.
+        model.setSaved(true, for: [job("Software Intern")])
+        #expect(model.visibleJobs.map(\.title) == ["Software Intern"])
+        model.search = "trader"
+        #expect(model.visibleJobs.isEmpty)
+    }
+
     private func seedConfig(in directory: URL) throws {
         let resources = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

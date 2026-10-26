@@ -105,38 +105,102 @@ final class AppModel {
     /// Continents present in the current results, with a count each.
     /// Derived from the scrape rather than hard-coded, so the list only ever
     /// offers somewhere you could actually apply.
-    var availableContinents: [(name: String, count: Int)] {
-        var tally: [String: Int] = [:]
-        for job in jobs where passesNonPlaceFilters(job) {
-            for continent in job.continents { tally[continent, default: 0] += 1 }
-        }
-        return tally.map { (name: $0.key, count: $0.value) }
-            .sorted { $0.count == $1.count ? $0.name < $1.name : $0.count > $1.count }
-    }
+    var availableContinents: [(name: String, count: Int)] { placeTallies.continents }
 
     /// Cities inside the chosen continents (or everywhere, if none chosen).
-    var availableCities: [(name: String, country: String, count: Int)] {
-        var tally: [String: (country: String, count: Int)] = [:]
-        for job in jobs where passesNonPlaceFilters(job) {
-            for place in job.places where !place.city.isEmpty {
-                guard continentFilter.isEmpty
-                        || continentFilter.contains(place.continent) else { continue }
-                let existing = tally[place.city]
-                tally[place.city] = (existing?.country ?? place.country,
-                                     (existing?.count ?? 0) + 1)
-            }
-        }
-        return tally.map { (name: $0.key, country: $0.value.country, count: $0.value.count) }
-            .sorted { $0.count == $1.count ? $0.name < $1.name : $0.count > $1.count }
+    var availableCities: [(name: String, country: String, count: Int)] { placeTallies.cities }
+
+    private struct PlaceTallies {
+        var continents: [(name: String, count: Int)] = []
+        var cities: [(name: String, country: String, count: Int)] = []
     }
 
-    /// Everything except the place filters, so the pickers can show what
-    /// choosing each option would actually get you.
-    private func passesNonPlaceFilters(_ job: Job) -> Bool {
+    // Each picker used to walk every posting on every redraw, rebuilding the
+    // query once per posting — two more full passes per keystroke on top of the
+    // list's own.
+    @ObservationIgnored private var placeTalliesKey = ""
+    @ObservationIgnored private var placeTalliesCache = PlaceTallies()
+
+    private var placeTallies: PlaceTallies {
+        // Everything passesNonPlaceFilters and the city scoping read.
+        let key = "\(resultsVersion)|\(search)|\(tagFilter ?? "-")|\(newOnly)|"
+            + "\(query.cutoffDate ?? "-")|\(continentFilter.sorted().joined(separator: ","))"
+        if key == placeTalliesKey { return placeTalliesCache }
+
+        // Everything except the place filters, so the pickers can show what
+        // choosing each option would actually get you.
         var q = query
         q.continents = []
         q.cities = []
-        return q.matchesLiveFilters(job, cutoff: q.cutoffDate)
+        let cutoff = q.cutoffDate
+        let texts = q.search.isEmpty ? nil : jobSearchTexts
+        var continents: [String: Int] = [:]
+        var cities: [String: (country: String, count: Int)] = [:]
+        for (i, job) in jobs.enumerated()
+        where q.matchesLiveFilters(job, cutoff: cutoff, searchText: texts?[i]) {
+            for continent in job.continents { continents[continent, default: 0] += 1 }
+            for place in job.places where !place.city.isEmpty {
+                guard continentFilter.isEmpty
+                        || continentFilter.contains(place.continent) else { continue }
+                let existing = cities[place.city]
+                cities[place.city] = (existing?.country ?? place.country,
+                                      (existing?.count ?? 0) + 1)
+            }
+        }
+        let tallies = PlaceTallies(
+            continents: continents.map { (name: $0.key, count: $0.value) }
+                .sorted { $0.count == $1.count ? $0.name < $1.name : $0.count > $1.count },
+            cities: cities.map { (name: $0.key, country: $0.value.country, count: $0.value.count) }
+                .sorted { $0.count == $1.count ? $0.name < $1.name : $0.count > $1.count })
+        placeTalliesKey = key
+        placeTalliesCache = tallies
+        return tallies
+    }
+
+    /// `ScrapeQuery.searchText` for each of `jobs`, in the same order, so a
+    /// keystroke is one substring check per posting rather than building and
+    /// lowercasing every posting's text again. Only built once there's a search.
+    ///
+    /// Rebuilt whenever the results change. The in-place edits to `jobs` (isNew,
+    /// firstSeen) don't touch anything searched, and the count check catches
+    /// anything that slips by. The memo, by the fields the text is made from,
+    /// means a rebuild only pays for postings it hasn't seen — a scrape changes
+    /// the results once per board.
+    @ObservationIgnored private var searchTextsVersion = -1
+    @ObservationIgnored private var searchTexts: [String] = []
+    @ObservationIgnored private var searchTextMemo: [String: String] = [:]
+
+    private var jobSearchTexts: [String] {
+        if searchTextsVersion != resultsVersion || searchTexts.count != jobs.count {
+            var texts: [String] = []
+            var memo: [String: String] = [:]
+            texts.reserveCapacity(jobs.count)
+            for job in jobs {
+                // Places are parsed from location, so these four are everything
+                // the search text reads.
+                let id = "\(job.company)\u{1F}\(job.title)\u{1F}\(job.location)\u{1F}\(job.department)"
+                let text = memo[id] ?? searchTextMemo[id] ?? ScrapeQuery.searchText(of: job)
+                memo[id] = text
+                texts.append(text)
+            }
+            searchTexts = texts
+            searchTextMemo = memo
+            searchTextsVersion = resultsVersion
+        }
+        return searchTexts
+    }
+
+    /// `Job.roleKey` by company and title. Working it out parses the title for
+    /// places — most of a second across a full scrape, on every merge — and the
+    /// answer never changes.
+    @ObservationIgnored private var roleKeyMemo: [String: String] = [:]
+
+    private func roleKey(of job: Job) -> String {
+        let id = "\(job.company)\u{1F}\(job.title)"
+        if let key = roleKeyMemo[id] { return key }
+        let key = job.roleKey
+        roleKeyMemo[id] = key
+        return key
     }
 
     func toggleContinent(_ name: String) {
@@ -386,14 +450,18 @@ final class AppModel {
         let cutoff = q.cutoffDate
         // Built once, not per posting.
         let firms = applied == .firms ? appliedFirms : []
+        let texts = q.search.isEmpty ? nil : jobSearchTexts    // unread without a search
         var hiddenHeld = 0, appliedHeld = 0
-        let kept = jobs.filter { job in
+        let keptIndices = jobs.indices.filter { i in
+            let job = jobs[i]
             guard selectedCategoryIDs.isEmpty
                     || !job.matchedCategories.isDisjoint(with: selectedCategoryIDs) else { return false }
             guard level == .any || job.matchedLevels.contains(level.rawValue) else {
                 return false
             }
-            guard q.matchesLiveFilters(job, cutoff: cutoff) else { return false }
+            guard q.matchesLiveFilters(job, cutoff: cutoff, searchText: texts?[i]) else {
+                return false
+            }
             // A posting goes only if it names something you excluded. Naming
             // nothing can never exclude it, which is what keeps the majority.
             if !excludedStacks.isEmpty,
@@ -423,10 +491,14 @@ final class AppModel {
         }
         heldHidden = hiddenHeld
         heldApplied = appliedHeld
+        let kept = keptIndices.map { jobs[$0] }
         // Merge after filtering, so a city filter leaves a merged row holding
         // only the locations you asked for — then sort, because merging picks a
         // new primary row and would otherwise scramble the order.
-        return (mergeRoles ? kept.mergedByRole() : kept).sortedByRecency()
+        let rows = mergeRoles
+            ? kept.mergedByRole(roleKeys: kept.map(roleKey(of:)))
+            : kept
+        return rows.sortedByRecency()
     }
 
     /// The Applied list, split into one block per stage in pipeline order.

@@ -235,15 +235,38 @@ struct AdvancedSettingsPanel: View {
 
 struct SearchField: View {
     @Bindable var model: AppModel
+    /// What's typed, handed to the model once typing pauses. Every change to
+    /// `model.search` re-filters every posting, so binding the field straight to
+    /// it made each keystroke wait for a pass over the whole scrape.
+    @State private var text: String
+
+    init(model: AppModel) {
+        self.model = model
+        // Seeded, or the first pass below would wipe out a restored search.
+        _text = State(initialValue: model.search)
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("Search roles, firms or locations", text: $model.search)
+            TextField("Search roles, firms or locations", text: $text)
                 .textFieldStyle(.plain)
-            if !model.search.isEmpty {
-                Button { model.search = "" } label: { Image(systemName: "xmark.circle.fill") }
+            if !text.isEmpty {
+                Button { text = "" } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.plain).accessibilityLabel("Clear search")
             }
+        }
+        .task(id: text) {
+            // Clearing is one change, not a run of them, so it needn't wait.
+            if !text.isEmpty {
+                try? await Task.sleep(for: .milliseconds(150))
+                guard !Task.isCancelled else { return }
+            }
+            if model.search != text { model.search = text }
+        }
+        // Clear Filters, a restored filter set, the other copy of this field.
+        .onChange(of: model.search) { _, search in
+            if search != text { text = search }
         }
         .font(.system(size: 13))
         .padding(.horizontal, 10).frame(minHeight: 34)
