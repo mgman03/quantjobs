@@ -251,6 +251,46 @@ struct RegressionTests {
 
     @MainActor
     @Test
+    func testUnsavedMergedRoleStaysUnsavedAfterReloadAndStaleSync() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let previous = ConfigStore.directoryOverride
+        ConfigStore.directoryOverride = directory
+        defer {
+            ConfigStore.directoryOverride = previous
+            try? FileManager.default.removeItem(at: directory)
+        }
+        try seedConfig(in: directory)
+        var london = job("Software Engineering Intern")
+        london.url = "https://example.invalid/london"
+        var zurich = london
+        zurich.url = "https://example.invalid/zurich"
+        zurich.location = "Zurich"
+        let merged = try #require([london, zurich].mergedByRole().first)
+        let model = AppModel()
+        model.setSaved(true, for: [merged])
+        #expect(model.count(.favorite) == 1)
+        model.setSaved(false, for: [merged])
+        #expect(model.count(.favorite) == 0)
+
+        for posting in [london, zurich] {
+            let cleared = try #require(ConfigStore.loadTracked()[posting.key])
+            #expect(!cleared.saved)
+            #expect(cleared.isEmpty)
+            var stale = SyncMarks()
+            stale.saved = true
+            stale.updated = "2020-01-01T00:00:00Z"
+            stale.job = posting
+            model.absorbMarks(SyncDoc(tracked: [posting.key: stale]))
+            #expect(!model.isSaved(posting))
+        }
+        let reloaded = AppModel()
+        await reloaded.reload()
+        #expect(reloaded.count(.favorite) == 0)
+    }
+
+    @MainActor
+    @Test
     func testLaunchRefreshAndFailedCacheRetention() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

@@ -555,11 +555,10 @@ final class AppModel {
                 // milestone dates, so it cannot carry a time. See Sync.swift.
                 entry.touched = Dates.instant
                 entry.job = posting              // keep the snapshot current
-                if entry.isEmpty {
-                    tracked.removeValue(forKey: key)
-                } else {
-                    tracked[key] = entry
-                }
+                // Keep an unmarked entry as a timestamped tombstone. Removing
+                // it locally lets the older saved copy on the phone win on
+                // the next launch, so an unsaved role reappears indefinitely.
+                tracked[key] = entry
             }
         }
         ConfigStore.saveTracked(tracked)
@@ -1425,6 +1424,7 @@ final class AppModel {
         var changed = false
 
         for (key, entry) in tracked {
+            if entry.isEmpty { continue } // tombstones are not visible postings
             guard scrapedCompanies.contains(entry.job.company) else { continue }
             let stillListed = scrapedKeys.contains(key)
 
@@ -1573,9 +1573,9 @@ final class AppModel {
                 if takeTheirs { mine = incoming.applied(to: mine) }
                 if takeTheirs || steps != mine.milestones {
                     mine.milestones = steps
-                    // An entry the phone cleared has nothing left to keep.
-                    if mine.isEmpty { tracked.removeValue(forKey: key) }
-                    else { tracked[key] = mine }
+                    // Retain remote clears too: they must beat older marks
+                    // arriving from another client on a later sync.
+                    tracked[key] = mine
                     changed = true
                 }
                 continue
