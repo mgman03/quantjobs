@@ -244,8 +244,15 @@ struct RegressionTests {
     }
 
     @Test
-    func testRoleSubtitleOmitsRepeatedLocationAndIntake() {
-        LocationParser.gazetteer = ConfigStore.loadGazetteer()
+    func testRoleSubtitleOmitsRepeatedLocationAndIntake() throws {
+        // The repository's own gazetteer, found from this file. ConfigStore's
+        // would be whichever config folder the machine happens to have — the
+        // developer's checkout passed, CI had none and failed.
+        let repo = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        LocationParser.gazetteer = try Gazetteer(
+            data: Data(contentsOf: repo.appendingPathComponent("locations.json")))
         defer { LocationParser.gazetteer = .empty }
         func parts(_ title: String, location: String) -> (String, String?) {
             var posting = job(title)
