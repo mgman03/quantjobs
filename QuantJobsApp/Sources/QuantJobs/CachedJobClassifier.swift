@@ -3,6 +3,7 @@ import Foundation
 /// Refresh parser-derived fields from a saved cache without blocking the window.
 enum CachedJobClassifier {
     static func reclassify(_ jobs: [Job], research: CategoryMatcher?,
+                           software: CategoryMatcher?,
                            deep: Bool, seen: [String: Sighting]) async -> [Job] {
         guard !jobs.isEmpty else { return [] }
         let workers = min(4, max(1, ProcessInfo.processInfo.activeProcessorCount))
@@ -25,6 +26,20 @@ enum CachedJobClassifier {
                                 copy.matchedCategories.insert("quant-research")
                             } else {
                                 copy.matchedCategories.remove("quant-research")
+                            }
+                        }
+                        // Older caches marked every "research engineer" as SWE.
+                        // Recheck those rows with the narrower current rule.
+                        if let software,
+                           copy.matchedCategories.contains("swe"),
+                           (copy.title + " " + copy.department)
+                            .localizedCaseInsensitiveContains("research engineer") {
+                            let raw = RawJob(title: copy.title, location: copy.location,
+                                             url: copy.url, posted: copy.posted,
+                                             department: copy.department,
+                                             description: copy.description)
+                            if !software.acceptsCategory(raw, deep: deep) {
+                                copy.matchedCategories.remove("swe")
                             }
                         }
                         let classification = Levels.classification(

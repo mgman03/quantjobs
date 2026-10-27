@@ -988,10 +988,12 @@ final class AppModel {
             // reflect the broader Research definition before a scrape finishes.
             let research = categories.first { $0.name == "quant-research" }
                 .map { CategoryMatcher($0) }
+            let software = categories.first { $0.name == "swe" }
+                .map { CategoryMatcher($0) }
             // firstSeen isn't persisted (see Job.firstSeen), so restore it here or
             // every undated cached row would show "–" until the next scrape.
             jobs = await CachedJobClassifier.reclassify(cache.jobs, research: research,
-                                                       deep: deep, seen: seen)
+                                                       software: software, deep: deep, seen: seen)
             showingCache = true
             cacheDate = cache.savedAt
         }
@@ -1402,32 +1404,9 @@ final class AppModel {
                 // Tag every posting with the categories and levels it matches,
                 // then keep anything that landed in at least one category. That
                 // makes switching category or level a filter, not a re-fetch.
-                var kept: [Job] = []
-                for var job in result.jobs {
-                    let raw = RawJob(title: job.title, location: job.location,
-                                     url: job.url, posted: job.posted,
-                                     department: job.department,
-                                     description: job.description)
-                    let cats = matchers.filter { $0.acceptsCategory(raw, deep: q.deep) }
-                    guard !cats.isEmpty else { continue }
-                    job.matchedCategories = Set(cats.map(\.name))
-                    job.matchedStacks = Set(stackMatchers
-                        .filter { $0.acceptsCategory(raw, deep: q.deep) }
-                        .map(\.name))
-                    let classification = Levels.classification(
-                        title: job.title, department: job.department)
-                    job.level = classification.level
-                    job.matchedLevels = classification.matches
-                    // The legacy key too, so the run after the key changed
-                    // doesn't announce every posting as new.
-                    job.isNew = known[job.key] == nil && known[job.legacyKey] == nil
-                    // Stand-in date for boards that state none. Today for one we
-                    // have never seen, since that's when we first saw it.
-                    if job.posted.isEmpty {
-                        job.firstSeen = Sighting.firstSeen(of: job, in: known) ?? today
-                    }
-                    kept.append(job)
-                }
+                let kept = await JobTagger.tag(result.jobs, matchers: matchers,
+                                               stackMatchers: stackMatchers,
+                                               deep: q.deep, seen: known, today: today)
                 // Every key the board returned, before the category filter —
                 // that's what "is this posting still listed?" has to be judged
                 // against, or a swe-only run would call every quant role dead.

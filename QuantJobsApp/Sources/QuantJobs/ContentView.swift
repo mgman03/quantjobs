@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var columns = TableColumnCustomization<Job>()
     @State private var showingFailures = false
     @State private var showingSources = false
+    @State private var rowHoverHint: RowHoverHint?
     /// Width of the detail column, which is the window minus the sidebar. Drives
     /// which table columns survive and whether the side panel is worth its space.
     @State private var pane: CGFloat = 1200
@@ -153,6 +154,19 @@ struct ContentView: View {
         // responds by drawing the sidebar *over* the table, which loses the row
         // marks and the leading characters of every heading.
         .frame(minWidth: 560)
+        .overlay(alignment: .topLeading) {
+            if let hint = rowHoverHint {
+                Text(hint.text)
+                    .font(.system(size: 11))
+                    .fixedSize()
+                    .padding(.horizontal, 8).padding(.vertical, 5)
+                    .background(.regularMaterial, in: .rect(cornerRadius: 6))
+                    .overlay { RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(.quaternary) }
+                    .position(x: hint.x, y: hint.y)
+                    .allowsHitTesting(false)
+            }
+        }
         .toolbar { toolbarContent }
         .sheet(isPresented: $model.showBoardEditor) {
             CompaniesView(model: model)
@@ -166,6 +180,7 @@ struct ContentView: View {
             model.reloadCompaniesIfChangedOnDisk()
         }
         .onChange(of: model.list, initial: true) {
+            rowHoverHint = nil
             columns[visibility: "progress"] = model.list == .applied ? .visible : .hidden
         }
         // Drop the columns you can live without before the ones you can't. Role
@@ -246,7 +261,7 @@ struct ContentView: View {
         // edges clip and "Category" renders as "gory". Pinning the content to
         // the leading edge and letting it actually shrink is what stops it.
         .frame(maxWidth: .infinity, alignment: .leading)
-        .navigationSplitViewColumnWidth(min: 180, ideal: 224, max: 280)
+        .navigationSplitViewColumnWidth(min: 160, ideal: 184, max: 220)
 
     }
 
@@ -445,55 +460,7 @@ struct ContentView: View {
             // One column for the row actions. Four separate icon columns left
             // four empty header cells and a row of stray dividers.
             TableColumn("") { job in
-                HStack(spacing: 7) {
-                    Circle()
-                        .fill(job.isNew ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
-                        .frame(width: 6, height: 6)
-                        .help(job.isNew ? "Not seen on a previous run" : "")
-
-                    Button { model.setSaved(!model.isSaved(job), for: [job]) } label: {
-                        let on = model.isSaved(job)
-                        Image(systemName: on ? "star.fill" : "star")
-                            .foregroundStyle(on ? AnyShapeStyle(.tint)
-                                                : AnyShapeStyle(.tertiary))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(model.isSaved(job) ? "Saved" : "Save")
-                    .help("Save this role")
-
-                    // A plain Button, not a Menu. A Menu builds its content per
-                    // row, and at "All levels" across 54 boards that is tens of
-                    // thousands of menus — a `sample` of the spinning app was
-                    // entirely inside this column's cells. Choosing a *stage*
-                    // lives in the detail panel and the right-click menu; the
-                    // row only starts an application, and once one exists the
-                    // button goes inert so a stray click can't discard it.
-                    let tracked = model.hasApplication(job)
-                    Button {
-                        if !tracked { model.record(.applied, for: [job]) }
-                    } label: {
-                        Image(systemName: tracked ? "paperplane.fill" : "paperplane")
-                            .foregroundStyle(tracked ? AnyShapeStyle(Color.accentColor)
-                                                     : AnyShapeStyle(.tertiary))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(tracked)
-                    .accessibilityLabel(tracked ? "Application tracked" : "Mark applied")
-                    .help(tracked ? "Applied — the detail panel records the stages"
-                                  : "Mark as applied today")
-
-                    Button { model.setHidden(!model.isHidden(job), for: [job]) } label: {
-                        let on = model.isHidden(job)
-                        Image(systemName: on ? "eye.slash.fill" : "eye.slash")
-                            .foregroundStyle(on ? AnyShapeStyle(.secondary)
-                                                : AnyShapeStyle(.tertiary))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(model.isHidden(job) ? "Unhide" : "Hide")
-                    .help(model.isHidden(job)
-                          ? "Unhide — an application here is kept either way"
-                          : "Hide this role")
-                }
+                JobRowActions(job: job, model: model, onHoverHint: showRowHoverHint)
             }
             .width(84)
 
@@ -625,6 +592,23 @@ struct ContentView: View {
             }
             .width(66)
             .customizationID("posted")
+    }
+
+    private struct RowHoverHint {
+        let text: String
+        let x: CGFloat
+        let y: CGFloat
+    }
+
+    private func showRowHoverHint(_ text: String?) {
+        guard let text, let window = NSApp.keyWindow else {
+            rowHoverHint = nil
+            return
+        }
+        let mouse = window.convertPoint(fromScreen: NSEvent.mouseLocation)
+        let content = window.contentLayoutRect
+        rowHoverHint = RowHoverHint(text: text, x: mouse.x - content.minX,
+                                   y: content.maxY - mouse.y - 24)
     }
 
     private func jobTable(_ rows: [Job]) -> some View {
@@ -903,7 +887,120 @@ struct ContentView: View {
     }
 }
 
+/// The three table marks use the whole icon cell as a hit target. Application
+/// progress is chosen explicitly, just as it is in the detail panel.
+private struct JobRowActions: View {
+    let job: Job
+    let model: AppModel
+    let onHoverHint: (String?) -> Void
+    @State private var showingStages = false
+
+    var body: some View {
+        let saved = model.isSaved(job)
+        let tracked = model.hasApplication(job)
+        let hidden = model.isHidden(job)
+        HStack(spacing: 2) {
+            Circle()
+                .fill(job.isNew ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
+                .frame(width: 6, height: 6)
+                .help(job.isNew ? "Not seen on a previous run" : "")
+
+            Button {
+                onHoverHint(nil)
+                model.setSaved(!saved, for: [job])
+            } label: {
+                Image(systemName: saved ? "star.fill" : "star")
+                    .foregroundStyle(saved ? AnyShapeStyle(.tint)
+                                           : AnyShapeStyle(.tertiary))
+                    .frame(width: 22, height: 26)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(saved ? "Unsave" : "Save")
+            .accessibilityHint(saved ? "Remove from Saved. Application progress is kept."
+                                     : "Keep this role in Saved for later.")
+            .onHover { onHoverHint($0 ? (saved ? "Remove from Saved" : "Save for later") : nil) }
+
+            Button {
+                onHoverHint(nil)
+                showingStages.toggle()
+            } label: {
+                Image(systemName: tracked ? "paperplane.fill" : "paperplane")
+                    .foregroundStyle(tracked ? AnyShapeStyle(Color.accentColor)
+                                             : AnyShapeStyle(.tertiary))
+                    .frame(width: 22, height: 26)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(tracked ? "Update application" : "Track application")
+            .accessibilityHint(tracked ? "Choose the next application stage."
+                                       : "Choose Applied, assessment, interview, or later.")
+            .onHover { onHoverHint($0 ? (tracked ? "Update application"
+                                                : "Choose application stage") : nil) }
+            .popover(isPresented: $showingStages, arrowEdge: .bottom) {
+                ApplicationStagePicker(
+                    stages: tracked ? (model.trackedEntry(for: job)?.remainingStages ?? [])
+                                    : Stage.allCases,
+                    applied: tracked) { stage in
+                    if !tracked && stage != .applied {
+                        model.record(.applied, for: [job])
+                    }
+                    model.record(stage, for: [job])
+                    showingStages = false
+                }
+            }
+
+            Button {
+                onHoverHint(nil)
+                model.setHidden(!hidden, for: [job])
+            } label: {
+                Image(systemName: hidden ? "eye.slash.fill" : "eye.slash")
+                    .foregroundStyle(hidden ? AnyShapeStyle(.secondary)
+                                            : AnyShapeStyle(.tertiary))
+                    .frame(width: 22, height: 26)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(hidden ? "Unhide" : "Hide")
+            .accessibilityHint(hidden ? "Show this role in Browse Jobs again."
+                                      : "Hide from Browse Jobs; tracking is kept.")
+            .onHover { onHoverHint($0 ? (hidden ? "Show in Browse Jobs"
+                                               : "Hide from Browse Jobs") : nil) }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Detail panel
+
+/// Shared by the table's paperplane and the detail panel's application button.
+private struct ApplicationStagePicker: View {
+    let stages: [Stage]
+    let applied: Bool
+    let onChoose: (Stage) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(applied ? "Record the next step" : "Record where you are")
+                .font(.caption).foregroundStyle(.secondary)
+                .padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 4)
+            if stages.isEmpty {
+                Text("Nothing left to record")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .padding(.horizontal, 10).padding(.bottom, 8)
+            }
+            ForEach(stages) { stage in
+                Button { onChoose(stage) } label: {
+                    Label(stage.label, systemImage: stage.symbol)
+                        .font(.callout)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.bottom, 6)
+        .frame(width: 210)
+    }
+}
 
 /// The right-hand inspector: everything the board told us about one posting.
 struct JobDetail: View {
@@ -1240,32 +1337,11 @@ struct JobDetailContent: View {
     /// interviewing for takes one click rather than two.
     private func stagePicker(applied: Bool) -> some View {
         let stages = applied ? (tracking?.remainingStages ?? []) : Stage.allCases
-        return VStack(alignment: .leading, spacing: 1) {
-            Text(applied ? "Record the next step" : "Record where you are")
-                .font(.caption).foregroundStyle(.secondary)
-                .padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 4)
-            if stages.isEmpty {
-                Text("Nothing left to record")
-                    .font(.callout).foregroundStyle(.secondary)
-                    .padding(.horizontal, 10).padding(.bottom, 8)
-            }
-            ForEach(stages) { stage in
-                Button {
-                    if !applied && stage != .applied { onRecord(.applied, Dates.today) }
-                    onRecord(stage, Dates.today)
-                    showingStages = false
-                } label: {
-                    Label(stage.label, systemImage: stage.symbol)
-                        .font(.callout)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-            }
+        return ApplicationStagePicker(stages: stages, applied: applied) { stage in
+            if !applied && stage != .applied { onRecord(.applied, Dates.today) }
+            onRecord(stage, Dates.today)
+            showingStages = false
         }
-        .padding(.bottom, 6)
-        .frame(width: 210)
     }
 
     @ViewBuilder

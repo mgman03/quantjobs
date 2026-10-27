@@ -21,9 +21,11 @@ enum HeadlessCheck {
         if args.contains("--migrate") { runMigrationCheck() }
         if args.contains("--ledger") { runLedgerCheck() }
         if args.contains("--audit-titles") { runTitleAudit() }
+        if args.contains("--audit-categories") { runCategoryAudit() }
         if args.contains("--dump-titles") { runTitleDump() }
         if args.contains("--profile-titles") { runTitleProfile() }
         if args.contains("--profile-cache") { runCacheProfile() }
+        if args.contains("--profile-parser") { runParserProfile() }
         if let i = args.firstIndex(of: "--inspect-titles"), i + 1 < args.count {
             runTitleInspection(query: args[i + 1])
         }
@@ -92,6 +94,54 @@ enum HeadlessCheck {
             print(String(format: "loaded %d cached jobs in %.3fs",
                          model.jobs.count, Date().timeIntervalSince(started)))
             exit(model.loadError == nil ? 0 : 1)
+        }
+        dispatchMain()
+    }
+
+    /// Compare sequential and parallel parsing on the largest cached board.
+    /// Uses a copied config folder, with no network or writes.
+    private static func runParserProfile() -> Never {
+        LocationParser.gazetteer = ConfigStore.loadGazetteer()
+        guard let cache = ConfigStore.loadCache(),
+              let companies = try? ConfigStore.loadCompanies().companies,
+              let categories = try? ConfigStore.loadCategories(),
+              let largest = Dictionary(grouping: cache.jobs, by: \.company)
+                .max(by: { $0.value.count < $1.value.count }),
+              let company = companies.first(where: { $0.name == largest.key })
+        else { print("A cached board and config are required"); exit(1) }
+
+        let raw = largest.value.map {
+            RawJob(title: $0.title, location: $0.location, url: $0.url,
+                   posted: $0.posted, department: $0.department,
+                   description: $0.description, linkStatus: $0.linkStatus)
+        }
+        let matchers = categories.filter { $0.parent == nil }.map { CategoryMatcher($0) }
+        let stacks = categories.filter { $0.parent != nil }.map { CategoryMatcher($0) }
+        let started = Date()
+        let serialParsed = Scraper.parseJobsSerial(raw, company: company)
+        let serialParseTime = Date().timeIntervalSince(started)
+        Task {
+            let parallelStart = Date()
+            let parallelParsed = await Scraper.parseJobs(raw, company: company)
+            let parallelParseTime = Date().timeIntervalSince(parallelStart)
+            let serialTagStart = Date()
+            let serialTagged = JobTagger.tagSerial(serialParsed, matchers: matchers,
+                                                    stackMatchers: stacks, deep: false,
+                                                    seen: [:], today: Dates.today)
+            let serialTagTime = Date().timeIntervalSince(serialTagStart)
+            let parallelTagStart = Date()
+            let parallelTagged = await JobTagger.tag(parallelParsed, matchers: matchers,
+                                                     stackMatchers: stacks, deep: false,
+                                                     seen: [:], today: Dates.today)
+            let parallelTagTime = Date().timeIntervalSince(parallelTagStart)
+            let same = serialParsed == parallelParsed && serialTagged == parallelTagged
+            print("\(company.name): \(raw.count) raw, \(serialTagged.count) tagged; "
+                  + "identical=\(same)")
+            print(String(format: "parse %.3fs serial / %.3fs parallel; "
+                         + "tag %.3fs serial / %.3fs parallel",
+                         serialParseTime, parallelParseTime,
+                         serialTagTime, parallelTagTime))
+            exit(same ? 0 : 1)
         }
         dispatchMain()
     }
@@ -832,6 +882,30 @@ enum HeadlessCheck {
         changedFromIntern.forEach { print("  - \($0)") }
         if !danglingStatus.isEmpty { danglingStatus.forEach { print("  dangling \($0)") } }
         exit(danglingStatus.isEmpty ? 0 : 1)
+    }
+
+    /// Re-run current category rules over the cached titles for a full-data
+    /// audit; pipe the TSV into an ignored scratch file.
+    private static func runCategoryAudit() -> Never {
+        guard let cache = ConfigStore.loadCache(),
+              let categories = try? ConfigStore.loadCategories()
+        else { print("No cached jobs or categories to audit"); exit(1) }
+        let named = categories.filter { $0.parent == nil && $0.name != "all" }
+        let matchers = named.map { CategoryMatcher($0) }
+        print("company\tposted_title\tlevel\tcategories")
+        for job in cache.jobs {
+            let raw = RawJob(title: job.title, location: job.location, url: job.url,
+                             posted: job.posted, department: job.department,
+                             description: job.description)
+            let matches = matchers.filter { $0.acceptsCategory(raw, deep: false) }
+                .map(\.name).joined(separator: ",")
+            let fields = [job.company, job.title,
+                          Levels.detect(title: job.title, department: job.department), matches]
+            print(fields.map { $0.replacingOccurrences(of: "\t", with: " ")
+                                  .replacingOccurrences(of: "\n", with: " ") }
+                  .joined(separator: "\t"))
+        }
+        exit(0)
     }
 
     /// `--check --render <dir>` draws the detail panel offscreen, which is the

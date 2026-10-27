@@ -6,6 +6,7 @@ struct FilterBar: View {
     private enum Density: Equatable { case wide, compact, icons }
     @Bindable var model: AppModel
     @State private var showingCategories = false
+    @State private var showingLevels = false
     @State private var showingPlaces = false
     @State private var showingFirms = false
     @State private var showingSettings = false
@@ -43,33 +44,49 @@ struct FilterBar: View {
     private func categoryMenu(_ density: Density, width: CGFloat) -> some View {
         Button { showingCategories.toggle() } label: {
             label("Categories", "square.grid.2x2", density: density)
+                .modifier(FilterControlSurface(width: width))
         }
-            .modifier(FilterControlSurface(width: width))
             .popover(isPresented: $showingCategories) { CategoryFilter(model: model) }
             .help("Choose one or more categories to show jobs.")
     }
 
     private func level(_ density: Density, width: CGFloat) -> some View {
-        Menu {
-            ForEach(Level.allCases) { choice in
-                Button {
-                    model.level = choice
-                } label: {
-                    if model.level == choice {
-                        Label(choice.shortLabel, systemImage: "checkmark")
-                    } else {
-                        Text(choice.shortLabel)
+        Button { showingLevels.toggle() } label: {
+            label(model.level.shortLabel, "graduationcap", density: density)
+                .modifier(FilterControlSurface(width: width))
+        }
+        .popover(isPresented: $showingLevels) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Career level")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 4)
+                ForEach(Level.allCases) { choice in
+                    Button {
+                        model.level = choice
+                        showingLevels = false
+                    } label: {
+                        HStack {
+                            Text(choice.shortLabel)
+                            Spacer()
+                            if model.level == choice { Image(systemName: "checkmark") }
+                        }
+                        .font(.callout)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .contentShape(Rectangle())
                     }
                 }
             }
-        } label: { label(model.level.shortLabel, "graduationcap", density: density) }
-        .modifier(FilterControlSurface(width: width))
+            .padding(.bottom, 6)
+            .frame(width: 175)
+            .buttonStyle(.plain)
+        }
     }
     private func places(_ density: Density, width: CGFloat) -> some View {
         Button { showingPlaces.toggle() } label: {
             label(density == .compact ? "Locations" : placesLabel, "globe", density: density)
+                .modifier(FilterControlSurface(width: width))
         }
-            .modifier(FilterControlSurface(width: width))
             .popover(isPresented: $showingPlaces) { PlaceFilter(model: model) }
             .help(placesLabel)
     }
@@ -77,8 +94,8 @@ struct FilterBar: View {
         Button { showingFirms.toggle() } label: {
             label(density == .compact ? "Firms" : "\(model.selectedFirms.count) firms",
                   "building.2", density: density)
+                .modifier(FilterControlSurface(width: width))
         }
-            .modifier(FilterControlSurface(width: width))
             .popover(isPresented: $showingFirms) { FirmFilter(model: model) }
             .help("\(model.selectedFirms.count) firms")
     }
@@ -86,8 +103,8 @@ struct FilterBar: View {
         Button { showingSettings.toggle() } label: {
             label(density == .compact ? "Settings" : "Advanced Settings",
                   "gearshape", density: density)
+                .modifier(FilterControlSurface(width: width))
         }
-        .modifier(FilterControlSurface(width: width))
         .accessibilityLabel("Advanced Settings")
         .popover(isPresented: $showingSettings, arrowEdge: .bottom) {
             AdvancedSettingsPanel(model: model)
@@ -120,8 +137,8 @@ struct FilterBar: View {
                 if model.hasExtraFilters {
                     Button(action: model.clearFilters) {
                         Label("Clear", systemImage: "xmark").font(.system(size: 12))
+                            .modifier(FilterControlSurface(width: 70))
                     }
-                    .modifier(FilterControlSurface(width: 70))
                 }
             }
         }
@@ -141,20 +158,18 @@ private struct CategoryFilter: View {
                 .font(.headline)
             Text("Select several to show jobs in any of them.")
                 .font(.caption).foregroundStyle(.secondary)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(model.navCategories) { category in
-                        Toggle(isOn: Binding(
-                            get: { model.selectedCategoryIDs.contains(category.name) },
-                            set: { _ in model.toggleCategory(category.name) }
-                        )) {
-                            Label(category.displayName, systemImage: category.symbol)
-                        }
-                        .help(category.description)
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(model.navCategories) { category in
+                    Toggle(isOn: Binding(
+                        get: { model.selectedCategoryIDs.contains(category.name) },
+                        set: { _ in model.toggleCategory(category.name) }
+                    )) {
+                        Label(category.displayName, systemImage: category.symbol)
                     }
+                    .help(category.description)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             HStack {
                 Button("Select all") {
                     model.selectedCategoryIDs = Set(model.navCategories.map(\.name))
@@ -171,7 +186,7 @@ private struct CategoryFilter: View {
             }
         }
         .padding(16)
-        .frame(width: 330, height: 380)
+        .frame(width: 290)
         .controlSize(.small)
     }
 }
@@ -181,7 +196,7 @@ private struct FilterControlSurface: ViewModifier {
     func body(content: Content) -> some View {
         content.frame(width: width, height: 32)
             .background(Color.secondary.opacity(0.10), in: .rect(cornerRadius: 7))
-            .contentShape(RoundedRectangle(cornerRadius: 7))
+            .contentShape(Rectangle())
     }
 }
 

@@ -21,18 +21,7 @@ enum Scraper {
         func elapsed() -> Double { Date().timeIntervalSince(started) }
         do {
             let raw = try await Adapters.fetch(c, deep: deep)
-            let jobs = raw.filter { r in
-                let title = r.title.trimmingCharacters(in: .whitespacesAndNewlines)
-                return !title.isEmpty
-                    && !title.localizedCaseInsensitiveContains("No intern program at this time")
-            }.map { r in
-                Job(company: c.name, title: r.title, location: r.location,
-                    url: r.url, posted: r.posted, department: r.department,
-                    description: r.description, ats: c.ats, tags: c.tags,
-                    level: Levels.detect(title: r.title, department: r.department),
-                    places: LocationParser.parse(r.location),
-                    linkStatus: r.linkStatus)
-            }
+            let jobs = await parseJobs(raw, company: c)
             return BoardResult(company: c, jobs: jobs, failure: nil,
                                seconds: elapsed())
         } catch let e as FetchError {
@@ -46,6 +35,27 @@ enum Scraper {
             return BoardResult(company: c, jobs: [], failure: error.localizedDescription,
                                seconds: elapsed())
         }
+    }
+
+    static func parseJobs(_ raw: [RawJob], company: Company) async -> [Job] {
+        await ParallelJobMap.compactMap(raw) { makeJob($0, company: company) }
+    }
+
+    static func parseJobsSerial(_ raw: [RawJob], company: Company) -> [Job] {
+        raw.compactMap { makeJob($0, company: company) }
+    }
+
+    private static func makeJob(_ raw: RawJob, company: Company) -> Job? {
+        let title = raw.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty,
+              !title.localizedCaseInsensitiveContains("No intern program at this time")
+        else { return nil }
+        return Job(company: company.name, title: raw.title, location: raw.location,
+                   url: raw.url, posted: raw.posted, department: raw.department,
+                   description: raw.description, ats: company.ats, tags: company.tags,
+                   level: Levels.detect(title: raw.title, department: raw.department),
+                   places: LocationParser.parse(raw.location),
+                   linkStatus: raw.linkStatus)
     }
 
     /// Roughly how long each kind of board takes. Some sources need hundreds of

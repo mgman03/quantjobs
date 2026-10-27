@@ -170,12 +170,54 @@ struct RegressionTests {
         #expect(!matcher.acceptsCategory(RawJob(title: "Software Engineer Intern"), deep: false))
         #expect(!matcher.acceptsCategory(RawJob(title: "Recruiter - AI Research"), deep: false))
         #expect(!matcher.acceptsCategory(RawJob(title: "Recruiting Researcher"), deep: false))
+        let software = try #require(ConfigStore.loadCategories().first { $0.name == "swe" })
+        let softwareMatcher = CategoryMatcher(software)
+        let aiResearch = RawJob(title: "Campus AI Research Engineer (Intern)")
+        #expect(matcher.acceptsCategory(aiResearch, deep: false))
+        #expect(!softwareMatcher.acceptsCategory(aiResearch, deep: false))
+        let researchWithSoftwareBoilerplate = RawJob(
+            title: aiResearch.title,
+            description: String(repeating: "Build software engineering systems and platforms. ",
+                                count: 30))
+        #expect(!softwareMatcher.acceptsCategory(researchWithSoftwareBoilerplate, deep: true))
+        #expect(softwareMatcher.acceptsCategory(
+            RawJob(title: "Campus Software Engineer, AI Research (Intern)"), deep: false))
+        #expect(softwareMatcher.acceptsCategory(
+            RawJob(title: "Software Research Engineer Intern"), deep: false))
         var cached = job("Research Intern, Robotics")
         cached.matchedCategories = ["all"] // written before Research included broad titles
-        ConfigStore.saveCache(.init(savedAt: Date(), category: "swe", level: "intern", jobs: [cached]))
+        var campus = job("Campus AI Research Engineer (Intern)")
+        campus.matchedCategories = ["all", "swe", "quant-research"]
+        ConfigStore.saveCache(.init(savedAt: Date(), category: "swe", level: "intern",
+                                     jobs: [cached, campus]))
         let model = AppModel()
         await model.reload()
         #expect(model.jobs.first?.matchedCategories.contains("quant-research") == true)
+        #expect(model.jobs.last?.matchedCategories.contains("quant-research") == true)
+        #expect(model.jobs.last?.matchedCategories.contains("swe") == false)
+    }
+
+    @Test
+    func testParallelParserKeepsSourceOrderAndTags() async {
+        let software = CategoryMatcher(JobCategory(name: "swe", description: "",
+                                                   include: ["software engineer"], exclude: []))
+        let research = CategoryMatcher(JobCategory(name: "quant-research", description: "",
+                                                   include: ["research engineer"], exclude: []))
+        let jobs = (0..<1_200).map { index in
+            Job(company: "Test", title: index.isMultiple(of: 2)
+                ? "Software Engineer Intern" : "Research Engineer Intern",
+                location: "London", url: "https://example.invalid/\(index)",
+                posted: "", department: "", description: "", ats: .greenhouse, tags: [])
+        }
+        let matchers = [software, research]
+        let serial = JobTagger.tagSerial(jobs, matchers: matchers, stackMatchers: [],
+                                         deep: false, seen: [:], today: "2026-10-27")
+        let parallel = await JobTagger.tag(jobs, matchers: matchers, stackMatchers: [],
+                                           deep: false, seen: [:], today: "2026-10-27")
+        #expect(parallel.map(\.key) == serial.map(\.key))
+        #expect(parallel.map(\.matchedCategories) == serial.map(\.matchedCategories))
+        #expect(parallel.map(\.matchedLevels) == serial.map(\.matchedLevels))
+        #expect(parallel.count == jobs.count)
     }
 
     @Test

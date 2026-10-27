@@ -177,6 +177,11 @@ enum Levels {
 
 /// A category's include/exclude lists, compiled once per scrape.
 struct CategoryMatcher: Sendable {
+    private static let researchEngineer = PhraseMatcher(["research engineer"])!
+    private static let softwareResearchSignal = PhraseMatcher([
+        "software", "programming", "compiler", "kernel", "platform",
+        "infrastructure", "distributed systems", "backend", "frontend",
+    ])!
     private static let researchOccupation = PhraseMatcher([
         "researcher", "research scientist", "research analyst", "research science",
         "research engineer", "research internship", "research intern",
@@ -212,6 +217,10 @@ struct CategoryMatcher: Sendable {
     /// Does this posting match the requested category and level?
     func accepts(_ job: RawJob, level: Level, deep: Bool) -> Bool {
         let title = job.title.lowercased()
+        // A generic research-engineer title belongs in Research. Boilerplate
+        // software terms in the description should not also put it in SWE.
+        if name == "swe", Self.researchEngineer.matches(title),
+           !Self.softwareResearchSignal.matches(title) { return false }
         let label = "\(title) \(job.department.lowercased())"
         let body = deep ? job.description.lowercased() : ""
 

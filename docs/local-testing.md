@@ -14,4 +14,9 @@ To time cache loading without changing app state, build the app target and run
 `QuantJobs --check --profile-cache` with `QUANTJOBS_CONFIG` set to a copied config
 folder. The command reports the number of cached postings and elapsed load time.
 
+For live parsing work, use `QuantJobs --check --profile-parser` against that copied
+folder. It compares sequential and parallel parsing of the largest cached board
+and exits nonzero if any job or tag differs. `QuantJobs --check --audit-categories`
+prints a full category TSV; redirect it into `.local-audit/` for review.
+
 Before committing, run `git status --short` and `git diff --cached --stat` to confirm that only source, tests, and intentionally written documentation are staged.
