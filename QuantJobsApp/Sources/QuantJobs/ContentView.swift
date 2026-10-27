@@ -218,51 +218,67 @@ struct ContentView: View {
 
     // MARK: - Sidebar
 
-    /// One selection for the whole sidebar. Lists and categories used to carry
-    /// separate highlights, which left two rows looking selected at once.
-    private var sidebarSelection: Binding<String?> {
-        Binding(
-            get: { "list.\(model.list.rawValue)" },
-            set: { raw in
-                guard let raw, let name = raw.dropPrefixIfPresent("list.") else { return }
-                model.list = AppModel.JobList(rawValue: name) ?? .results
-            })
-    }
-
     private var sidebar: some View {
-        List(selection: sidebarSelection) {
-            Section("Lists") {
-                Label("Browse Jobs", systemImage: "magnifyingglass")
-                    .tag("list.results")
-                ForEach(AppModel.JobList.pickable) { entry in
-                    HStack(spacing: 6) {
-                        Label(entry.title, systemImage: entry.symbol)
-                        Spacer()
-                        if let status = entry.status, model.count(status) > 0 {
-                            // Same capsule as the stage-section counts and the
-                            // Level tag: one treatment for "a small number that
-                            // labels a thing", used everywhere.
-                            Text("\(model.count(status))")
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(.quaternary.opacity(0.6), in: .capsule)
-                        }
-                    }
-                    .tag("list.\(entry.rawValue)")
+        VStack(alignment: .leading, spacing: 0) {
+            Text("WORKSPACE")
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(1)
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 7)
+                .padding(.bottom, 8)
+
+            VStack(spacing: 3) {
+                ForEach(AppModel.JobList.allCases) { entry in
+                    sidebarDestination(entry)
                 }
             }
-
-
+            Divider().padding(.vertical, 15)
+            Text(sidebarExplanation)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 7)
+            Spacer(minLength: 0)
         }
-        // Opening the inspector squeezes this column below its stated width,
-        // and the List keeps its own width inside it and centres — so both
-        // edges clip and "Category" renders as "gory". Pinning the content to
-        // the leading edge and letting it actually shrink is what stops it.
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .navigationSplitViewColumnWidth(min: 160, ideal: 184, max: 220)
+        .padding(.horizontal, 10)
+        .padding(.top, 12)
+        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .navigationSplitViewColumnWidth(min: 160, ideal: 176, max: 200)
+    }
 
+    private func sidebarDestination(_ entry: AppModel.JobList) -> some View {
+        let selected = model.list == entry
+        return Button {
+            selection = []
+            model.list = entry
+        } label: {
+            HStack(spacing: 9) {
+                Image(systemName: entry == .results ? "magnifyingglass" : entry.symbol)
+                    .font(.system(size: 14))
+                    .frame(width: 19)
+                Text(entry == .results ? "Browse Jobs" : entry.title)
+                    .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                Spacer(minLength: 2)
+            }
+            .foregroundStyle(selected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, minHeight: 38)
+            .background(selected ? Color.accentColor.opacity(0.16) : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var sidebarExplanation: String {
+        switch model.list {
+        case .results: "Explore current openings with the filters above the table."
+        case .favorite: "Roles you saved for later, even if the posting disappears."
+        case .applied: "Your applications, organized by their latest stage."
+        case .hidden: "Roles you removed from Browse Jobs. You can show them again here."
+        }
     }
 
     /// Sits above the results rather than in a modal: an update is worth
@@ -383,9 +399,6 @@ struct ContentView: View {
         HStack(spacing: 8) {
             Image(systemName: model.list.symbol)
             Text(model.list.title).font(.headline)
-            Text("kept even after a board takes the posting down")
-                .font(.caption)
-                .foregroundStyle(.secondary)
             Spacer(minLength: 8)
             SearchField(model: model)
             Button("Back to Results") { model.list = .results }
