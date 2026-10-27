@@ -91,6 +91,7 @@ enum ConfigStore {
     static var cacheURL: URL { directory.appendingPathComponent(".cache.json") }
     static var syncURL: URL { directory.appendingPathComponent(".sync.json") }
     static var metaCacheURL: URL { directory.appendingPathComponent(".meta-cache.json") }
+    static var selectionURL: URL { directory.appendingPathComponent(".firms.json") }
 
     // MARK: seeding
 
@@ -235,23 +236,92 @@ enum ConfigStore {
         guard merged != current.companies || bundled.comment != current.comment else { return }
         current.companies = merged
         current.comment = bundled.comment
-        try? saveCompanies(current)
+        // The bundle's defaults, not the ones the file had: a firm the new
+        // version ships switched on should be on for anyone who never chose.
+        try? save(current, defaults: switches(of: bundled))
     }
 
     // MARK: companies
 
+    // companies.json is the roster: which boards exist, how to read them, and
+    // whether each starts switched on. Your Firms selection lives beside it in
+    // .firms.json. They used to be one file, so with the config in a checkout
+    // every click in the Firms picker was a change to a tracked file, and
+    // building the app shipped one person's picks as everyone's defaults.
+    //
+    // Callers never see the split: a loaded Company's `enabled` is your choice,
+    // and saving one records it in .firms.json rather than in the roster.
+
     static func loadCompanies() throws -> CompanyFile {
-        let data = try Data(contentsOf: companiesURL)
-        return try JSONDecoder().decode(CompanyFile.self, from: data)
+        var file = try loadRoster()
+        let chosen = loadSelection() ?? adoptSelection(from: file)
+        for i in file.companies.indices {
+            if let on = chosen[file.companies[i].displayName] {
+                file.companies[i].enabled = on
+            }
+        }
+        return file
     }
 
     static func saveCompanies(_ file: CompanyFile) throws {
+        try save(file, defaults: switches(of: (try? loadRoster()) ?? file))
+    }
+
+    /// Writes the roster with `defaults` as each board's starting state —
+    /// boards it doesn't know keep what they were given — and the effective
+    /// on/off of every board to .firms.json.
+    private static func save(_ file: CompanyFile, defaults: [String: Bool]) throws {
+        var roster = file
+        for i in roster.companies.indices {
+            if let on = defaults[roster.companies[i].displayName] {
+                roster.companies[i].enabled = on
+            }
+        }
         let enc = JSONEncoder()
         // Sorted keys so the file is byte-stable. Swift and Python order keys
         // differently, so without this every launch rewrote companies.json into
         // a 600-line git diff that changed nothing.
         enc.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes, .sortedKeys]
-        try enc.encode(file).write(to: companiesURL, options: .atomic)
+        let data = try enc.encode(roster)
+        // Unchanged is the usual case — a click in the Firms picker touches
+        // only the selection — so leave the file and its timestamp alone.
+        if (try? Data(contentsOf: companiesURL)) != data {
+            try data.write(to: companiesURL, options: .atomic)
+        }
+        saveSelection(switches(of: file))
+    }
+
+    private static func loadRoster() throws -> CompanyFile {
+        let data = try Data(contentsOf: companiesURL)
+        return try JSONDecoder().decode(CompanyFile.self, from: data)
+    }
+
+    /// Keyed by display name rather than `id`: the id includes the board's
+    /// address, so correcting a token would have forgotten whether you wanted
+    /// that firm. Two boards of one firm differ by `board`, so this is unique.
+    private static func switches(of file: CompanyFile) -> [String: Bool] {
+        Dictionary(file.companies.map { ($0.displayName, $0.enabled) },
+                   uniquingKeysWith: { a, _ in a })
+    }
+
+    private static func loadSelection() -> [String: Bool]? {
+        guard let data = try? Data(contentsOf: selectionURL) else { return nil }
+        return try? JSONDecoder().decode([String: Bool].self, from: data)
+    }
+
+    private static func saveSelection(_ chosen: [String: Bool]) {
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try? enc.encode(chosen).write(to: selectionURL, options: .atomic)
+    }
+
+    /// The first launch after the split: whatever companies.json says now *is*
+    /// the selection — for an existing install those are the user's own
+    /// clicks — so it is recorded before anything can reset the roster.
+    private static func adoptSelection(from file: CompanyFile) -> [String: Bool] {
+        let chosen = switches(of: file)
+        saveSelection(chosen)
+        return chosen
     }
 
     // MARK: categories

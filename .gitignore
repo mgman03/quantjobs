@@ -1,35 +1,43 @@
-
-__pycache__/
-.build/
-.cache.json
-.DS_Store
-.meta-cache.json
-.seed-version
-.seen.json
-.sync.json
-.tracked.json
-*.csv
-docs/title-audit-*.tsv
-.local-audit/
-*.dmg
-*.pyc
-# and the DMG is a couple of megabytes, so neither belongs in the history.
-# Build artifacts
-# Generated output
-# macOS
-# make-app.sh drops these in the checkout; both are rebuildable
-# Personal, and nothing anyone else should get a copy of.
-# Written by the app to know which bundled roster it last merged.
 # Your own state — saved/applied roles, seen history, cached results.
+# Personal, and nothing anyone else should get a copy of.
+.tracked.json
+.seen.json
+.cache.json
+.meta-cache.json
+.sync.json
+.firms.json
+
+# Written by the app to know which bundled roster it last merged.
+.seed-version
+
+# Generated output
 internships.md
+*.csv
 new.md
-QuantJobs.app/
-QuantJobsApp/Icon/QuantJobs.icns
-QuantJobsApp/Icon/QuantJobs.iconset/
 roles.md
-Tools/.ax
-Tools/.window-id
 web/
+docs/title-audit-*.tsv
+
+# Scrape dumps, copied configs and screenshots from local checks.
+# See docs/local-testing.md.
+.local-audit/
+
+# Build artifacts
+.build/
+__pycache__/
+*.pyc
+QuantJobsApp/Icon/QuantJobs.iconset/
+QuantJobsApp/Icon/QuantJobs.icns
+# Compiled from Tools/ax.swift and Tools/window-id.swift on first use.
+QuantJobsApp/Tools/.ax
+QuantJobsApp/Tools/.window-id
+# make-app.sh drops these in the checkout; both are rebuildable
+# and the DMG is a couple of megabytes, so neither belongs in the history.
+*.dmg
+QuantJobs.app/
+
+# macOS
+.DS_Store
 
 # graphify: derived knowledge graph. Rebuildable from source, and this
 # repo is public - nothing derived from the ignored config belongs in it.

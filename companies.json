@@ -9,7 +9,7 @@
   "companies" : [
     {
       "ats" : "amazon",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Amazon",
       "query" : "intern",
       "segment" : "FAANG+",
@@ -242,7 +242,7 @@
     },
     {
       "ats" : "eightfold",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "explore.jobs.netflix.net",
       "name" : "Netflix",
       "segment" : "FAANG+",
@@ -296,7 +296,7 @@
     },
     {
       "ats" : "lever",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Palantir",
       "segment" : "FAANG+",
       "tags" : [
@@ -439,7 +439,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "adobe.wd5.myworkdayjobs.com",
       "name" : "Adobe",
       "segment" : "FAANG+",
@@ -453,7 +453,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Affirm",
       "segment" : "FAANG+",
       "tags" : [
@@ -465,7 +465,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Airbnb",
       "segment" : "FAANG+",
       "tags" : [
@@ -489,7 +489,7 @@
     },
     {
       "ats" : "jibe",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "careers.amd.com",
       "name" : "AMD",
       "segment" : "FAANG+",
@@ -503,7 +503,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "analogdevices.wd1.myworkdayjobs.com",
       "name" : "Analog Devices",
       "segment" : "FAANG+",
@@ -517,7 +517,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Anduril",
       "segment" : "Frontier AI",
       "tags" : [
@@ -529,7 +529,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "amat.wd1.myworkdayjobs.com",
       "name" : "Applied Materials",
       "segment" : "FAANG+",
@@ -585,7 +585,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Asana",
       "segment" : "FAANG+",
       "tags" : [
@@ -596,7 +596,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Astera Labs",
       "segment" : "FAANG+",
       "tags" : [
@@ -608,7 +608,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "autodesk.wd1.myworkdayjobs.com",
       "name" : "Autodesk",
       "segment" : "FAANG+",
@@ -635,7 +635,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Block",
       "segment" : "FAANG+",
       "tags" : [
@@ -647,7 +647,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Brex",
       "segment" : "Startups",
       "tags" : [
@@ -699,7 +699,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "citi.wd5.myworkdayjobs.com",
       "name" : "Citi",
       "segment" : "FAANG+",
@@ -713,7 +713,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Cloudflare",
       "segment" : "FAANG+",
       "tags" : [
@@ -725,7 +725,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Cohere",
       "segment" : "Frontier AI",
       "tags" : [
@@ -737,7 +737,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Coinbase",
       "segment" : "FAANG+",
       "tags" : [
@@ -749,7 +749,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Datadog",
       "segment" : "FAANG+",
       "tags" : [
@@ -761,7 +761,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Discord",
       "segment" : "FAANG+",
       "tags" : [
@@ -772,7 +772,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Dropbox",
       "segment" : "FAANG+",
       "tags" : [
@@ -783,7 +783,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "ebay.wd5.myworkdayjobs.com",
       "name" : "eBay",
       "segment" : "FAANG+",
@@ -796,7 +796,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Elastic",
       "segment" : "FAANG+",
       "tags" : [
@@ -820,7 +820,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Epic Games",
       "segment" : "FAANG+",
       "tags" : [
@@ -832,7 +832,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : true,
+      "enabled" : false,
       "name" : "ExodusPoint",
       "note" : "Publishes no listings at all. The homepage's careers link is an anchor to a section offering an email address, and its Greenhouse board holds two signposts rather than roles. Off, because two non-jobs in the table is worse than an absent firm (rechecked 2026-08-19).",
       "segment" : "Tier 2",
@@ -846,7 +846,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Figma",
       "segment" : "FAANG+",
       "tags" : [
@@ -882,7 +882,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "GitLab",
       "segment" : "FAANG+",
       "tags" : [
@@ -920,7 +920,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Instacart",
       "segment" : "FAANG+",
       "tags" : [
@@ -931,7 +931,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "intel.wd1.myworkdayjobs.com",
       "name" : "Intel",
       "segment" : "FAANG+",
@@ -945,7 +945,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "kla.wd1.myworkdayjobs.com",
       "name" : "KLA",
       "segment" : "FAANG+",
@@ -959,7 +959,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Lyft",
       "segment" : "FAANG+",
       "tags" : [
@@ -1000,7 +1000,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "marvell.wd1.myworkdayjobs.com",
       "name" : "Marvell",
       "segment" : "FAANG+",
@@ -1014,7 +1014,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "mastercard.wd1.myworkdayjobs.com",
       "name" : "Mastercard",
       "segment" : "FAANG+",
@@ -1029,7 +1029,7 @@
     {
       "ats" : "workday",
       "board" : "Campus",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "mastercard.wd1.myworkdayjobs.com",
       "name" : "Mastercard",
       "segment" : "FAANG+",
@@ -1057,7 +1057,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "micron.wd1.myworkdayjobs.com",
       "name" : "Micron",
       "segment" : "FAANG+",
@@ -1071,7 +1071,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "MongoDB",
       "segment" : "FAANG+",
       "tags" : [
@@ -1083,7 +1083,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "ms.wd5.myworkdayjobs.com",
       "name" : "Morgan Stanley",
       "segment" : "FAANG+",
@@ -1097,7 +1097,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "nasdaq.wd1.myworkdayjobs.com",
       "name" : "Nasdaq",
       "segment" : "FAANG+",
@@ -1111,7 +1111,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "nxp.wd3.myworkdayjobs.com",
       "name" : "NXP",
       "segment" : "FAANG+",
@@ -1125,7 +1125,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Okta",
       "segment" : "FAANG+",
       "tags" : [
@@ -1149,7 +1149,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "paypal.wd1.myworkdayjobs.com",
       "name" : "PayPal",
       "segment" : "FAANG+",
@@ -1200,7 +1200,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Pinterest",
       "segment" : "FAANG+",
       "tags" : [
@@ -1211,7 +1211,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Pure Storage",
       "segment" : "FAANG+",
       "tags" : [
@@ -1264,7 +1264,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Ramp",
       "segment" : "Startups",
       "tags" : [
@@ -1276,7 +1276,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Reddit",
       "segment" : "FAANG+",
       "tags" : [
@@ -1287,7 +1287,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Riot Games",
       "segment" : "FAANG+",
       "tags" : [
@@ -1299,7 +1299,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Robinhood",
       "segment" : "FAANG+",
       "tags" : [
@@ -1311,7 +1311,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Roblox",
       "segment" : "FAANG+",
       "tags" : [
@@ -1322,7 +1322,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Rubrik",
       "segment" : "FAANG+",
       "tags" : [
@@ -1334,7 +1334,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "salesforce.wd12.myworkdayjobs.com",
       "name" : "Salesforce",
       "segment" : "FAANG+",
@@ -1348,7 +1348,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Samsara",
       "segment" : "FAANG+",
       "tags" : [
@@ -1384,7 +1384,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "SpaceX",
       "segment" : "FAANG+",
       "tags" : [
@@ -1408,7 +1408,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Twilio",
       "segment" : "FAANG+",
       "tags" : [
@@ -1419,7 +1419,7 @@
     },
     {
       "ats" : "uber",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Uber",
       "segment" : "FAANG+",
       "tags" : [
@@ -1480,7 +1480,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Waymo",
       "segment" : "Frontier AI",
       "tags" : [
@@ -1517,7 +1517,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "workday.wd5.myworkdayjobs.com",
       "name" : "Workday",
       "segment" : "FAANG+",
@@ -1543,7 +1543,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "zoom.wd5.myworkdayjobs.com",
       "name" : "Zoom",
       "segment" : "FAANG+",
@@ -1556,7 +1556,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Airtable",
       "segment" : "Startups",
       "tags" : [
@@ -1568,7 +1568,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Astranis",
       "segment" : "Startups",
       "tags" : [
@@ -1580,7 +1580,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Aurora",
       "note" : "Ashby under 'aurora-operations-inc'. The board renders client-side, but the page config carries the slug as ashbyOrgSlug. 70 roles.",
       "segment" : "Frontier AI",
@@ -1593,7 +1593,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Bracebridge",
       "segment" : "Tier 3",
       "tags" : [
@@ -1605,7 +1605,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Carta",
       "segment" : "Startups",
       "tags" : [
@@ -1617,7 +1617,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Cockroach Labs",
       "segment" : "Startups",
       "tags" : [
@@ -1629,7 +1629,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Da Vinci Derivatives",
       "segment" : "Tier 3",
       "tags" : [
@@ -1642,7 +1642,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Decagon",
       "segment" : "Frontier AI",
       "tags" : [
@@ -1654,7 +1654,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Duolingo",
       "segment" : "FAANG+",
       "tags" : [
@@ -1666,7 +1666,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "DV Trading",
       "segment" : "Tier 3",
       "tags" : [
@@ -1678,7 +1678,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Eclipse Trading",
       "segment" : "Tier 3",
       "tags" : [
@@ -1691,7 +1691,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "ElevenLabs",
       "segment" : "Frontier AI",
       "tags" : [
@@ -1703,7 +1703,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Flexport",
       "segment" : "Startups",
       "tags" : [
@@ -1715,7 +1715,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Geneva Trading",
       "segment" : "Tier 3",
       "tags" : [
@@ -1727,7 +1727,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Grasshopper",
       "segment" : "Tier 3",
       "tags" : [
@@ -1740,7 +1740,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Gusto",
       "segment" : "Startups",
       "tags" : [
@@ -1752,7 +1752,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Harvey",
       "segment" : "Frontier AI",
       "tags" : [
@@ -1764,7 +1764,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Keyrock",
       "segment" : "Tier 3",
       "tags" : [
@@ -1777,7 +1777,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Klaviyo",
       "segment" : "FAANG+",
       "tags" : [
@@ -1789,7 +1789,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "LangChain",
       "segment" : "Frontier AI",
       "tags" : [
@@ -1801,7 +1801,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Linear",
       "segment" : "Startups",
       "tags" : [
@@ -1813,7 +1813,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Marqeta",
       "segment" : "FAANG+",
       "tags" : [
@@ -1825,7 +1825,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Mercor",
       "segment" : "Frontier AI",
       "tags" : [
@@ -1837,7 +1837,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Modal",
       "segment" : "Frontier AI",
       "tags" : [
@@ -1849,7 +1849,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Nuro",
       "segment" : "Frontier AI",
       "tags" : [
@@ -1861,7 +1861,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Peloton",
       "segment" : "FAANG+",
       "tags" : [
@@ -1873,7 +1873,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Physical Intelligence",
       "segment" : "Frontier AI",
       "tags" : [
@@ -1885,7 +1885,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Postman",
       "segment" : "Startups",
       "tags" : [
@@ -1897,7 +1897,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Qualtrics",
       "segment" : "FAANG+",
       "tags" : [
@@ -1909,7 +1909,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Relativity Space",
       "segment" : "Startups",
       "tags" : [
@@ -1921,7 +1921,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Replit",
       "segment" : "Frontier AI",
       "tags" : [
@@ -1933,7 +1933,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Roku",
       "segment" : "FAANG+",
       "tags" : [
@@ -1945,7 +1945,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Simplex Trading",
       "segment" : "Tier 3",
       "tags" : [
@@ -1957,7 +1957,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "SoFi",
       "segment" : "FAANG+",
       "tags" : [
@@ -1969,7 +1969,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Supabase",
       "segment" : "Startups",
       "tags" : [
@@ -1981,7 +1981,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Toast",
       "segment" : "FAANG+",
       "tags" : [
@@ -1993,7 +1993,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Twitch",
       "segment" : "FAANG+",
       "tags" : [
@@ -2005,7 +2005,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Verkada",
       "segment" : "Startups",
       "tags" : [
@@ -2030,7 +2030,7 @@
     },
     {
       "ats" : "lever",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Ansatz Capital",
       "segment" : "Tier 3",
       "tags" : [
@@ -2042,7 +2042,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Blackedge Capital",
       "segment" : "Tier 3",
       "tags" : [
@@ -2054,7 +2054,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : true,
+      "enabled" : false,
       "host" : "blackrock.wd1.myworkdayjobs.com",
       "name" : "BlackRock",
       "note" : "Its own careers search returns 403 to scripted callers; the Workday board behind it does not. No query, because the whole site is 300 roles — and searching it for 'internship' returns none today. BlackRock_Campus, BlackRock_Students and Campus_Careers are all 404, so this is the only site there is; early-career roles will be picked up here when posted (checked 2026-08-19).",
@@ -2096,7 +2096,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Celonis",
       "segment" : "Startups",
       "tags" : [
@@ -2120,7 +2120,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Confluent",
       "segment" : "FAANG+",
       "tags" : [
@@ -2132,7 +2132,7 @@
     },
     {
       "ats" : "workday",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "crowdstrike.wd5.myworkdayjobs.com",
       "name" : "CrowdStrike",
       "segment" : "FAANG+",
@@ -2173,7 +2173,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "DeepL",
       "segment" : "Startups",
       "tags" : [
@@ -2186,7 +2186,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Figure AI",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2213,7 +2213,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Glean",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2280,7 +2280,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Monzo",
       "segment" : "Startups",
       "tags" : [
@@ -2293,7 +2293,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Notion",
       "segment" : "Startups",
       "tags" : [
@@ -2304,7 +2304,7 @@
     },
     {
       "ats" : "sitemap",
-      "enabled" : false,
+      "enabled" : true,
       "host" : "plaid.com",
       "name" : "Plaid",
       "note" : "Its board is RippleMatch, which exposes no readable API — but plaid.com's own sitemap lists every opening as a page under /careers/openings/.",
@@ -2319,7 +2319,7 @@
     },
     {
       "ats" : "smartrecruiters",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "ServiceNow",
       "segment" : "FAANG+",
       "tags" : [
@@ -2330,7 +2330,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Sierra",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2342,7 +2342,7 @@
     },
     {
       "ats" : "ashby",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Snowflake",
       "segment" : "FAANG+",
       "tags" : [
@@ -2354,7 +2354,7 @@
     },
     {
       "ats" : "lever",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Spotify",
       "segment" : "FAANG+",
       "tags" : [
@@ -2377,7 +2377,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Together AI",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2389,7 +2389,7 @@
     },
     {
       "ats" : "lever",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Valkyrie Trading",
       "segment" : "Tier 3",
       "tags" : [
@@ -2402,7 +2402,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Vercel",
       "segment" : "Startups",
       "tags" : [
@@ -2426,7 +2426,7 @@
     },
     {
       "ats" : "greenhouse",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Wayve",
       "segment" : "Frontier AI",
       "tags" : [
@@ -2451,7 +2451,7 @@
     },
     {
       "ats" : "lever",
-      "enabled" : false,
+      "enabled" : true,
       "name" : "Zoox",
       "segment" : "Frontier AI",
       "tags" : [

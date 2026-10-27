@@ -63,37 +63,24 @@ taking an optional `host` to point at a different season's file.
 
 [simplify]: https://github.com/SimplifyJobs/Summer2027-Internships
 
-Adding a new ATS means writing one fetch function and registering it in `ADAPTERS`
-(Python) and `Adapters` (Swift).
+Adding a new ATS means writing one fetch function in `Adapters.swift` and a case
+in `ATS` (`Models.swift`).
 
-## Apple, Google, Meta and Microsoft
+## Firms without an ordinary board
 
-None of them publish anything a script can read: their own endpoints need a browser
-session, their sitemaps return the single-page-app shell or 403, and no ATS sits in
-front of them. They come from the Simplify feed instead, which links to each firm's
-own application page — second-hand and internships-only, so a lead rather than the
-firm's board.
+Apple, Google and Meta used to come second-hand from the Simplify feed; each now
+has an adapter that reads the firm's own careers site (`apple`, `google`, `meta`).
+Hudson River Trading, Marshall Wace and Plaid are read from their sitemaps.
+Chicago Trading Co, Maven Securities and PEAK6, once listed here as having no
+source, now have ordinary boards.
 
-Rechecked 2026-08-03 by pulling the feed and running every link through the verifier:
+Microsoft is still on the Simplify feed, and ships off: its own site refuses
+scripted connections, and the feed is a lead rather than the firm's board.
 
-| firm | listings | links | ships |
-|---|--:|---|---|
-| Apple | 12 | 11 resolve 200, 1 dead and dropped | **on** |
-| Microsoft | 4 | 3 resolve 200, 1 dead and dropped | **on** |
-| Meta | 5 | metacareers.com returns 400 to scripts — unconfirmable | off |
-| Google | 3 | all three resolved dead | off |
-
-Meta and Google ship off because nothing about them can be confirmed. Flip `enabled`
-if you want the leads anyway; Meta's arrive flagged as unverified. Each firm's entry
-records its own verdict, so the caveat travels with the data.
-
-Four firms have no source at all — Chicago Trading Co, Maven Securities, PEAK6 and
-Quantlab. All four render their boards client-side with no ATS fingerprint in the HTML
-(rechecked 2026-08-03). They stay in the file as disabled placeholders with a note, so
-it's clear they were considered rather than missed.
-
-Caveat on HRT: its public Greenhouse board is a small talent-community board, so most
-HRT roles won't appear.
+The firms with nothing readable ship off with a dated `note` saying what was
+tried — the README lists them. They stay in the file so it is clear they were
+considered rather than missed. Every firm's `note` is the authority on how it is
+read; this section only summarises.
 
 ## How locations are read
 

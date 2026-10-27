@@ -11,6 +11,14 @@ on:
     - cron: "17 * * * *"        # hourly, at :17 — off the hour to avoid the stampede
   workflow_dispatch:             # and on demand from the Actions tab
 
+# One run at a time. The page's ⟳ button can start a run while the hourly one
+# is still going, and both restore the first-seen ledger, add to it and
+# force-push it: whichever pushed second dropped what the first had added.
+# Not cancel-in-progress — a run part-way through has postings worth keeping.
+concurrency:
+  group: fetch
+  cancel-in-progress: false
+
 jobs:
   fetch:
     runs-on: ubuntu-latest

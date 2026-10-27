@@ -341,6 +341,48 @@ struct RegressionTests {
                 == "Customer Experience Associate")
     }
 
+    @Test
+    func testFirmSelectionStaysOutOfTheRoster() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let previous = ConfigStore.directoryOverride
+        ConfigStore.directoryOverride = directory
+        defer { ConfigStore.directoryOverride = previous; try? FileManager.default.removeItem(at: directory) }
+
+        func writeRoster(_ firms: [Company]) throws {
+            try JSONEncoder().encode(CompanyFile(comment: nil, companies: firms))
+                .write(to: ConfigStore.companiesURL)
+        }
+        func roster() throws -> [String: Bool] {
+            let file = try JSONDecoder().decode(CompanyFile.self,
+                                                from: Data(contentsOf: ConfigStore.companiesURL))
+            return Dictionary(uniqueKeysWithValues: file.companies.map { ($0.name, $0.enabled) })
+        }
+        func loaded() throws -> [String: Bool] {
+            Dictionary(uniqueKeysWithValues: try ConfigStore.loadCompanies().companies
+                .map { ($0.name, $0.enabled) })
+        }
+
+        // An install from before the split: what the roster says is the selection.
+        try writeRoster([Company(name: "A", ats: .greenhouse, token: "a", enabled: true),
+                         Company(name: "B", ats: .greenhouse, token: "b", enabled: false)])
+        #expect(try loaded() == ["A": true, "B": false])
+
+        // Switching a firm off is recorded as a choice, not written into the roster.
+        var file = try ConfigStore.loadCompanies()
+        file.companies[0].enabled = false
+        try ConfigStore.saveCompanies(file)
+        #expect(try roster() == ["A": true, "B": false])
+        #expect(try loaded() == ["A": false, "B": false])
+
+        // A new roster changes defaults and adds a firm: choices stay, the
+        // newcomer arrives as shipped.
+        try writeRoster([Company(name: "A", ats: .greenhouse, token: "a", enabled: true),
+                         Company(name: "B", ats: .greenhouse, token: "b", enabled: true),
+                         Company(name: "C", ats: .greenhouse, token: "c", enabled: true)])
+        #expect(try loaded() == ["A": false, "B": false, "C": true])
+    }
+
     @MainActor
     @Test
     func testCachedListRemainsObservable() {

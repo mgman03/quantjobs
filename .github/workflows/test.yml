@@ -1,0 +1,29 @@
+# Runs the regression tests on every push and pull request. fetch.yml only builds
+# the scraper; nothing ran the tests, so a broken one stayed broken until someone
+# happened to run `swift test` by hand.
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # The tests drive AppModel and the window's helpers, so they need macOS.
+  swift-tests:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift test
+        run: swift test --package-path QuantJobsApp
+
+  # The hourly fetch builds this package on Linux, where SwiftUI and AppKit do
+  # not exist. A file that forgets its `#if canImport(SwiftUI)` passes the macOS
+  # job and only fails at the next scheduled run — so build it here first.
+  linux-build:
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift build
+        run: swift build -c release --package-path QuantJobsApp

@@ -16,7 +16,12 @@ const marks = {
                  milestones: s }),
 };
 const page = fs.readFileSync(process.argv[2], 'utf8');
-const keys = [...page.matchAll(/data-key="([^"]+)"/g)].map(m => m[1]);
+// One posting per role. Two cities of the same role merge into one row, and
+// marking both counted one row where the test expected two.
+const roles = new Set();
+const keys = [...page.matchAll(/data-key="([^"]+)" data-role="([^"]*)"/g)]
+  .filter(([, , role]) => !roles.has(role) && roles.add(role))
+  .map(m => m[1]);
 const tracked = {
   [keys[0]]: marks.steps([{ stage: 'Applied', date: '2026-08-01', done: null }]),
   [keys[1]]: marks.steps([{ stage: 'Applied', date: '2026-08-02', done: null }]),

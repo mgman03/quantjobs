@@ -91,7 +91,7 @@ enum Scraper {
         let quick = companies.filter { expectedCost($0.ats) < 20 }
             .sorted { expectedCost($0.ats) < expectedCost($1.ats) }
         let warm = workers <= 1 ? 0 : min(slow.count, max(1, workers / 4))
-        return Array(slow.prefix(warm)) + quick + slow.dropFirst(warm)
+        return Array(slow.prefix(warm)) + quick + Array(slow.dropFirst(warm))
     }
 
     /// Run every board with at most `workers` in flight, reporting each one as
@@ -192,8 +192,15 @@ struct ScrapeQuery: Sendable {
         // Bytes, not Characters: both sides are lowercased already, and
         // String.contains walking Characters was ten times slower — 85ms a
         // keystroke across 37,000 postings.
+        // Unwrapped by hand: Glibc's memmem takes non-optional pointers, so
+        // passing baseAddress straight through built on macOS only — and the
+        // hourly fetch, which builds on Linux, failed from then on. The needle
+        // is never empty here, so a nil address can only be an empty haystack.
         return hay.withUTF8 { h in
-            needle.withUTF8 { n in memmem(h.baseAddress, h.count, n.baseAddress, n.count) != nil }
+            needle.withUTF8 { n in
+                guard let hp = h.baseAddress, let np = n.baseAddress else { return false }
+                return memmem(hp, h.count, np, n.count) != nil
+            }
         }
     }
 
