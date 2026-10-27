@@ -121,11 +121,27 @@ final class Updater {
     }
 
     private static func fetchLatest() async throws -> Release {
+        var lastError: Error?
+        for attempt in 0..<3 {
+            do {
+                return try await fetchLatestOnce()
+            } catch let error as URLError
+                where error.code == .timedOut || error.code == .networkConnectionLost {
+                lastError = error
+                if attempt < 2 {
+                    try await Task.sleep(for: .seconds(attempt + 1))
+                }
+            }
+        }
+        throw lastError ?? Failure("couldn't check for updates")
+    }
+
+    private static func fetchLatestOnce() async throws -> Release {
         let url = URL(string: "https://api.github.com/repos/\(repo)/releases/latest")!
         var request = URLRequest(url: url)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue(HTTP.userAgent, forHTTPHeaderField: "User-Agent")
-        request.timeoutInterval = 15
+        request.timeoutInterval = 30
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {

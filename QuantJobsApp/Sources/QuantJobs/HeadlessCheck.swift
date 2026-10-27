@@ -430,6 +430,7 @@ enum HeadlessCheck {
                 print("GitHub says we're current")
             case .failed(let why):
                 print("check failed: \(why)")
+                bad += 1
             default:
                 print("phase: \(updater.phase)")
             }
@@ -437,8 +438,11 @@ enum HeadlessCheck {
             // Run the whole install against a throwaway copy: download the real
             // disk image, mount it, verify the bundle, and swap it in. Only the
             // relaunch is skipped, since nothing is running out of the target.
-            if CommandLine.arguments.contains("--install"),
-               case .available(let release) = updater.phase {
+            if CommandLine.arguments.contains("--install") {
+                guard case .available(let release) = updater.phase else {
+                    print("INSTALL FAILED — no newer release available")
+                    exit(1)
+                }
                 let target = FileManager.default.temporaryDirectory
                     .appendingPathComponent("QuantJobs-installtest-\(UUID().uuidString).app")
                 print("\ninstalling \(release.version) into a throwaway copy…")
